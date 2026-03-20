@@ -1,0 +1,22 @@
+{
+  "name": "stellarecord-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "Polaris",
+    "StellaRecord",
+    "Alpheratz"
+  ],
+  "scripts": {
+    "dev:Polaris": "cd Polaris && npx tauri dev",
+    "dev:StellaRecord": "cd StellaRecord && npx tauri dev",
+    "dev:Alpheratz": "cd Alpheratz && npx tauri dev",
+    "build:Polaris-bin": "cd Polaris/src-tauri && cargo build --release -p polaris -q",
+    "build:Polaris-pkg": "npm run build:Polaris-bin && cd Polaris && npx tauri build --bundles nsis",
+    "build:StellaRecord-pkg": "cd StellaRecord && npx tauri build",
+    "build:Alpheratz-pkg": "cd Alpheratz && npx tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.0"
+  }
+}
