@@ -1,22 +1,33 @@
 {
-  "name": "stellarecord-workspace",
-  "version": "1.0.0",
+  "name": "alpheratz",
   "private": true,
-  "workspaces": [
-    "Polaris",
-    "StellaRecord",
-    "Alpheratz"
-  ],
+  "version": "0.1.0",
+  "type": "module",
   "scripts": {
-    "dev:Polaris": "cd Polaris && npx tauri dev",
-    "dev:StellaRecord": "cd StellaRecord && npx tauri dev",
-    "dev:Alpheratz": "cd Alpheratz && npx tauri dev",
-    "build:Polaris-bin": "cd Polaris/src-tauri && cargo build --release -p polaris -q",
-    "build:Polaris-pkg": "npm run build:Polaris-bin && cd Polaris && npx tauri build --bundles nsis",
-    "build:StellaRecord-pkg": "cd StellaRecord && npx tauri build",
-    "build:Alpheratz-pkg": "cd Alpheratz && npx tauri build"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-shell": "^2.3.5",
+    "lucide-react": "^0.575.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-window": "^2.2.7"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.10.0"
+    "@tailwindcss/vite": "^4.2.1",
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "tailwindcss": "^4.2.1",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
   }
 }

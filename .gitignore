@@ -1,16 +1,34 @@
-﻿.env
-.env*.local
-credentials.json
-*.pem
-node_modules/
-**/node_modules/
-target/
-**/target/
-dist/
-build/
-**/gen/
-*.tsbuildinfo
+﻿# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local environment and secrets
+.env
+.env*.local
+credentials.json
+*.pem
+
+# Dependencies and build outputs
+node_modules
+dist
+dist-ssr
+target
+**/target
+**/gen
+*.tsbuildinfo
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
