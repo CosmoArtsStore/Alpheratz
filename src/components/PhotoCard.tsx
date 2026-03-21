@@ -6,10 +6,11 @@ import { useViewportPresence } from "../hooks/useViewportPresence";
 
 interface PhotoCardProps {
   data: DisplayPhotoItem[];
-  onSelect: (item: DisplayPhotoItem) => void;
+  onSelect: (item: DisplayPhotoItem, shiftKey: boolean) => void;
   onToggleSelect: (item: DisplayPhotoItem, shiftKey: boolean) => void;
   isSelected: (item: DisplayPhotoItem) => boolean;
   showTags: boolean;
+  showSelectionToggle: boolean;
   columnCount: number;
   columnIndex: number;
   rowIndex: number;
@@ -17,7 +18,7 @@ interface PhotoCardProps {
 }
 
 export const PhotoCard = ({
-  data, onSelect, onToggleSelect, isSelected, showTags, columnCount, columnIndex, rowIndex, style,
+  data, onSelect, onToggleSelect, isSelected, showTags, showSelectionToggle, columnCount, columnIndex, rowIndex, style,
 }: PhotoCardProps) => {
   const index = rowIndex * columnCount + columnIndex;
   const item = data[index];
@@ -25,8 +26,8 @@ export const PhotoCard = ({
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const shouldLoadThumb = useViewportPresence(cardRef, photo?.photo_path, {
-    rootMargin: "64px 0px",
-    releaseDelayMs: 180,
+    rootMargin: "16px 0px",
+    releaseDelayMs: 60,
   });
 
   useEffect(() => {
@@ -53,20 +54,27 @@ export const PhotoCard = ({
   const selected = isSelected(item);
 
   return (
-    <div ref={cardRef} style={style} className="photo-card-wrapper" onClick={() => onSelect(item)}>
+    <div
+      ref={cardRef}
+      style={style}
+      className="photo-card-wrapper"
+      onClick={(event) => onSelect(item, event.shiftKey)}
+    >
       <div className={`photo-card ${selected ? "selected" : ""}`}>
         <div className="photo-thumb-container">
-          <button
-            className={`photo-select-toggle ${selected ? "selected" : ""}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleSelect(item, event.shiftKey);
-            }}
-            aria-label={selected ? "選択解除" : "選択"}
-            type="button"
-          >
-            {selected ? "✓" : ""}
-          </button>
+          {showSelectionToggle && (
+            <button
+              className={`photo-select-toggle ${selected ? "selected" : ""}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleSelect(item, event.shiftKey);
+              }}
+              aria-label={selected ? "選択解除" : "選択"}
+              type="button"
+            >
+              {selected ? "✓" : ""}
+            </button>
+          )}
           {thumbUrl
             ? <img src={thumbUrl} alt={photo.photo_filename} className="photo-thumb" loading="lazy" decoding="async" draggable={false} />
             : <div className="photo-thumb-skeleton" />
@@ -81,9 +89,6 @@ export const PhotoCard = ({
               {item.groupCount}枚
             </span>
           )}
-          <span className={`photo-source-badge slot-${photo.source_slot === 2 ? "2" : "1"}`}>
-            {photo.source_slot === 2 ? "2nd" : "1st"}
-          </span>
         </div>
         <div className="photo-info">
           <div className="photo-meta-row">

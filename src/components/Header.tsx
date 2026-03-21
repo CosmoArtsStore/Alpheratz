@@ -8,6 +8,8 @@ interface HeaderProps {
   setSearchQuery: (val: string) => void;
   hashProgressLabel?: string | null;
   activeFilterCount?: number;
+  controlsDisabled?: boolean;
+  filterDisabled?: boolean;
 }
 
 export const Header = ({
@@ -18,19 +20,22 @@ export const Header = ({
   setSearchQuery,
   hashProgressLabel,
   activeFilterCount = 0,
+  controlsDisabled = false,
+  filterDisabled = false,
 }: HeaderProps) => {
   return (
-    <header className="header">
+    <header className={`header ${controlsDisabled ? "disabled" : ""}`}>
       <div className="header-left-tools">
         <button
           className={`header-filter-button ${activeFilterCount > 0 ? "active" : ""}`}
           onClick={onToggleFilters}
+          disabled={controlsDisabled || filterDisabled}
           aria-label="検索条件"
           title="検索条件"
           type="button"
         >
           <span className="header-filter-icon">
-            <Icons.Menu />
+            <Icons.Filter />
           </span>
           <span className="header-filter-label">検索条件</span>
           {activeFilterCount > 0 && <span className="header-filter-count">{activeFilterCount}</span>}
@@ -45,6 +50,7 @@ export const Header = ({
               type="text"
               placeholder="ワールド名で検索..."
               value={searchQuery}
+              disabled={controlsDisabled}
               onChange={(event) => setSearchQuery(event.target.value)}
             />
           </div>
@@ -55,6 +61,7 @@ export const Header = ({
         <button
           className="header-icon-button"
           onClick={onRefresh}
+          disabled={controlsDisabled}
           aria-label="再読み込み"
           title="再読み込み"
           type="button"
@@ -69,6 +76,7 @@ export const Header = ({
         <button
           className="header-icon-button"
           onClick={onOpenSettings}
+          disabled={controlsDisabled}
           aria-label="設定"
           title="設定"
           type="button"

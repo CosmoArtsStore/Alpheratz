@@ -7,10 +7,11 @@ import { GalleryLayoutResult } from "./galleryLayout";
 
 interface PhotoGridCellProps {
     data: DisplayPhotoItem[];
-    onSelect: (item: DisplayPhotoItem) => void;
+    onSelect: (item: DisplayPhotoItem, shiftKey: boolean) => void;
     onToggleSelect: (item: DisplayPhotoItem, shiftKey: boolean) => void;
     isSelected: (item: DisplayPhotoItem) => boolean;
     showTags: boolean;
+    showSelectionToggle: boolean;
     columnCount: number;
 }
 
@@ -65,7 +66,7 @@ export const PhotoGrid = ({
     onGridRef,
 }: PhotoGridProps) => {
     if (viewMode === "gallery") {
-        const overscan = 48;
+        const overscan = 24;
         const visibleTop = Math.max(0, scrollTop - overscan);
         const visibleBottom = scrollTop + gridHeight + overscan;
         const visibleItems = (galleryLayout?.items ?? []).filter((item) => (
@@ -104,6 +105,7 @@ export const PhotoGrid = ({
                                 onSelect={cellProps.onSelect}
                                 onToggleSelect={cellProps.onToggleSelect}
                                 selected={cellProps.isSelected(item)}
+                                showSelectionToggle={cellProps.showSelectionToggle}
                             />
                         </div>
                     ))}

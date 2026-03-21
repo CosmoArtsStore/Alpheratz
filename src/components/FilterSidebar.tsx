@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Icons } from "./Icons";
 
 interface FilterSidebarProps {
     isOpen: boolean;
@@ -357,7 +358,7 @@ export const FilterSidebar = ({
                         className={`dd-trigger ${isWorldDropdownOpen ? "open" : ""} ${worldFilters.length > 0 ? "active" : ""}`}
                         onClick={() => setIsWorldDropdownOpen((prev) => !prev)}
                     >
-                        <span className="dd-icon">🌐</span>
+                        <span className="dd-icon"><Icons.Globe /></span>
                         <div className="dd-label-wrap">
                             <div className="dd-sublabel">ワールド</div>
                             <div className="dd-value">{selectedWorldLabel}</div>
@@ -449,7 +450,7 @@ export const FilterSidebar = ({
                             setIsDatePickerOpen((prev) => !prev);
                         }}
                     >
-                        <span className="dt-cal-icon">📅</span>
+                        <span className="dt-cal-icon"><Icons.Calendar /></span>
                         <div className="dt-body">
                             <div className="dt-label">撮影日</div>
                             <div className={`dt-value ${dateFrom || dateTo ? "" : "placeholder"}`}>{rangeLabel}</div>
@@ -471,7 +472,7 @@ export const FilterSidebar = ({
                         <div className="cal-popup">
                             <div className="cal-top">
                                 <div className="cal-top-label">
-                                    <span>📅</span>
+                                    <span className="cal-top-icon"><Icons.Calendar /></span>
                                     <span className="cal-top-range">{rangeLabel}</span>
                                 </div>
                                 <div className="cal-top-hint">From / To を切り替えて選択します</div>

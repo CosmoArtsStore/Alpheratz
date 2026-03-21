@@ -1,36 +1,62 @@
 
 
 export const Icons = {
-    Menu: () => (
-        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-            <line x1="2" y1="5" x2="18" y2="5" />
-            <line x1="2" y1="10" x2="18" y2="10" />
-            <line x1="2" y1="15" x2="18" y2="15" />
-            <circle cx="6" cy="5" r="2" fill="currentColor" stroke="none" />
-            <circle cx="13" cy="10" r="2" fill="currentColor" stroke="none" />
-            <circle cx="8" cy="15" r="2" fill="currentColor" stroke="none" />
+    Filter: () => (
+        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 5.2h9.8" />
+            <path d="M3 10h14" />
+            <path d="M3 14.8h7.8" />
+            <circle cx="14.9" cy="5.2" r="1.7" fill="currentColor" stroke="none" />
+            <circle cx="8.1" cy="10" r="1.7" fill="currentColor" stroke="none" />
+            <circle cx="12.9" cy="14.8" r="1.7" fill="currentColor" stroke="none" />
         </svg>
     ),
     Refresh: () => (
-        <svg viewBox="0 0 24 24" className="icon-svg"><path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" /></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor" className="icon-svg" stroke="none">
+            <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+        </svg>
     ),
     Settings: () => (
-        <svg viewBox="0 0 24 24" className="icon-svg"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.66 15.47,5.32 14.87,5.07L14.49,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.51,2.42L9.13,5.07C8.53,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.95C7.96,18.34 8.53,18.68 9.13,18.93L9.51,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.49,21.58L14.87,18.93C15.47,18.68 16.04,18.34 16.56,17.95L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" /></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor" className="icon-svg" stroke="none">
+            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.66 15.47,5.32 14.87,5.07L14.49,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.51,2.42L9.13,5.07C8.53,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.95C7.96,18.34 8.53,18.68 9.13,18.93L9.51,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.49,21.58L14.87,18.93C15.47,18.68 16.04,18.34 16.56,17.95L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+        </svg>
     ),
     Search: () => (
-        <svg viewBox="0 0 24 24" className="icon-svg"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z" /></svg>
+        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="9" r="4.8" />
+            <path d="m12.8 12.8 3 3" />
+        </svg>
     ),
     Link: () => (
-        <svg viewBox="0 0 24 24" className="icon-svg"><path d="M3.9,12C3.9,10.29 5.29,8.9 7,8.9H11V7H7A5,5 0 0,0 2,12A5,5 0 0,0 7,17H11V15.1H7C5.29,15.1 3.9,13.71 3.9,12M8,13H16V11H8V13M17,7H13V8.9H17C18.71,8.9 20.1,10.29 20.1,12C20.1,13.71 18.71,15.1 17,15.1H13V17H17A5,5 0 0,0 22,12A5,5 0 0,0 17,7Z" /></svg>
+        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7.4 12.6 5.8 14.2a3 3 0 1 1-4.2-4.2L3.2 8.4" />
+            <path d="m12.6 7.4 1.6-1.6a3 3 0 1 1 4.2 4.2l-1.6 1.6" />
+            <path d="m6.7 13.3 6.6-6.6" />
+        </svg>
     ),
     Close: () => (
-        <svg viewBox="0 0 24 24" className="icon-svg"><path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" /></svg>
+        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m5 5 10 10" />
+            <path d="M15 5 5 15" />
+        </svg>
     ),
     Sun: () => (
-        <svg viewBox="0 0 24 24" className="icon-svg"><path d="M12 7A5 5 0 1 1 7 12A5 5 0 0 1 12 7M12 2L13.09 5.26L16 4L14.74 6.91L18 8L14.74 9.09L16 12L13.09 10.74L12 14L10.91 10.74L8 12L9.26 9.09L6 8L9.26 6.91L8 4L10.91 5.26L12 2Z" /></svg>
+        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="10" cy="10" r="3" />
+            <path d="M10 2.5v2" />
+            <path d="M10 15.5v2" />
+            <path d="m4.7 4.7 1.4 1.4" />
+            <path d="m13.9 13.9 1.4 1.4" />
+            <path d="M2.5 10h2" />
+            <path d="M15.5 10h2" />
+            <path d="m4.7 15.3 1.4-1.4" />
+            <path d="m13.9 6.1 1.4-1.4" />
+        </svg>
     ),
     Moon: () => (
-        <svg viewBox="0 0 24 24" className="icon-svg"><path d="M14.77 4.09C15.8 4.24 16.78 4.61 17.64 5.17A8 8 0 0 1 10.17 19A8.14 8.14 0 0 1 6.36 18.09A9 9 0 0 0 14.77 4.09Z" /></svg>
+        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12.8 3.2A6.8 6.8 0 1 0 16.8 14a6 6 0 1 1-4-10.8Z" />
+        </svg>
     ),
     Grid: () => (
         <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -38,6 +64,14 @@ export const Icons = {
             <rect x="11" y="2" width="7" height="7" rx="1.5" />
             <rect x="2" y="11" width="7" height="7" rx="1.5" />
             <rect x="11" y="11" width="7" height="7" rx="1.5" />
+        </svg>
+    ),
+    Photo: () => (
+        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2.5" y="3" width="15" height="14" rx="2.3" />
+            <circle cx="7.1" cy="7.3" r="1.35" fill="currentColor" stroke="none" />
+            <path d="m4.9 14.1 3.15-3.3a1 1 0 0 1 1.45 0l1.9 1.95" />
+            <path d="m9.8 14.1 1.85-1.95a1 1 0 0 1 1.46-.02l1.95 1.97" />
         </svg>
     ),
     Gallery: () => (
@@ -82,6 +116,28 @@ export const Icons = {
             <path d="M3.5 10h13" />
             <path d="M10 3c1.9 2.1 2.9 4.5 2.9 7S11.9 14.9 10 17" />
             <path d="M10 3C8.1 5.1 7.1 7.5 7.1 10s1 4.9 2.9 7" />
+        </svg>
+    ),
+    Calendar: () => (
+        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4.5" width="14" height="12" rx="2.2" />
+            <path d="M6.4 2.8v3.1" />
+            <path d="M13.6 2.8v3.1" />
+            <path d="M3 8h14" />
+            <path d="M6.4 10.9h2.1" />
+            <path d="M10.1 10.9h2.1" />
+            <path d="M6.4 13.6h2.1" />
+        </svg>
+    ),
+    Folder: () => (
+        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2.5 6.5A2.5 2.5 0 0 1 5 4h3l1.5 1.8H15A2.5 2.5 0 0 1 17.5 8.3v5.2A2.5 2.5 0 0 1 15 16H5a2.5 2.5 0 0 1-2.5-2.5z" />
+        </svg>
+    ),
+    CheckSquare: () => (
+        <svg viewBox="0 0 20 20" fill="none" className="icon-svg" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="14" height="14" rx="3" />
+            <path d="m6.8 10.2 2.1 2.1 4.4-4.7" />
         </svg>
     ),
     Extension: () => (

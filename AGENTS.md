@@ -5,6 +5,9 @@
 - 常に毎回のセッションで必ず質問を挟まず、`npm run tauri build`を権限昇格で実行すること。（`vite` の `esbuild` 起動が `spawn EPERM` で止まるため）タイムアウトで止まった場合も確認を挟まず十分な待ち時間へ自動で延長して再実行してよい。
 - ファイル読み込み時は Get-Content -Encoding UTF8 を使用すること。
 - 共通規約 `.agents/rules/coding-standard.md` を全Project共通の正規規約として扱うこと。
+- Alpheratz の正規作業先は `F:\DEVELOPFOLDER\Repositories\Alpheratz` とし、以後の build / tauri dev / 編集は必ずこのディレクトリを基準に行うこと。
+- Git 状態の確認、commit、push の基準もこのリポジトリに統一すること。Alpheratz の push 先は `origin = https://github.com/CosmoArtsStore/Alpheratz.git` と理解し、作業内容の判断や成果物確認もこのリポジトリを正とすること。
+- `F:\DEVELOPFOLDER\STELLAProject` は別リポジトリ `https://github.com/CosmoArtsStore/vrc-log-backup-photo-rename.git` であり、Alpheratz の build / dev / push 判断に使わないこと。
 
 ## コード実装規約
 - 業界標準のライブラリ、実装方式、データ形式、設計パターンで補える処理は原則として独自実装しないこと

@@ -336,8 +336,8 @@ pub fn create_display_thumbnail_file(path: &str, source_slot: i64) -> Result<Str
 }
 
 pub fn create_grid_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    // WebView2 GPU プロセスの負荷を抑えつつ視認性を保つため、一覧表示は中間サイズにする。
-    create_thumbnail_file_with_size(path, source_slot, 384, "grid.v2")
+    // 一覧スクロール時のデコード負荷を抑えるため、一覧専用は 384px に抑える。
+    create_thumbnail_file_with_size(path, source_slot, 384, "grid.v4")
 }
 
 pub fn copy_photo_files(photo_paths: &[String], destination_dir: &str) -> Result<usize, String> {

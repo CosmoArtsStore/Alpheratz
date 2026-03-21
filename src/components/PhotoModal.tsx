@@ -21,13 +21,18 @@ interface PhotoModalProps {
   canGoNext?: boolean;
   onGoPrev?: () => void;
   onGoNext?: () => void;
-  similarPhotos?: Photo[];
-  showSimilarPhotos?: boolean;
-  onSelectSimilarPhoto?: (photo: Photo) => void;
+  groupedPhotos?: Photo[];
+  groupedPhotoTotalCount?: number;
+  groupedPhotoLabel?: string;
+  showGroupedPhotos?: boolean;
+  onSelectGroupedPhoto?: (photo: Photo) => void;
+  canTweet?: boolean;
+  tweetTooltipLabel?: string;
   onToggleFavorite: () => void;
   onTweet: () => void;
   onAddTag: (tag: string) => void;
   onRemoveTag: (tag: string) => void;
+  onOpenTagMaster: () => void;
   addToast: (msg: string) => void;
 }
 
@@ -43,8 +48,8 @@ const SimilarPhotoThumb = ({
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const shouldLoadThumb = useViewportPresence(buttonRef, photo.photo_path, {
-    rootMargin: "40px 0px",
-    releaseDelayMs: 180,
+    rootMargin: "120px 240px",
+    releaseDelayMs: 420,
   });
 
   useEffect(() => {
@@ -100,19 +105,30 @@ export const PhotoModal = ({
   canGoNext,
   onGoPrev,
   onGoNext,
-  similarPhotos = [],
-  showSimilarPhotos = false,
-  onSelectSimilarPhoto,
+  groupedPhotos = [],
+  groupedPhotoTotalCount,
+  groupedPhotoLabel = "",
+  showGroupedPhotos = false,
+  onSelectGroupedPhoto,
+  canTweet = true,
+  tweetTooltipLabel = "ツイート投稿画面を開く",
   onToggleFavorite,
   onTweet,
   onAddTag,
   onRemoveTag,
+  onOpenTagMaster,
   addToast,
 }: PhotoModalProps) => {
-  const [selectedExistingTag, setSelectedExistingTag] = useState("");
+  const [selectedExistingTags, setSelectedExistingTags] = useState<string[]>([]);
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState("");
   const similarStripRef = useRef<HTMLDivElement | null>(null);
+  const tagDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const availableTags = allTags.filter((tag) => !photo.tags.includes(tag));
+  const filteredAvailableTags = availableTags.filter((tag) => (
+    tag.toLowerCase().includes(tagSearchQuery.trim().toLowerCase())
+  ));
   const hasAvailableTags = availableTags.length > 0;
   const isDbMatched = photo.match_source === "stella_db";
   const isPhashMatched = photo.match_source === "phash";
@@ -126,16 +142,30 @@ export const PhotoModal = ({
   };
 
   const addExistingTag = () => {
-    if (!selectedExistingTag) {
+    if (selectedExistingTags.length === 0) {
       return;
     }
-    onAddTag(selectedExistingTag);
-    setSelectedExistingTag("");
+    selectedExistingTags.forEach((tag) => onAddTag(tag));
+    setSelectedExistingTags([]);
   };
 
   useEffect(() => {
-    setSelectedExistingTag("");
+    setSelectedExistingTags([]);
+    setIsTagDropdownOpen(false);
+    setTagSearchQuery("");
   }, [photo.photo_path]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(target)) {
+        setIsTagDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
 
   const handleSimilarStripWheel = (event: WheelEvent<HTMLDivElement>) => {
     const strip = similarStripRef.current;
@@ -166,50 +196,56 @@ export const PhotoModal = ({
           <Icons.Close />
         </button>
         <div className="modal-body photo-modal-body">
-          <div className="modal-image-container photo-modal-image">
-            <button
-              className="photo-edge-button photo-edge-button-prev"
-              onClick={onGoPrev}
-              disabled={!canGoPrev}
-              aria-label="前の写真"
-              type="button"
-            >
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <button
-              className="photo-edge-button photo-edge-button-next"
-              onClick={onGoNext}
-              disabled={!canGoNext}
-              aria-label="次の写真"
-              type="button"
-            >
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-            <img src={convertFileSrc(photo.photo_path)} alt="" />
-            {showSimilarPhotos && similarPhotos.length > 1 && onSelectSimilarPhoto && (
-              <div className="similar-photos-hover-zone">
-                <div className="similar-photos-hover-hint">
-                  類似写真 {similarPhotos.length}枚
+          <div className={`modal-image-container photo-modal-image ${showGroupedPhotos && groupedPhotos.length > 1 ? "has-similar-strip" : ""}`}>
+            <div className="photo-modal-image-stage">
+              <button
+                className="photo-edge-button photo-edge-button-prev"
+                onClick={onGoPrev}
+                disabled={!canGoPrev}
+                aria-label="前の写真"
+                type="button"
+              >
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <button
+                className="photo-edge-button photo-edge-button-next"
+                onClick={onGoNext}
+                disabled={!canGoNext}
+                aria-label="次の写真"
+                type="button"
+              >
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+              <img src={convertFileSrc(photo.photo_path)} alt="" />
+            </div>
+            {showGroupedPhotos && groupedPhotos.length > 1 && onSelectGroupedPhoto && (
+              <>
+                <div className="similar-photos-strip-trigger" />
+                <div className="similar-photos-strip">
+                  <div
+                    ref={similarStripRef}
+                    className="similar-photos-strip-scroll"
+                    onWheel={handleSimilarStripWheel}
+                  >
+                    {groupedPhotos.map((item) => (
+                      <SimilarPhotoThumb
+                        key={item.photo_path}
+                        photo={item}
+                        isActive={item.photo_path === photo.photo_path}
+                        onSelect={onSelectGroupedPhoto}
+                      />
+                    ))}
+                  </div>
+                  <div className="similar-photos-strip-count">
+                    {groupedPhotoLabel ? `${groupedPhotoLabel} ` : ""}{groupedPhotoTotalCount ?? groupedPhotos.length} 枚
+                  </div>
                 </div>
-                <div
-                  ref={similarStripRef}
-                  className="similar-photos-hover-strip"
-                  onWheel={handleSimilarStripWheel}
-                >
-                  {similarPhotos.map((item) => (
-                    <SimilarPhotoThumb
-                      key={item.photo_path}
-                      photo={item}
-                      isActive={item.photo_path === photo.photo_path}
-                      onSelect={onSelectSimilarPhoto}
-                    />
-                  ))}
-                </div>
-              </div>
+                <div className="similar-photos-strip-hint" />
+              </>
             )}
             <div className="photo-modal-filename">{photo.photo_filename}</div>
           </div>
@@ -230,35 +266,103 @@ export const PhotoModal = ({
             <div className="memo-section photo-modal-form">
               <label>タグ</label>
               <div className="tag-select-row">
-                <div className="tag-select-wrap">
-                  <select
-                    className="tag-select"
-                    value={selectedExistingTag}
+                <div ref={tagDropdownRef} className="dd-wrap photo-modal-tag-dropdown">
+                  <button
+                    type="button"
+                    className={`dd-trigger ${isTagDropdownOpen ? "open" : ""} ${selectedExistingTags.length > 0 ? "active" : ""}`}
                     disabled={!hasAvailableTags}
-                    onChange={(event) => setSelectedExistingTag(event.target.value)}
+                    onClick={() => {
+                      if (!hasAvailableTags) {
+                        return;
+                      }
+                      setIsTagDropdownOpen((prev) => !prev);
+                    }}
                   >
-                    <option value="">
-                      {hasAvailableTags ? "タグを選択..." : "追加できるタグがありません"}
-                    </option>
-                    {availableTags.map((tag) => (
-                      <option key={tag} value={tag}>
-                        {tag}
-                      </option>
-                    ))}
-                  </select>
+                    <span className="dd-icon">#</span>
+                    <div className="dd-label-wrap">
+                      <div className="dd-sublabel">タグ</div>
+                      <div className="dd-value">
+                        {selectedExistingTags.length > 0
+                          ? `${selectedExistingTags.length}件選択中`
+                          : (hasAvailableTags ? "タグを選択..." : "追加できるタグがありません")}
+                      </div>
+                    </div>
+                    <span className="dd-arrow">▼</span>
+                  </button>
+
+                  {isTagDropdownOpen && (
+                    <div className="dd-panel photo-modal-tag-panel">
+                      <div className="dd-search-wrap">
+                        <span className="dd-search-icon">⌕</span>
+                        <input
+                          className="dd-search"
+                          value={tagSearchQuery}
+                          placeholder="タグ名で絞り込む..."
+                          onChange={(event) => setTagSearchQuery(event.target.value)}
+                        />
+                      </div>
+                      <div className="dd-list checkbox-list photo-modal-tag-option-list">
+                        {filteredAvailableTags.length === 0 ? (
+                          <div className="tag-dropdown-empty">該当するタグがありません。</div>
+                        ) : (
+                          filteredAvailableTags.map((tag) => (
+                            <label key={tag} className="dd-check-item photo-modal-tag-check-item">
+                              <input
+                                type="checkbox"
+                                checked={selectedExistingTags.includes(tag)}
+                                onChange={() => {
+                                  setSelectedExistingTags((prev) => (
+                                    prev.includes(tag)
+                                      ? prev.filter((item) => item !== tag)
+                                      : [...prev, tag]
+                                  ));
+                                }}
+                              />
+                              <span className="dd-item-dot" />
+                              <span className="dd-item-name">{tag}</span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                      <div className="dd-footer">
+                        <strong>{availableTags.length}</strong> タグ
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <button
-                  className="save-button"
+                  className="save-button settings-action-button"
                   onClick={addExistingTag}
-                  disabled={!selectedExistingTag || !hasAvailableTags}
+                  disabled={selectedExistingTags.length === 0 || !hasAvailableTags}
                   type="button"
                 >
                   追加
                 </button>
               </div>
+              {selectedExistingTags.length > 0 && (
+                <div className="tag-list photo-modal-tag-selection-list">
+                  {selectedExistingTags.map((tag) => (
+                    <button
+                      key={tag}
+                      className="tag-chip"
+                      onClick={() => setSelectedExistingTags((prev) => prev.filter((item) => item !== tag))}
+                      type="button"
+                    >
+                      {tag} ×
+                    </button>
+                  ))}
+                </div>
+              )}
               {!hasAvailableTags && (
                 <div className="tag-select-empty-note">
-                  追加できるタグがありません。設定画面でタグを追加してください。
+                  <div>追加できるタグがありません。</div>
+                  <button
+                    className="tag-master-link-button"
+                    onClick={onOpenTagMaster}
+                    type="button"
+                  >
+                    タグマスタ編集を開く
+                  </button>
                 </div>
               )}
 
@@ -294,10 +398,11 @@ export const PhotoModal = ({
                   <AnimatedFavoriteStar liked={photo.is_favorite} className="favorite-star-modal" />
                 </button>
               </HoverTooltip>
-              <HoverTooltip label="ツイート投稿画面を開く">
+              <HoverTooltip label={tweetTooltipLabel}>
                 <button
                   className="photo-modal-bottom-action photo-modal-bottom-action-tweet"
                   onClick={onTweet}
+                  disabled={!canTweet}
                   aria-label="ツイート投稿画面を開く"
                   type="button"
                 >
@@ -320,7 +425,7 @@ export const PhotoModal = ({
                   </svg>
                 </button>
               </HoverTooltip>
-              <HoverTooltip label="エクスプローラーで表示">
+              <HoverTooltip label="エクスプローラーで表示" className="tooltip-align-right">
                 <button
                   className="photo-modal-bottom-action photo-modal-bottom-action-explorer"
                   onClick={() => void handleShowInExplorer()}
