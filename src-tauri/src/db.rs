@@ -1,9 +1,10 @@
 use crate::config::load_setting;
 use crate::config::{load_backup_paths, save_backup_paths, BackupPathEntry};
-use crate::models::PhotoRecord;
+use crate::models::{PhotoPage, PhotoRecord, SelectedPhotoRef, WorldFilterOption};
 use crate::utils::{
     clear_directory_contents, get_alpheratz_backup_dir, get_alpheratz_db_cache_dir,
     get_alpheratz_img_cache_dir, get_alpheratz_install_dir, get_alpheratz_log_dir,
+    resolve_thumbnail_cache_path_string,
 };
 use chrono::Local;
 use rusqlite::Connection;
@@ -333,43 +334,68 @@ pub fn get_photos(
     start_date: Option<String>,
     end_date: Option<String>,
     world_query: Option<String>,
-    world_exact: Option<String>,
+    world_exacts: Option<Vec<String>>,
+    source_slot: Option<i64>,
     orientation: Option<String>,
     favorites_only: Option<bool>,
     tag_filters: Option<Vec<String>>,
     include_phash: Option<bool>,
-) -> Result<Vec<PhotoRecord>, String> {
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> Result<PhotoPage, String> {
     let conn = open_alpheratz_connection(1)?;
-    let mut sql = format!(
-        "SELECT photo_filename, photo_path, world_id, world_name, timestamp, '' AS memo, {} AS phash, orientation, image_width, image_height, source_slot, is_favorite, match_source, is_missing FROM photos WHERE is_missing = 0",
-        if include_phash == Some(true) { "phash" } else { "NULL" }
-    );
+    let mut where_sql = String::from(" FROM photos WHERE is_missing = 0");
 
     if start_date.is_some() {
-        sql.push_str(" AND timestamp >= :start");
+        where_sql.push_str(" AND timestamp >= :start");
     }
     if end_date.is_some() {
-        sql.push_str(" AND timestamp <= :end");
+        where_sql.push_str(" AND timestamp <= :end");
     }
     if world_query.is_some() {
-        sql.push_str(" AND world_name LIKE :query");
+        where_sql.push_str(" AND world_name LIKE :query");
     }
-    if world_exact.is_some() {
-        if world_exact.as_deref() == Some("unknown") {
-            sql.push_str(" AND world_name IS NULL");
-        } else {
-            sql.push_str(" AND world_name = :exact");
+    if let Some(filters) = &world_exacts {
+        if !filters.is_empty() {
+            let include_unknown = filters.iter().any(|value| value == "unknown");
+            let named_filters: Vec<&String> = filters
+                .iter()
+                .filter(|value| value.as_str() != "unknown")
+                .collect();
+            where_sql.push_str(" AND (");
+            let mut has_clause = false;
+            if !named_filters.is_empty() {
+                where_sql.push_str("world_name IN (");
+                for (index, _) in named_filters.iter().enumerate() {
+                    if index > 0 {
+                        where_sql.push_str(", ");
+                    }
+                    where_sql.push_str(&format!(":world_exact_{index}"));
+                }
+                where_sql.push(')');
+                has_clause = true;
+            }
+            if include_unknown {
+                if has_clause {
+                    where_sql.push_str(" OR ");
+                }
+                where_sql.push_str("world_name IS NULL");
+            }
+            where_sql.push(')');
         }
     }
     if orientation.is_some() {
-        sql.push_str(" AND orientation = :orientation");
+        where_sql.push_str(" AND orientation = :orientation");
+    }
+    if source_slot.is_some() {
+        where_sql.push_str(" AND source_slot = :source_slot");
     }
     if favorites_only == Some(true) {
-        sql.push_str(" AND is_favorite = 1");
+        where_sql.push_str(" AND is_favorite = 1");
     }
     if let Some(filters) = &tag_filters {
         for (index, _) in filters.iter().enumerate() {
-            sql.push_str(&format!(
+            where_sql.push_str(&format!(
                 " AND EXISTS (
                     SELECT 1
                     FROM photo_tags pt
@@ -381,11 +407,20 @@ pub fn get_photos(
         }
     }
 
-    sql.push_str(" ORDER BY timestamp DESC");
+    let count_sql = format!("SELECT COUNT(*){}", where_sql);
+    let mut sql = format!(
+        "SELECT photo_filename, photo_path, world_id, world_name, timestamp, '' AS memo, {} AS phash, orientation, image_width, image_height, source_slot, is_favorite, match_source, is_missing",
+        if include_phash == Some(true) { "phash" } else { "NULL" }
+    );
+    sql.push_str(&where_sql);
 
-    let mut stmt = conn
-        .prepare(&sql)
-        .map_err(|e| format!("写真一覧クエリを準備できません [{}]: {}", sql, e))?;
+    sql.push_str(" ORDER BY timestamp DESC");
+    if let Some(limit) = limit {
+        sql.push_str(&format!(" LIMIT {}", limit));
+    }
+    if let Some(offset) = offset {
+        sql.push_str(&format!(" OFFSET {}", offset));
+    }
 
     let query_val = world_query.as_ref().map(|w| format!("%{}%", w));
     let mut params = Vec::new();
@@ -398,13 +433,20 @@ pub fn get_photos(
     if let Some(ref q) = query_val {
         params.push((":query", q as &dyn rusqlite::ToSql));
     }
-    if let Some(ref x) = world_exact {
-        if x != "unknown" {
-            params.push((":exact", x as &dyn rusqlite::ToSql));
-        }
+    let world_exact_bindings = world_exacts.unwrap_or_default();
+    for (index, world_name) in world_exact_bindings
+        .iter()
+        .filter(|value| value.as_str() != "unknown")
+        .enumerate()
+    {
+        let key = Box::leak(format!(":world_exact_{index}").into_boxed_str());
+        params.push((key, world_name as &dyn rusqlite::ToSql));
     }
     if let Some(ref value) = orientation {
         params.push((":orientation", value as &dyn rusqlite::ToSql));
+    }
+    if let Some(ref value) = source_slot {
+        params.push((":source_slot", value as &dyn rusqlite::ToSql));
     }
     let tag_bindings = tag_filters.unwrap_or_default();
     for (index, tag) in tag_bindings.iter().enumerate() {
@@ -412,11 +454,34 @@ pub fn get_photos(
         params.push((key, tag as &dyn rusqlite::ToSql));
     }
 
+    let total = conn
+        .query_row(&count_sql, params.as_slice(), |row| row.get::<_, i64>(0))
+        .map_err(|e| format!("写真件数クエリを実行できません [{}]: {}", count_sql, e))?
+        .max(0) as usize;
+
+    let mut stmt = conn
+        .prepare(&sql)
+        .map_err(|e| format!("写真一覧クエリを準備できません [{}]: {}", sql, e))?;
+
     let rows = stmt
         .query_map(params.as_slice(), |row| {
+            let photo_path = row.get::<_, String>(1)?;
+            let source_slot = row.get::<_, i64>(10)?;
             Ok(PhotoRecord {
                 photo_filename: row.get(0)?,
-                photo_path: row.get(1)?,
+                photo_path: photo_path.clone(),
+                grid_thumb_path: resolve_thumbnail_cache_path_string(
+                    &photo_path,
+                    source_slot,
+                    "browse.v1",
+                )
+                .ok(),
+                display_thumb_path: resolve_thumbnail_cache_path_string(
+                    &photo_path,
+                    source_slot,
+                    "browse.v1",
+                )
+                .ok(),
                 world_id: row.get(2)?,
                 world_name: row.get(3)?,
                 timestamp: row.get(4)?,
@@ -425,7 +490,7 @@ pub fn get_photos(
                 orientation: row.get(7)?,
                 image_width: row.get(8)?,
                 image_height: row.get(9)?,
-                source_slot: row.get::<_, i64>(10)?,
+                source_slot,
                 is_favorite: row.get::<_, i64>(11)? != 0,
                 tags: Vec::new(),
                 match_source: row.get(12)?,
@@ -442,7 +507,74 @@ pub fn get_photos(
         }
     }
 
+    Ok(PhotoPage {
+        items: results,
+        total,
+    })
+}
+
+pub fn get_world_filter_options() -> Result<Vec<WorldFilterOption>, String> {
+    let conn = open_alpheratz_connection(1)?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT world_name, COUNT(*) AS photo_count
+             FROM photos
+             WHERE is_missing = 0
+             GROUP BY world_name
+             ORDER BY CASE WHEN world_name IS NULL OR TRIM(world_name) = '' THEN 1 ELSE 0 END,
+                      photo_count DESC,
+                      world_name COLLATE NOCASE ASC",
+        )
+        .map_err(|err| format!("ワールド一覧クエリを準備できません: {}", err))?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(WorldFilterOption {
+                world_name: row.get(0)?,
+                count: row.get(1)?,
+            })
+        })
+        .map_err(|err| format!("ワールド一覧クエリを実行できません: {}", err))?;
+
+    let mut results = Vec::new();
+    for row in rows {
+        match row {
+            Ok(record) => results.push(record),
+            Err(err) => crate::utils::log_warn(&format!("world filter row decode failed: {}", err)),
+        }
+    }
+
     Ok(results)
+}
+
+pub fn get_selected_photo_refs(photo_paths: &[String]) -> Result<Vec<SelectedPhotoRef>, String> {
+    if photo_paths.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let conn = open_alpheratz_connection(1)?;
+    let placeholders = std::iter::repeat_n("?", photo_paths.len()).collect::<Vec<_>>().join(", ");
+    let sql = format!(
+        "SELECT photo_path, source_slot, is_favorite FROM photos WHERE photo_path IN ({})",
+        placeholders
+    );
+
+    let mut stmt = conn
+        .prepare(&sql)
+        .map_err(|err| format!("選択写真情報の取得準備に失敗しました: {}", err))?;
+    let params = rusqlite::params_from_iter(photo_paths.iter());
+    let rows = stmt
+        .query_map(params, |row| {
+            Ok(SelectedPhotoRef {
+                photo_path: row.get(0)?,
+                source_slot: row.get(1)?,
+                is_favorite: row.get(2)?,
+            })
+        })
+        .map_err(|err| format!("選択写真情報の取得に失敗しました: {}", err))?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|err| format!("選択写真情報の読み取りに失敗しました: {}", err))
 }
 
 pub fn save_photo_memo(source_slot: i64, filename: &str, memo: &str) -> Result<(), String> {
@@ -935,6 +1067,48 @@ pub fn reset_photo_cache() -> Result<(), String> {
             format!(
                 "log のリセットに失敗しました [{}]: {}",
                 log_dir.display(),
+                err
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
+pub fn reset_photo_cache_for_slot(source_slot: i64) -> Result<(), String> {
+    let conn = open_alpheratz_connection(1)?;
+    let tx = conn.unchecked_transaction().map_err(|err| {
+        format!(
+            "写真キャッシュ削除トランザクションを開始できません [slot={}]: {}",
+            source_slot, err
+        )
+    })?;
+
+    tx.execute(
+        "DELETE FROM photo_tags
+         WHERE photo_path IN (
+             SELECT photo_path
+             FROM photos
+             WHERE source_slot = ?1
+         )",
+        rusqlite::params![source_slot],
+    )
+    .map_err(|err| format!("photo_tags を削除できません [slot={}]: {}", source_slot, err))?;
+
+    tx.execute(
+        "DELETE FROM photos WHERE source_slot = ?1",
+        rusqlite::params![source_slot],
+    )
+    .map_err(|err| format!("photos を削除できません [slot={}]: {}", source_slot, err))?;
+
+    tx.commit()
+        .map_err(|err| format!("写真キャッシュ削除を確定できません [slot={}]: {}", source_slot, err))?;
+
+    if let Some(img_cache_dir) = get_alpheratz_img_cache_dir(source_slot) {
+        clear_directory_contents(&img_cache_dir).map_err(|err| {
+            format!(
+                "imgCache のリセットに失敗しました [{}]: {}",
+                img_cache_dir.display(),
                 err
             )
         })?;

@@ -7,13 +7,11 @@ import { usePhotos } from "./hooks/usePhotos";
 import { useScan } from "./hooks/useScan";
 import { useGridDimensions } from "./hooks/useGridDimensions";
 import { useScroll } from "./hooks/useScroll";
-import { useMonthGroups } from "./hooks/useMonthGroups";
 import { useToasts } from "./hooks/useToasts";
 import { usePhotoActions } from "./hooks/usePhotoActions";
 import { usePhashWorker } from "./hooks/usePhashWorker";
 
 import { Header } from "./components/Header";
-import { MonthNav } from "./components/MonthNav";
 import { PhotoGrid } from "./components/PhotoGrid";
 import { PhotoModal } from "./components/PhotoModal";
 import { SettingsModal } from "./components/SettingsModal";
@@ -23,11 +21,11 @@ import { FilterSidebar } from "./components/FilterSidebar";
 import { ScanningOverlay } from "./components/ScanningOverlay";
 import { EmptyState } from "./components/EmptyState";
 import { Icons } from "./components/Icons";
-import { DisplayPhotoItem, Photo } from "./types";
-import { buildVirtualGalleryLayout } from "./components/galleryLayout";
+import { DisplayPhotoItem, Photo, SelectedPhotoRef, WorldFilterOption } from "./types";
 
 const CARD_WIDTH = 270;
-const ROW_HEIGHT = 246;
+const STANDARD_GRID_COLUMN_COUNT = 6;
+const STANDARD_GRID_VISIBLE_ROW_COUNT = 4;
 type DatePreset = "none" | "today" | "last7days" | "thisMonth" | "lastMonth" | "halfYear" | "oneYear" | "custom";
 type ThemeMode = "light" | "dark";
 type ViewMode = "standard" | "gallery";
@@ -250,6 +248,15 @@ const buildAdjacentSimilarPhotoGroups = (photos: Photo[]) => {
   return groups;
 };
 
+const isEditableTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName;
+  return target.isContentEditable || tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
+};
+
 function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -270,10 +277,12 @@ function App() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [masterTags, setMasterTags] = useState<string[]>([]);
+  const [worldFilterOptions, setWorldFilterOptions] = useState<WorldFilterOption[]>([]);
   const [groupingMode, setGroupingMode] = useState<GroupingMode>("none");
   const [displayFolderMode, setDisplayFolderMode] = useState<DisplayFolderMode>("all");
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedPhotoPaths, setSelectedPhotoPaths] = useState<string[]>([]);
+  const [selectedPhotoRefs, setSelectedPhotoRefs] = useState<SelectedPhotoRef[]>([]);
   const [selectionAnchorPhotoPath, setSelectionAnchorPhotoPath] = useState<string | null>(null);
   const [bulkTagSelections, setBulkTagSelections] = useState<string[]>([]);
   const [isBulkTagModalOpen, setIsBulkTagModalOpen] = useState(false);
@@ -287,9 +296,10 @@ function App() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const { rightPanelRef, gridWrapperRef, panelWidth, gridHeight, columnCount } = useGridDimensions(CARD_WIDTH);
+  const { rightPanelRef, gridWrapperRef, panelWidth, gridHeight, columnCount: measuredColumnCount } = useGridDimensions(CARD_WIDTH);
   const { toasts, addToast } = useToasts();
   const { progress: similarPrepProgress, isRunning: isPhashRunning } = usePhashWorker();
+  const isPagingActive = viewMode === "standard" && groupingMode === "none";
   const photoFilters = useMemo(() => ({
     searchQuery: debouncedQuery,
     worldFilters,
@@ -299,8 +309,22 @@ function App() {
     favoritesOnly,
     tagFilters,
     includePhash: true,
-  }), [debouncedQuery, worldFilters, dateFrom, dateTo, orientationFilter, favoritesOnly, tagFilters]);
-  const { photos, setPhotos, loadPhotos, isLoading } = usePhotos(photoFilters, addToast);
+    pagingEnabled: isPagingActive,
+    sourceSlot: displayFolderMode === "primary" ? 1 : (displayFolderMode === "secondary" ? 2 : null),
+  }), [debouncedQuery, worldFilters, dateFrom, dateTo, orientationFilter, favoritesOnly, tagFilters, isPagingActive, displayFolderMode]);
+  const {
+    photos,
+    setPhotos,
+    loadPhotos,
+    isLoading,
+    totalCount,
+    pageIndex,
+    pageSize,
+    hasPrevPage,
+    hasNextPage,
+    goToPrevPage,
+    goToNextPage,
+  } = usePhotos(photoFilters, addToast);
   const {
     scanStatus,
     scanProgress,
@@ -326,15 +350,7 @@ function App() {
   } = usePhotoActions(setPhotos, addToast);
 
   const hasSecondaryFolder = !!secondaryPhotoFolderPath.trim();
-  const filteredPhotos = useMemo(() => {
-    if (displayFolderMode === "primary") {
-      return photos.filter((photo) => (photo.source_slot ?? 1) === 1);
-    }
-    if (displayFolderMode === "secondary") {
-      return photos.filter((photo) => (photo.source_slot ?? 1) === 2);
-    }
-    return photos;
-  }, [photos, displayFolderMode]);
+  const filteredPhotos = useMemo(() => photos, [photos]);
   const areAllPHashesReady = useMemo(
     () => photos.every((photo) => parseHashVariants(photo.phash).length > 0),
     [photos],
@@ -343,6 +359,34 @@ function App() {
 
   const displayPhotos = useMemo(() => filteredPhotos, [filteredPhotos]);
   const selectedPhotoPathSet = useMemo(() => new Set(selectedPhotoPaths), [selectedPhotoPaths]);
+
+  useEffect(() => {
+    if (selectedPhotoPaths.length === 0) {
+      setSelectedPhotoRefs([]);
+      return;
+    }
+
+    let cancelled = false;
+    const loadSelectedPhotoRefs = async () => {
+      try {
+        const refs = await invoke<SelectedPhotoRef[]>("get_selected_photo_refs_cmd", {
+          photoPaths: selectedPhotoPaths,
+        });
+        if (!cancelled) {
+          setSelectedPhotoRefs(refs);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          addToast(`選択写真情報の取得に失敗しました: ${String(err)}`, "error");
+        }
+      }
+    };
+
+    void loadSelectedPhotoRefs();
+    return () => {
+      cancelled = true;
+    };
+  }, [addToast, selectedPhotoPaths]);
 
   const displayPhotoItems = useMemo<DisplayPhotoItem[]>(() => {
     if (groupingMode === "world") {
@@ -406,8 +450,10 @@ function App() {
   }, [isSimilarGroupingAvailable, groupingMode]);
 
   useEffect(() => {
-    setSelectedPhotoPaths((prev) => prev.filter((photoPath) => photos.some((photo) => photo.photo_path === photoPath)));
-  }, [photos]);
+    if (selectedPhoto && !photos.some((photo) => photo.photo_path === selectedPhoto.photo_path)) {
+      closePhotoModal();
+    }
+  }, [closePhotoModal, photos, selectedPhoto]);
 
   useEffect(() => {
     if (selectionAnchorPhotoPath && !photos.some((photo) => photo.photo_path === selectionAnchorPhotoPath)) {
@@ -577,32 +623,28 @@ function App() {
     setDateTo(value);
   };
 
-  const galleryLayout = useMemo(
-    () => buildVirtualGalleryLayout(displayPhotoItems.map((item) => item.photo), panelWidth, columnCount),
-    [displayPhotoItems, panelWidth, columnCount],
-  );
+  const standardColumnCount = viewMode === "standard" ? STANDARD_GRID_COLUMN_COUNT : measuredColumnCount;
   const standardColumnWidth = useMemo(
-    () => Math.max(CARD_WIDTH, Math.floor(panelWidth / Math.max(1, columnCount))),
-    [panelWidth, columnCount],
+    () => Math.max(180, Math.floor(panelWidth / Math.max(1, standardColumnCount))),
+    [panelWidth, standardColumnCount],
+  );
+  const standardRowHeight = useMemo(
+    () => Math.max(150, Math.floor(gridHeight / STANDARD_GRID_VISIBLE_ROW_COUNT)),
+    [gridHeight],
   );
 
   const {
     scrollTop,
-    totalHeight,
     onGridRef,
     handleGridScroll,
     handleGridWheel,
-    handleJumpToRatio,
-    maxScrollTop,
   } = useScroll({
     photosLength: displayPhotoItems.length,
-    columnCount,
+    columnCount: viewMode === "standard" ? standardColumnCount : measuredColumnCount,
     gridHeight,
-    ROW_HEIGHT,
-    totalHeightOverride: viewMode === "gallery" ? galleryLayout.totalHeight : undefined,
+    ROW_HEIGHT: standardRowHeight,
+    disableProgrammaticBounds: viewMode === "gallery",
   });
-
-  const { monthGroups, monthsByYear, activeMonthIndex } = useMonthGroups(filteredPhotos, columnCount, scrollTop, ROW_HEIGHT);
 
   const finalizeFolderSelection = async (newPath: string, restoreBackup: boolean) => {
     setIsApplyingFolderChange(true);
@@ -697,6 +739,44 @@ function App() {
     }
   };
 
+  const handleResetFolder = async (slot: 1 | 2) => {
+    const currentPath = slot === 1 ? photoFolderPath : secondaryPhotoFolderPath;
+    if (!currentPath) {
+      return;
+    }
+
+    const nextPrimaryPath = slot === 1 ? "" : photoFolderPath;
+    const nextSecondaryPath = slot === 2 ? "" : secondaryPhotoFolderPath;
+
+    try {
+      if (slot === 1) {
+        await invoke("reset_photo_cache_for_slot_cmd", { sourceSlot: 1 });
+      } else {
+        await invoke("reset_photo_cache_for_slot_cmd", { sourceSlot: 2 });
+      }
+
+      await invoke("save_setting_cmd", {
+        setting: buildSettingPayload({
+          photoFolderPath: nextPrimaryPath,
+          secondaryPhotoFolderPath: nextSecondaryPath,
+        }),
+      });
+
+      await refreshSettings();
+      await loadPhotos();
+
+      if (nextPrimaryPath || nextSecondaryPath) {
+        await startScan();
+      } else {
+        setPhotos([]);
+      }
+
+      addToast(slot === 1 ? "1st 写真フォルダをリセットしました" : "2nd 写真フォルダをリセットしました");
+    } catch (err) {
+      addToast(`写真フォルダのリセットに失敗しました: ${String(err)}`, "error");
+    }
+  };
+
   const handleStartupPreference = async (enabled: boolean) => {
     try {
       await invoke("save_startup_preference_cmd", { enabled });
@@ -720,7 +800,7 @@ function App() {
           : (resolvedTemplates[0] ?? "");
         setTweetTemplates(resolvedTemplates);
         setActiveTweetTemplate(resolvedActiveTemplate);
-        await loadMasterTags();
+        await Promise.all([loadMasterTags(), loadWorldFilterOptions()]);
       } catch (err) {
         addToast(`設定の読み込みに失敗しました: ${String(err)}`, "error");
       }
@@ -728,6 +808,10 @@ function App() {
 
     loadAppSetting();
   }, []);
+
+  useEffect(() => {
+    void loadWorldFilterOptions();
+  }, [photos.length]);
 
   const handleThemeToggle = async () => {
     const nextTheme: ThemeMode = themeMode === "dark" ? "light" : "dark";
@@ -749,6 +833,15 @@ function App() {
       setMasterTags(tags);
     } catch (err) {
       addToast(`タグマスタの読み込みに失敗しました: ${String(err)}`, "error");
+    }
+  };
+
+  const loadWorldFilterOptions = async () => {
+    try {
+      const options = await invoke<WorldFilterOption[]>("get_world_filter_options_cmd");
+      setWorldFilterOptions(options);
+    } catch (err) {
+      addToast(`ワールド一覧の読み込みに失敗しました: ${String(err)}`, "error");
     }
   };
 
@@ -956,32 +1049,26 @@ function App() {
     }
   };
 
-  const worldNameList = useMemo(() => {
-    const names = Array.from(new Set(photos.map((photo) => photo.world_name || ""))).sort();
-    return names.some((name) => !!name.trim()) ? names : [];
-  }, [photos]);
+  const worldNameList = useMemo(
+    () => worldFilterOptions.map((option) => option.world_name ?? ""),
+    [worldFilterOptions],
+  );
   const worldCounts = useMemo(() => (
-    photos.reduce<Record<string, number>>((acc, photo) => {
-      const key = photo.world_name || "unknown";
-      acc[key] = (acc[key] ?? 0) + 1;
+    worldFilterOptions.reduce<Record<string, number>>((acc, option) => {
+      const key = option.world_name ?? "unknown";
+      acc[key] = option.count;
       return acc;
     }, {})
-  ), [photos]);
+  ), [worldFilterOptions]);
   const tagOptions = useMemo(() => (
     masterTags.slice().sort((left, right) => left.localeCompare(right, "ja"))
   ), [masterTags]);
   const hasMasterTags = tagOptions.length > 0;
-  const selectedPhotos = useMemo(
-    () => selectedPhotoPaths
-      .map((photoPath) => photos.find((photo) => photo.photo_path === photoPath))
-      .filter((photo): photo is Photo => photo !== undefined),
-    [selectedPhotoPaths, photos],
-  );
-  const selectedCount = selectedPhotos.length;
+  const selectedCount = selectedPhotoPaths.length;
   const isBulkSelectionLocked = isMultiSelectMode && selectedCount > 0;
   const bulkFavoriteWillEnable = useMemo(
-    () => selectedPhotos.some((photo) => !photo.is_favorite),
-    [selectedPhotos],
+    () => selectedPhotoRefs.length !== selectedCount || selectedPhotoRefs.some((photo) => !photo.is_favorite),
+    [selectedCount, selectedPhotoRefs],
   );
   const activeFilterCount = useMemo(() => (
     [
@@ -994,19 +1081,20 @@ function App() {
   ), [worldFilters, dateFrom, dateTo, orientationFilter, favoritesOnly, tagFilters]);
 
   const handleBulkFavorite = async () => {
-    if (selectedPhotos.length === 0) {
+    if (selectedPhotoRefs.length === 0) {
       return;
     }
 
     const nextFavoriteState = bulkFavoriteWillEnable;
     try {
       await invoke("bulk_set_photo_favorite_cmd", {
-        photos: selectedPhotos.map((photo) => ({
+        photos: selectedPhotoRefs.map((photo) => ({
           photoPath: photo.photo_path,
           sourceSlot: photo.source_slot ?? 1,
         })),
         isFavorite: nextFavoriteState,
       });
+      setSelectedPhotoRefs((prev) => prev.map((photo) => ({ ...photo, is_favorite: nextFavoriteState })));
       setPhotos((prev) => prev.map((photo) => (
         selectedPhotoPathSet.has(photo.photo_path)
           ? { ...photo, is_favorite: nextFavoriteState }
@@ -1034,13 +1122,13 @@ function App() {
       addToast(`タグは${MAX_TAG_LENGTH}文字以内で入力してください。`, "error");
       return;
     }
-    if (selectedPhotos.length === 0) {
+    if (selectedPhotoRefs.length === 0) {
       setIsBulkTagModalOpen(false);
       return;
     }
 
     try {
-      const targetPhotos = selectedPhotos.map((photo) => ({
+      const targetPhotos = selectedPhotoRefs.map((photo) => ({
         photoPath: photo.photo_path,
         sourceSlot: photo.source_slot ?? 1,
       }));
@@ -1060,14 +1148,14 @@ function App() {
       )));
       setBulkTagSelections([]);
       setIsBulkTagModalOpen(false);
-      addToast(`${selectedPhotos.length}件にタグを追加しました。`);
+      addToast(`${selectedCount}件にタグを追加しました。`);
     } catch (err) {
       addToast(`一括タグ付けに失敗しました: ${String(err)}`, "error");
     }
   };
 
   const handleBulkCopy = async () => {
-    if (selectedPhotos.length === 0) {
+    if (selectedPhotoPaths.length === 0) {
       return;
     }
 
@@ -1083,7 +1171,7 @@ function App() {
       }
 
       await invoke("bulk_copy_photos_cmd", {
-        photoPaths: selectedPhotos.map((photo) => photo.photo_path),
+        photoPaths: selectedPhotoPaths,
         destinationDir: destination,
       });
     } catch (err) {
@@ -1099,15 +1187,71 @@ function App() {
       isSelected: (item: DisplayPhotoItem) => selectedPhotoPathSet.has(item.photo.photo_path),
       showTags: isMultiSelectMode && selectedCount > 0,
       showSelectionToggle: isMultiSelectMode,
-      columnCount,
+      columnCount: standardColumnCount,
+      startIndex: 0,
     }),
-    [displayPhotoItems, columnCount, isMultiSelectMode, selectedPhotoPathSet, selectedCount],
+    [displayPhotoItems, isMultiSelectMode, selectedPhotoPathSet, selectedCount, standardColumnCount],
   );
-  const displayTotalRows = Math.ceil(displayPhotoItems.length / columnCount);
+  const displayTotalRows = Math.ceil(displayPhotoItems.length / standardColumnCount);
   const isGalleryScreen = activeMainScreen === "gallery";
   const hashProgressLabel = isPhashRunning
     ? `類似写真を準備中 ${similarPrepProgress.done}/${similarPrepProgress.total || 0}`
     : (!areAllPHashesReady ? "類似写真を準備中 次の利用まで少し待機" : null);
+
+  useEffect(() => {
+    if (!isGalleryScreen || !isPagingActive) {
+      return undefined;
+    }
+
+    const hasBlockingModal = !!selectedPhotoView
+      || isBulkTagModalOpen
+      || !!pendingFolderPath
+      || !!pendingRestoreCandidate;
+
+    if (hasBlockingModal) {
+      return undefined;
+    }
+
+    const handlePageKeydown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || isEditableTarget(event.target) || isLoading || scanStatus === "scanning") {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === "arrowleft" || key === "arrowup" || key === "a" || key === "w") {
+        if (!hasPrevPage) {
+          return;
+        }
+        event.preventDefault();
+        void goToPrevPage();
+        return;
+      }
+
+      if (key === "arrowright" || key === "arrowdown" || key === "d" || key === "s") {
+        if (!hasNextPage) {
+          return;
+        }
+        event.preventDefault();
+        void goToNextPage();
+      }
+    };
+
+    window.addEventListener("keydown", handlePageKeydown);
+    return () => window.removeEventListener("keydown", handlePageKeydown);
+  }, [
+    goToNextPage,
+    goToPrevPage,
+    hasNextPage,
+    hasPrevPage,
+    isBulkTagModalOpen,
+    isGalleryScreen,
+    isLoading,
+    isPagingActive,
+    pendingFolderPath,
+    pendingRestoreCandidate,
+    scanStatus,
+    selectedPhotoView,
+  ]);
 
   return (
     <div className={`alpheratz-root ${themeMode === "dark" ? "theme-dark" : "theme-light"} ${isBulkSelectionLocked ? "bulk-selection-locked" : ""}`}>
@@ -1133,8 +1277,8 @@ function App() {
         {scanStatus === "scanning" && (
           <ScanningOverlay
             progress={scanProgress}
-            title="スキャン中..."
-            description="一覧表示に必要な情報を取り込んでいます"
+            title="分析中..."
+            description="一覧表示に必要なキャッシュと分析情報を取り込んでいます"
             onCancel={cancelScan}
             canCancel={true}
           />
@@ -1337,20 +1481,41 @@ function App() {
                     photos={displayPhotoItems}
                     viewMode={viewMode}
                     scrollTop={scrollTop}
-                    columnCount={columnCount}
+                    columnCount={viewMode === "standard" ? standardColumnCount : measuredColumnCount}
                     columnWidth={standardColumnWidth}
                     totalRows={displayTotalRows}
-                    ROW_HEIGHT={ROW_HEIGHT}
+                    ROW_HEIGHT={standardRowHeight}
                     gridHeight={gridHeight}
                     panelWidth={panelWidth}
                     handleGridScroll={handleGridScroll}
                     handleGridWheel={handleGridWheel}
-                    totalHeight={totalHeight}
-                    galleryLayout={galleryLayout}
                     cellProps={{ ...cellProps, data: displayPhotoItems }}
                     onGridRef={onGridRef}
                   />
                 </div>
+                {isPagingActive && totalCount > 0 && (
+                  <div className="pager-bar pager-bar-bottom">
+                    <button
+                      className="pager-button"
+                      onClick={() => void goToPrevPage()}
+                      disabled={!hasPrevPage || isLoading || scanStatus === "scanning"}
+                      type="button"
+                    >
+                      前へ
+                    </button>
+                    <div className="pager-status">
+                      {pageIndex + 1} / {Math.max(1, Math.ceil(totalCount / pageSize))}
+                    </div>
+                    <button
+                      className="pager-button pager-button-primary"
+                      onClick={() => void goToNextPage()}
+                      disabled={!hasNextPage || isLoading || scanStatus === "scanning"}
+                      type="button"
+                    >
+                      次へ
+                    </button>
+                  </div>
+                )}
                 {isMultiSelectMode && selectedCount > 0 && (
                   <div className="bulk-selection-bar" role="region" aria-label="複数選択アクション">
                     <div className="bulk-selection-count">{selectedCount}件選択中</div>
@@ -1396,6 +1561,7 @@ function App() {
                   photoFolderPath={photoFolderPath}
                   secondaryPhotoFolderPath={secondaryPhotoFolderPath}
                   handleChooseFolder={handleChooseFolder}
+                  handleResetFolder={handleResetFolder}
                   startupEnabled={startupEnabled}
                   onToggleStartup={() => handleStartupPreference(!startupEnabled)}
                   themeMode={themeMode}
@@ -1431,16 +1597,6 @@ function App() {
             )}
           </div>
 
-          {isGalleryScreen && groupingMode === "none" && (
-            <MonthNav
-              monthsByYear={monthsByYear}
-              monthGroups={monthGroups}
-              activeMonthIndex={activeMonthIndex}
-              scrollTop={scrollTop}
-              maxScrollTop={maxScrollTop}
-              handleJumpToRatio={handleJumpToRatio}
-            />
-          )}
         </div>
       </main>
 

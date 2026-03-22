@@ -11,11 +11,11 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::db::open_alpheratz_connection;
+use crate::models::ScanProgress;
 use crate::utils;
 
-const PHASH_BATCH_SIZE: usize = 100;
+const PHASH_BATCH_SIZE: usize = 256;
 const PHASH_VERSION: i64 = 2;
-const PHASH_WORKER_LIMIT: usize = 4;
 const PHASH_UPDATE_BATCH_SIZE: usize = 32;
 const PHASH_PROGRESS_EMIT_INTERVAL: usize = 16;
 
@@ -53,7 +53,7 @@ pub fn start_phash_worker(app: AppHandle) {
     }
 
     tauri::async_runtime::spawn(async move {
-        if let Err(err) = run_phash_worker(app.clone()).await {
+        if let Err(err) = run_phash_worker(app.clone(), 0, 0).await {
             crate::utils::log_err(&format!("pHash worker failed: {}", err));
         }
 
@@ -66,6 +66,28 @@ pub fn start_phash_worker(app: AppHandle) {
     });
 }
 
+pub async fn run_pending_phash_for_scan(
+    app: AppHandle,
+    processed_base: usize,
+    total_work: usize,
+) -> Result<(), String> {
+    let state = app.state::<PHashWorkerState>();
+    if state.running.swap(true, Ordering::SeqCst) {
+        return Ok(());
+    }
+
+    let result = run_phash_worker(app.clone(), processed_base, total_work).await;
+
+    let state = app.state::<PHashWorkerState>();
+    state.running.store(false, Ordering::SeqCst);
+    if let Ok(mut progress) = state.progress.lock() {
+        progress.current = None;
+    }
+    emit_event(&app, "phash_complete", ());
+
+    result
+}
+
 pub fn get_phash_progress(app: &AppHandle) -> PHashProgressPayload {
     let state = app.state::<PHashWorkerState>();
     let progress = match state.progress.lock() {
@@ -76,6 +98,29 @@ pub fn get_phash_progress(app: &AppHandle) -> PHashProgressPayload {
         }
     };
     progress
+}
+
+fn emit_scan_progress(
+    app: &AppHandle,
+    done: usize,
+    total: usize,
+    current: Option<String>,
+    processed_base: usize,
+    total_work: usize,
+) {
+    let payload = ScanProgress {
+        processed: processed_base + done,
+        total: total_work.max(processed_base + total),
+        current_world: current.unwrap_or_else(|| "pHash を計算中...".to_string()),
+        phase: "scan".to_string(),
+    };
+    if let Err(err) = app.emit("scan:progress", payload) {
+        crate::utils::log_warn(&format!("emit failed [scan:progress]: {}", err));
+    }
+}
+
+pub fn count_pending_phash_for_scan() -> Result<usize, String> {
+    count_pending_phash()
 }
 
 pub fn has_pending_phash() -> Result<bool, String> {
@@ -106,12 +151,17 @@ pub fn infer_world_name_from_unknown_photo(
     Ok(None)
 }
 
-async fn run_phash_worker(app: AppHandle) -> Result<(), String> {
+async fn run_phash_worker(
+    app: AppHandle,
+    processed_base: usize,
+    total_work: usize,
+) -> Result<(), String> {
     let mut total = tauri::async_runtime::spawn_blocking(count_pending_phash)
         .await
         .map_err(|err| format!("PDQ 件数取得タスクの join に失敗しました: {}", err))??;
 
     update_progress(&app, 0, total, None);
+    emit_scan_progress(&app, 0, total, None, processed_base, total_work);
     if total > 0 {
         let mut done = 0usize;
         let mut attempted_paths = HashSet::new();
@@ -137,6 +187,7 @@ async fn run_phash_worker(app: AppHandle) -> Result<(), String> {
             if done + pending_batch.len() > total {
                 total = done + pending_batch.len();
                 update_progress(&app, done, total, None);
+                emit_scan_progress(&app, done, total, None, processed_base, total_work);
                 emit_event(&app, "phash_progress", get_phash_progress(&app));
             }
 
@@ -161,6 +212,14 @@ async fn run_phash_worker(app: AppHandle) -> Result<(), String> {
                     }
 
                     update_progress(&app, done, total, Some(result.filename.clone()));
+                    emit_scan_progress(
+                        &app,
+                        done,
+                        total,
+                        Some(result.filename.clone()),
+                        processed_base,
+                        total_work,
+                    );
                     if done % PHASH_PROGRESS_EMIT_INTERVAL == 0 || done == total {
                         emit_event(&app, "phash_progress", get_phash_progress(&app));
                     }
@@ -234,7 +293,10 @@ fn compute_pdq_batch(batch: Vec<(i64, String, String)>) -> Result<Vec<PdqCompute
         return Ok(Vec::new());
     }
 
-    let worker_count = PHASH_WORKER_LIMIT.min(batch.len()).max(1);
+    let worker_limit = std::thread::available_parallelism()
+        .map(|value| value.get().clamp(4, 16))
+        .unwrap_or(8);
+    let worker_count = worker_limit.min(batch.len()).max(1);
     let chunk_size = batch.len().div_ceil(worker_count);
     let mut handles = Vec::with_capacity(worker_count);
 

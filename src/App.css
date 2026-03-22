@@ -2250,7 +2250,6 @@ body {
 
 .alpheratz-root .gallery-photo-card {
   width: 100%;
-  height: 100%;
   display: block;
   padding: 0;
   border: 1px solid var(--a-border);
@@ -2276,7 +2275,6 @@ body {
 .alpheratz-root .gallery-photo-thumb {
   position: relative;
   width: 100%;
-  height: 100%;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -3375,6 +3373,71 @@ body {
   gap: 0.5rem;
 }
 
+.alpheratz-root .pager-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0 12px 12px;
+}
+
+.alpheratz-root .pager-bar-bottom {
+  padding: 10px 12px 8px;
+  border-top: 1px solid var(--a-border);
+  background: var(--a-surface);
+}
+
+.alpheratz-root .pager-status {
+  min-width: 0;
+  padding: 0.58rem 0.85rem;
+  border: 1px solid var(--a-border);
+  border-radius: 12px;
+  background: var(--a-surface-soft);
+  color: var(--a-text);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.alpheratz-root .pager-button {
+  min-width: 92px;
+  min-height: 36px;
+  padding: 0.42rem 0.9rem;
+  border: 1px solid var(--a-border);
+  border-radius: 999px;
+  background: var(--a-surface-soft);
+  color: var(--a-text);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+}
+
+.alpheratz-root .pager-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--a-primary) 18%, var(--a-border));
+  background: color-mix(in srgb, var(--a-primary) 8%, var(--a-surface));
+  color: var(--a-primary);
+}
+
+.alpheratz-root .pager-button-primary {
+  border-color: color-mix(in srgb, var(--a-primary) 22%, transparent);
+  background: var(--a-primary);
+  color: #ffffff;
+}
+
+.alpheratz-root .pager-button-primary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--a-primary) 30%, transparent);
+  background: var(--a-accent-light);
+  color: #ffffff;
+}
+
+.alpheratz-root .pager-button:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+}
+
 .alpheratz-root .settings-path-input {
   flex: 1;
   padding: 0.8rem;
@@ -3389,6 +3452,24 @@ body {
 .alpheratz-root .settings-action-button {
   width: 100px;
   border-radius: 999px;
+}
+
+.alpheratz-root .settings-reset-button {
+  width: 100px;
+  min-height: 38px;
+  border: 1px solid color-mix(in srgb, var(--a-danger-solid) 44%, transparent);
+  border-radius: 999px;
+  background: var(--a-danger-solid);
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.alpheratz-root .settings-reset-button:hover {
+  border-color: color-mix(in srgb, var(--a-danger-solid-hover) 52%, transparent);
+  background: var(--a-danger-solid-hover);
 }
 
 .alpheratz-root.theme-dark .settings-action-button {

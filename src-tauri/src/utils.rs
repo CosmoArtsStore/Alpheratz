@@ -293,12 +293,11 @@ pub fn get_thumbnail_cache_dir() -> Result<PathBuf, String> {
     Ok(cache_dir)
 }
 
-fn create_thumbnail_file_with_size(
+fn resolve_thumbnail_cache_path(
     path: &str,
     source_slot: i64,
-    size: u32,
     cache_version: &str,
-) -> Result<String, String> {
+) -> Result<PathBuf, String> {
     let cache_dir = get_alpheratz_img_cache_dir(source_slot)
         .ok_or_else(|| "Alpheratz の imgCache フォルダを取得できません".to_string())?;
     let path_p = Path::new(path);
@@ -306,7 +305,26 @@ fn create_thumbnail_file_with_size(
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or_else(|| format!("サムネイル対象のファイル名を解決できません: {}", path))?;
-    let cache_path = cache_dir.join(format!("{}.thumb.{}.jpg", filename, cache_version));
+    Ok(cache_dir.join(format!("{}.thumb.{}.jpg", filename, cache_version)))
+}
+
+pub fn resolve_thumbnail_cache_path_string(
+    path: &str,
+    source_slot: i64,
+    cache_version: &str,
+) -> Result<String, String> {
+    Ok(resolve_thumbnail_cache_path(path, source_slot, cache_version)?
+        .to_string_lossy()
+        .to_string())
+}
+
+fn create_thumbnail_file_with_size(
+    path: &str,
+    source_slot: i64,
+    size: u32,
+    cache_version: &str,
+) -> Result<String, String> {
+    let cache_path = resolve_thumbnail_cache_path(path, source_slot, cache_version)?;
 
     if cache_path.exists() {
         return Ok(cache_path.to_string_lossy().to_string());
@@ -326,18 +344,58 @@ fn create_thumbnail_file_with_size(
     Ok(cache_path.to_string_lossy().to_string())
 }
 
+pub fn prewarm_analysis_thumbnail_files(path: &str, source_slot: i64) -> Result<(), String> {
+    let pdq_cache_path = resolve_thumbnail_cache_path(path, source_slot, "pdq.v2")?;
+    let browse_cache_path = resolve_thumbnail_cache_path(path, source_slot, "browse.v1")?;
+
+    let needs_pdq = !pdq_cache_path.exists();
+    let needs_browse = !browse_cache_path.exists();
+    if !needs_pdq && !needs_browse {
+        return Ok(());
+    }
+
+    let img =
+        image::open(path).map_err(|e| format!("サムネイル用画像を開けません ({}): {}", path, e))?;
+
+    if needs_pdq {
+        img.thumbnail(100, 100).save(&pdq_cache_path).map_err(|e| {
+            format!(
+                "PDQ サムネイルを保存できません ({}): {}",
+                pdq_cache_path.display(),
+                e
+            )
+        })?;
+    }
+
+    if needs_browse {
+        img.thumbnail(512, 512).save(&browse_cache_path).map_err(|e| {
+            format!(
+                "一覧サムネイルを保存できません ({}): {}",
+                browse_cache_path.display(),
+                e
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
+pub fn needs_analysis_thumbnail_prewarm(path: &str, source_slot: i64) -> Result<bool, String> {
+    let pdq_cache_path = resolve_thumbnail_cache_path(path, source_slot, "pdq.v2")?;
+    let browse_cache_path = resolve_thumbnail_cache_path(path, source_slot, "browse.v1")?;
+    Ok(!pdq_cache_path.exists() || !browse_cache_path.exists())
+}
+
 pub fn create_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    create_thumbnail_file_with_size(path, source_slot, 192, "pdq.v1")
+    create_thumbnail_file_with_size(path, source_slot, 100, "pdq.v2")
 }
 
 pub fn create_display_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    // 大きめ表示向けキャッシュ。小さい一覧には使わない。
-    create_thumbnail_file_with_size(path, source_slot, 514, "display.v2")
+    create_thumbnail_file_with_size(path, source_slot, 512, "browse.v1")
 }
 
 pub fn create_grid_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    // 一覧スクロール時のデコード負荷を抑えるため、一覧専用は 384px に抑える。
-    create_thumbnail_file_with_size(path, source_slot, 384, "grid.v4")
+    create_thumbnail_file_with_size(path, source_slot, 512, "browse.v1")
 }
 
 pub fn copy_photo_files(photo_paths: &[String], destination_dir: &str) -> Result<usize, String> {

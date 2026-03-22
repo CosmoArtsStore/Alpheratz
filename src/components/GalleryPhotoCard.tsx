@@ -1,7 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { DisplayPhotoItem } from "../types";
-import { useViewportPresence } from "../hooks/useViewportPresence";
+import { useDeferredImageSrc } from "../hooks/useDeferredImageSrc";
 
 interface GalleryPhotoCardProps {
     item: DisplayPhotoItem;
@@ -19,39 +17,13 @@ export const GalleryPhotoCard = ({
     showSelectionToggle,
 }: GalleryPhotoCardProps) => {
     const photo = item.photo;
-    const [thumbUrl, setThumbUrl] = useState<string | null>(null);
-    const cardRef = useRef<HTMLDivElement | null>(null);
-    const shouldLoadThumb = useViewportPresence(cardRef, photo.photo_path, {
-        rootMargin: "48px 0px",
-        releaseDelayMs: 120,
-    });
-
-    useEffect(() => {
-        if (!shouldLoadThumb) {
-            setThumbUrl(null);
-            return;
-        }
-        let isMounted = true;
-        invoke<string>("create_display_thumbnail", { path: photo.photo_path, sourceSlot: photo.source_slot ?? 1 })
-            .then((path) => {
-                if (isMounted) {
-                    setThumbUrl(convertFileSrc(path));
-                }
-            })
-            .catch((err) => {
-                console.warn(`サムネイル生成に失敗しました [${photo.photo_path}]`, err);
-                if (isMounted) {
-                    setThumbUrl(null);
-                }
-            });
-        return () => {
-            isMounted = false;
-        };
-    }, [shouldLoadThumb, photo.photo_path, photo.source_slot]);
+    const thumbImage = useDeferredImageSrc(photo.display_thumb_path, !!photo.display_thumb_path);
+    const aspectRatio = photo.image_width && photo.image_height && photo.image_width > 0 && photo.image_height > 0
+        ? `${photo.image_width} / ${photo.image_height}`
+        : (photo.orientation === "portrait" ? "9 / 16" : "16 / 9");
 
     return (
         <div
-            ref={cardRef}
             className={`gallery-photo-card ${selected ? "selected" : ""}`}
             onClick={(event) => onSelect(item, event.shiftKey)}
             onKeyDown={(event) => {
@@ -63,7 +35,7 @@ export const GalleryPhotoCard = ({
             role="button"
             tabIndex={0}
         >
-            <div className="gallery-photo-thumb">
+            <div className="gallery-photo-thumb" style={{ aspectRatio }}>
                 {showSelectionToggle && (
                     <button
                         className={`photo-select-toggle ${selected ? "selected" : ""}`}
@@ -77,14 +49,16 @@ export const GalleryPhotoCard = ({
                         {selected ? "✓" : ""}
                     </button>
                 )}
-                {thumbUrl ? (
+                {thumbImage.src ? (
                     <img
-                        src={thumbUrl}
+                        src={thumbImage.src}
                         alt={photo.photo_filename}
                         className="gallery-photo-image"
                         loading="lazy"
                         decoding="async"
                         draggable={false}
+                        onLoad={thumbImage.onLoad}
+                        onError={thumbImage.onError}
                     />
                 ) : (
                     <div className="photo-thumb-skeleton" />

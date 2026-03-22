@@ -1,8 +1,7 @@
-import { useState, useEffect, CSSProperties, useRef } from "react";
-import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+import { CSSProperties } from "react";
 import { DisplayPhotoItem } from "../types";
 import { AnimatedFavoriteStar } from "./AnimatedFavoriteStar";
-import { useViewportPresence } from "../hooks/useViewportPresence";
+import { useDeferredImageSrc } from "../hooks/useDeferredImageSrc";
 
 interface PhotoCardProps {
   data: DisplayPhotoItem[];
@@ -12,42 +11,19 @@ interface PhotoCardProps {
   showTags: boolean;
   showSelectionToggle: boolean;
   columnCount: number;
+  startIndex?: number;
   columnIndex: number;
   rowIndex: number;
   style: CSSProperties;
 }
 
 export const PhotoCard = ({
-  data, onSelect, onToggleSelect, isSelected, showTags, showSelectionToggle, columnCount, columnIndex, rowIndex, style,
+  data, onSelect, onToggleSelect, isSelected, showTags, showSelectionToggle, columnCount, startIndex = 0, columnIndex, rowIndex, style,
 }: PhotoCardProps) => {
   const index = rowIndex * columnCount + columnIndex;
-  const item = data[index];
+  const item = data[index - startIndex];
   const photo = item?.photo;
-  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  const shouldLoadThumb = useViewportPresence(cardRef, photo?.photo_path, {
-    rootMargin: "16px 0px",
-    releaseDelayMs: 60,
-  });
-
-  useEffect(() => {
-    if (!photo) return;
-    if (!shouldLoadThumb) {
-      setThumbUrl(null);
-      return;
-    }
-    let isMounted = true;
-    invoke<string>("create_grid_thumbnail", { path: photo.photo_path, sourceSlot: photo.source_slot ?? 1 })
-      .then((path) => { if (isMounted) setThumbUrl(convertFileSrc(path)); })
-      .catch((err) => {
-        console.warn(`サムネイル生成に失敗しました [${photo.photo_path}]`, err);
-        if (isMounted) setThumbUrl(null);
-      });
-    return () => {
-      isMounted = false;
-      setThumbUrl(null);
-    };
-  }, [photo?.photo_path, photo?.source_slot, shouldLoadThumb]);
+  const thumbImage = useDeferredImageSrc(photo?.grid_thumb_path, !!photo?.grid_thumb_path);
 
   if (!photo) return null;
 
@@ -55,7 +31,6 @@ export const PhotoCard = ({
 
   return (
     <div
-      ref={cardRef}
       style={style}
       className="photo-card-wrapper"
       onClick={(event) => onSelect(item, event.shiftKey)}
@@ -75,8 +50,8 @@ export const PhotoCard = ({
               {selected ? "✓" : ""}
             </button>
           )}
-          {thumbUrl
-            ? <img src={thumbUrl} alt={photo.photo_filename} className="photo-thumb" loading="lazy" decoding="async" draggable={false} />
+          {thumbImage.src
+            ? <img src={thumbImage.src} alt={photo.photo_filename} className="photo-thumb" loading="lazy" decoding="async" draggable={false} onLoad={thumbImage.onLoad} onError={thumbImage.onError} />
             : <div className="photo-thumb-skeleton" />
           }
           {photo.is_favorite && (

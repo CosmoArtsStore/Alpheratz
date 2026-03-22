@@ -3,6 +3,7 @@ interface SettingsModalProps {
   photoFolderPath: string;
   secondaryPhotoFolderPath: string;
   handleChooseFolder: (slot: 1 | 2) => void;
+  handleResetFolder: (slot: 1 | 2) => void;
   startupEnabled: boolean;
   onToggleStartup: () => void;
   themeMode: "light" | "dark";
@@ -15,6 +16,7 @@ export const SettingsModal = ({
   photoFolderPath,
   secondaryPhotoFolderPath,
   handleChooseFolder,
+  handleResetFolder,
   startupEnabled,
   onToggleStartup,
   themeMode,
@@ -48,6 +50,9 @@ export const SettingsModal = ({
                 <button className="save-button settings-action-button" onClick={() => handleChooseFolder(1)} type="button">
                   変更
                 </button>
+                <button className="settings-reset-button" onClick={() => handleResetFolder(1)} type="button">
+                  リセット
+                </button>
               </div>
             </div>
 
@@ -57,6 +62,9 @@ export const SettingsModal = ({
                 <input className="settings-path-input" type="text" value={secondaryPhotoFolderPath} readOnly />
                 <button className="save-button settings-action-button" onClick={() => handleChooseFolder(2)} type="button">
                   変更
+                </button>
+                <button className="settings-reset-button" onClick={() => handleResetFolder(2)} type="button">
+                  リセット
                 </button>
               </div>
             </div>

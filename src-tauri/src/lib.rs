@@ -21,7 +21,7 @@ pub mod utils;
 
 use config::{load_setting, save_setting, AlpheratzSetting};
 use db::init_alpheratz_db;
-use models::PhotoRecord;
+use models::{PhotoPage, SelectedPhotoRef, WorldFilterOption};
 
 static WORLD_ID_RE: LazyLock<Regex> =
     // 正規表現は固定値であり、壊れていたら起動継続は不正なので即時停止する。
@@ -54,8 +54,6 @@ async fn initialize_scan(
     tauri::async_runtime::spawn(async move {
         if let Err(e) = scanner::do_scan(app_clone.clone()).await {
             crate::utils::log_err(&format!("Scanner Error: {}", e));
-        } else {
-            phash::start_phash_worker(app_clone.clone());
         }
     });
     Ok(())
@@ -66,22 +64,38 @@ async fn get_photos(
     start_date: Option<String>,
     end_date: Option<String>,
     world_query: Option<String>,
-    world_exact: Option<String>,
+    world_exacts: Option<Vec<String>>,
+    source_slot: Option<i64>,
     orientation: Option<String>,
     favorites_only: Option<bool>,
     tag_filters: Option<Vec<String>>,
     include_phash: Option<bool>,
-) -> Result<Vec<PhotoRecord>, String> {
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> Result<PhotoPage, String> {
     db::get_photos(
         start_date,
         end_date,
         world_query,
-        world_exact,
+        world_exacts,
+        source_slot,
         orientation,
         favorites_only,
         tag_filters,
         include_phash,
+        limit,
+        offset,
     )
+}
+
+#[tauri::command]
+fn get_world_filter_options_cmd() -> Result<Vec<WorldFilterOption>, String> {
+    db::get_world_filter_options()
+}
+
+#[tauri::command]
+fn get_selected_photo_refs_cmd(photo_paths: Vec<String>) -> Result<Vec<SelectedPhotoRef>, String> {
+    db::get_selected_photo_refs(&photo_paths)
 }
 
 #[tauri::command]
@@ -202,6 +216,11 @@ fn delete_tag_master_cmd(tag: String) -> Result<(), String> {
 #[tauri::command]
 async fn reset_photo_cache_cmd() -> Result<(), String> {
     db::reset_photo_cache()
+}
+
+#[tauri::command]
+async fn reset_photo_cache_for_slot_cmd(source_slot: i64) -> Result<(), String> {
+    db::reset_photo_cache_for_slot(source_slot)
 }
 
 #[tauri::command]
@@ -352,28 +371,15 @@ pub fn run() {
             running: AtomicBool::new(false),
             progress: std::sync::Mutex::new(OrientationProgressPayload::default()),
         })
-        .setup(|app| {
-            let has_pending = match phash::has_pending_phash() {
-                Ok(value) => value,
-                Err(err) => {
-                    utils::log_warn(&format!(
-                        "未処理の PDQ 状態を確認できませんでした。自動再開をスキップします: {}",
-                        err
-                    ));
-                    false
-                }
-            };
-            if has_pending {
-                phash::start_phash_worker(app.handle().clone());
-            }
-            Ok(())
-        })
+        .setup(|_app| Ok(()))
         .invoke_handler(generate_handler![
             get_setting_cmd,
             save_setting_cmd,
             initialize_scan,
             cancel_scan,
             get_photos,
+            get_world_filter_options_cmd,
+            get_selected_photo_refs_cmd,
             create_display_thumbnail,
             create_grid_thumbnail,
             save_photo_memo_cmd,
@@ -388,6 +394,7 @@ pub fn run() {
             create_tag_master_cmd,
             delete_tag_master_cmd,
             reset_photo_cache_cmd,
+            reset_photo_cache_for_slot_cmd,
             get_backup_candidate_cmd,
             create_cache_backup_cmd,
             restore_cache_backup_cmd,

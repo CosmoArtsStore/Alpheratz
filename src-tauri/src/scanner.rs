@@ -3,6 +3,7 @@ use std::fs;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::sync::LazyLock;
 
 use chrono::{DateTime, Local};
@@ -56,6 +57,7 @@ struct ScanPhotoData {
     match_source: Option<String>,
 }
 
+#[derive(Clone, Copy)]
 enum ScanRefreshKind {
     Full,
     MetadataOnly,
@@ -153,6 +155,18 @@ fn resolve_photo_dirs() -> Result<Vec<(i64, PathBuf)>, PhotoDirErrorKind> {
     }
 }
 
+fn scan_analyze_concurrency() -> usize {
+    std::thread::available_parallelism()
+        .map(|value| value.get().clamp(4, 16))
+        .unwrap_or(8)
+}
+
+fn thumbnail_prewarm_concurrency() -> usize {
+    std::thread::available_parallelism()
+        .map(|value| value.get().clamp(4, 16))
+        .unwrap_or(8)
+}
+
 pub async fn do_scan(app: AppHandle) -> Result<(), String> {
     let photo_dirs = match resolve_photo_dirs() {
         Ok(paths) => paths,
@@ -202,8 +216,28 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
         .collect();
     mark_missing_photos(&conn, &existing_photos, &found_path_set)?;
 
+    let prewarm_items: Vec<(String, PathBuf, i64)> = found_files
+        .iter()
+        .filter_map(|(slot, filename, path)| match utils::needs_analysis_thumbnail_prewarm(
+            &path.to_string_lossy(),
+            *slot,
+        ) {
+            Ok(true) => Some((filename.clone(), path.clone(), *slot)),
+            Ok(false) => None,
+            Err(err) => {
+                crate::utils::log_warn(&format!(
+                    "既存キャッシュ確認に失敗したため事前生成対象へ含めます [{}]: {}",
+                    path.display(),
+                    err
+                ));
+                Some((filename.clone(), path.clone(), *slot))
+            }
+        })
+        .collect();
+
     let candidate_files: Vec<(String, PathBuf, i64, ScanRefreshKind)> = found_files
-        .into_iter()
+        .iter()
+        .cloned()
         .filter_map(|(slot, filename, path)| {
             let normalized_path = path.to_slash_lossy().to_string();
             match existing_photos.get(&normalized_path) {
@@ -230,56 +264,185 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
         })
         .collect();
 
-    let total = candidate_files.len();
+    let prewarm_total = prewarm_items.len();
+    let analyze_total = candidate_files.len();
+    let total_work = prewarm_total + analyze_total;
     emit_warn(
         &app,
         "scan:progress",
         ScanProgress {
             processed: 0,
-            total,
-            current_world: format!("{} 件の更新対象を確認しました", total),
+            total: total_work,
+            current_world: format!("{} 件の対象を確認しました", analyze_total),
             phase: "scan".into(),
         },
     );
 
-    for (index, (filename, path, source_slot, refresh_kind)) in
-        candidate_files.into_iter().enumerate()
-    {
-        if cancel_status.0.load(Ordering::SeqCst) {
-            crate::utils::log_warn("ユーザー操作でスキャンが中断されました。");
-            emit_warn(&app, "scan:error", "スキャンを中断しました");
-            return Ok(());
+    prewarm_analysis_thumbnails(
+        app.clone(),
+        &cancel_status,
+        &prewarm_items,
+        0,
+        total_work,
+    )
+    .await?;
+
+    let existing_photos = Arc::new(existing_photos);
+    let analyze_concurrency = scan_analyze_concurrency();
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(analyze_concurrency));
+    let mut join_set = tokio::task::JoinSet::new();
+    let mut next_index = 0usize;
+    let mut processed = 0usize;
+
+    while next_index < analyze_total || !join_set.is_empty() {
+        while next_index < analyze_total && join_set.len() < analyze_concurrency {
+            if cancel_status.0.load(Ordering::SeqCst) {
+                crate::utils::log_warn("ユーザー操作でスキャンが中断されました。");
+                emit_warn(&app, "scan:error", "スキャンを中断しました");
+                return Ok(());
+            }
+
+            let (filename, path, source_slot, refresh_kind) = candidate_files[next_index].clone();
+            let existing_photos = Arc::clone(&existing_photos);
+            let permit = Arc::clone(&semaphore)
+                .acquire_owned()
+                .await
+                .map_err(|err| scan_err("スキャン同時実行制御を取得できません", err))?;
+            let current_index = next_index;
+            join_set.spawn(async move {
+                let _permit = permit;
+                let result = tauri::async_runtime::spawn_blocking(move || {
+                    analyze_photo(
+                        &path,
+                        &filename,
+                        source_slot,
+                        existing_photos.as_ref(),
+                        refresh_kind,
+                    )
+                })
+                .await
+                .map_err(|err| scan_err("写真分析タスクの待機に失敗しました", err))?;
+                Ok::<_, String>((current_index, result))
+            });
+            next_index += 1;
         }
 
-        if let Some(photo) = analyze_photo(
-            &path,
-            &filename,
-            source_slot,
-            &existing_photos,
-            refresh_kind,
-        )? {
-            let current_world = photo
+        let Some(join_result) = join_set.join_next().await else {
+            break;
+        };
+        let (_, photo_result) = join_result
+            .map_err(|err| scan_err("写真分析タスクが異常終了しました", err))??;
+
+        processed += 1;
+        let mut current_world = "ワールド不明".to_string();
+        if let Some(photo) = photo_result? {
+            current_world = photo
                 .world_name
                 .clone()
                 .unwrap_or_else(|| "ワールド不明".to_string());
             upsert_photo_batch(&mut conn, &[photo])?;
+        }
 
-            if index % 10 == 0 || index == total.saturating_sub(1) {
-                emit_warn(
-                    &app,
-                    "scan:progress",
-                    ScanProgress {
-                        processed: index + 1,
-                        total,
-                        current_world,
-                        phase: "scan".into(),
-                    },
-                );
-            }
+        if processed % 10 == 0 || processed == analyze_total {
+            emit_warn(
+                &app,
+                "scan:progress",
+                ScanProgress {
+                    processed: prewarm_total + processed,
+                    total: total_work,
+                    current_world: format!("分析中: {}", current_world),
+                    phase: "scan".into(),
+                },
+            );
         }
     }
 
+    let phash_total = phash::count_pending_phash_for_scan()?;
+    phash::run_pending_phash_for_scan(app.clone(), total_work, total_work + phash_total).await?;
     emit_warn(&app, "scan:completed", ());
+    Ok(())
+}
+
+async fn prewarm_analysis_thumbnails(
+    app: AppHandle,
+    cancel_status: &ScanCancelStatus,
+    items: &[(String, PathBuf, i64)],
+    processed_base: usize,
+    total_work: usize,
+) -> Result<(), String> {
+    let total = items.len();
+    emit_warn(
+        &app,
+        "scan:progress",
+        ScanProgress {
+            processed: processed_base,
+            total: total_work.max(processed_base + total),
+            current_world: "分析用キャッシュを生成中...".into(),
+            phase: "scan".into(),
+        },
+    );
+
+    let warmup_concurrency = thumbnail_prewarm_concurrency();
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(warmup_concurrency));
+    let mut join_set = tokio::task::JoinSet::new();
+    let mut next_index = 0usize;
+    let mut processed = 0usize;
+
+    while next_index < total || !join_set.is_empty() {
+        while next_index < total && join_set.len() < warmup_concurrency {
+            if cancel_status.0.load(Ordering::SeqCst) {
+                crate::utils::log_warn("サムネイル事前生成中にスキャンが中断されました。");
+                emit_warn(&app, "scan:error", "スキャンを中断しました");
+                return Ok(());
+            }
+
+            let (filename, photo_path, source_slot) = items[next_index].clone();
+            let permit = Arc::clone(&semaphore)
+                .acquire_owned()
+                .await
+                .map_err(|err| scan_err("サムネイル事前生成の同時実行制御を取得できません", err))?;
+            join_set.spawn(async move {
+                let _permit = permit;
+                let result = tauri::async_runtime::spawn_blocking(move || {
+                    utils::prewarm_analysis_thumbnail_files(
+                        &photo_path.to_string_lossy(),
+                        source_slot,
+                    )
+                })
+                .await
+                .map_err(|err| scan_err("サムネイル生成タスクの待機に失敗しました", err))?;
+                Ok::<_, String>((filename, result))
+            });
+            next_index += 1;
+        }
+
+        let Some(join_result) = join_set.join_next().await else {
+            break;
+        };
+        let (filename, warmup_result) = join_result
+            .map_err(|err| scan_err("サムネイル生成タスクが異常終了しました", err))??;
+        if let Err(err) = warmup_result {
+            crate::utils::log_warn(&format!(
+                "分析用キャッシュの事前生成に失敗しました [{}]: {}",
+                filename, err
+            ));
+        }
+
+        processed += 1;
+        if processed % 10 == 0 || processed == total {
+            emit_warn(
+                &app,
+                "scan:progress",
+                ScanProgress {
+                    processed: processed_base + processed,
+                    total: total_work.max(processed_base + total),
+                    current_world: format!("キャッシュ生成中: {}", filename),
+                    phase: "scan".into(),
+                },
+            );
+        }
+    }
+
     Ok(())
 }
 
@@ -321,6 +484,7 @@ fn get_existing_photos(conn: &Connection) -> Result<HashMap<String, ExistingPhot
 
     Ok(map)
 }
+
 
 fn analyze_photo(
     path: &Path,

@@ -1,6 +1,8 @@
 export interface Photo {
     photo_filename: string;
     photo_path: string;
+    grid_thumb_path?: string | null;
+    display_thumb_path?: string | null;
     world_id: string | null;
     world_name: string | null;
     timestamp: string;
@@ -36,4 +38,20 @@ export interface MonthGroup {
     label: string;
     rowIndex: number;
     count: number;
+}
+
+export interface WorldFilterOption {
+    world_name: string | null;
+    count: number;
+}
+
+export interface PhotoPage {
+    items: Photo[];
+    total: number;
+}
+
+export interface SelectedPhotoRef {
+    photo_path: string;
+    source_slot: number;
+    is_favorite: boolean;
 }

@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 pub struct PhotoRecord {
     pub photo_filename: String,
     pub photo_path: String,
+    #[serde(default)]
+    pub grid_thumb_path: Option<String>,
+    #[serde(default)]
+    pub display_thumb_path: Option<String>,
     pub world_id: Option<String>,
     pub world_name: Option<String>,
     pub timestamp: String,
@@ -29,6 +33,8 @@ impl Default for PhotoRecord {
         Self {
             photo_filename: String::new(),
             photo_path: String::new(),
+            grid_thumb_path: None,
+            display_thumb_path: None,
             world_id: None,
             world_name: None,
             timestamp: String::new(),
@@ -52,4 +58,23 @@ pub struct ScanProgress {
     pub total: usize,
     pub current_world: String,
     pub phase: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WorldFilterOption {
+    pub world_name: Option<String>,
+    pub count: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct PhotoPage {
+    pub items: Vec<PhotoRecord>,
+    pub total: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct SelectedPhotoRef {
+    pub photo_path: String,
+    pub source_slot: i64,
+    pub is_favorite: bool,
 }

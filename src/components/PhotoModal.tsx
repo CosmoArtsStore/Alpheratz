@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type WheelEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { Photo } from "../types";
 import { Icons } from "./Icons";
@@ -45,37 +45,14 @@ const SimilarPhotoThumb = ({
   isActive: boolean;
   onSelect: (photo: Photo) => void;
 }) => {
-  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const shouldLoadThumb = useViewportPresence(buttonRef, photo.photo_path, {
     rootMargin: "120px 240px",
     releaseDelayMs: 420,
   });
-
-  useEffect(() => {
-    if (!shouldLoadThumb) {
-      setThumbUrl(null);
-      return;
-    }
-
-    let isMounted = true;
-    invoke<string>("create_grid_thumbnail", { path: photo.photo_path, sourceSlot: photo.source_slot ?? 1 })
-      .then((path) => {
-        if (isMounted) {
-          setThumbUrl(convertFileSrc(path));
-        }
-      })
-      .catch((err) => {
-        console.warn(`類似写真サムネイルの生成に失敗しました [${photo.photo_path}]`, err);
-        if (isMounted) {
-          setThumbUrl(null);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [shouldLoadThumb, photo.photo_path, photo.source_slot]);
+  const thumbUrl = useMemo(() => (
+    shouldLoadThumb && photo.grid_thumb_path ? convertFileSrc(photo.grid_thumb_path) : null
+  ), [photo.grid_thumb_path, shouldLoadThumb]);
 
   return (
     <button
