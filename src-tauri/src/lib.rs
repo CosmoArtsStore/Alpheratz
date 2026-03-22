@@ -99,38 +99,6 @@ fn get_selected_photo_refs_cmd(photo_paths: Vec<String>) -> Result<Vec<SelectedP
 }
 
 #[tauri::command]
-async fn create_display_thumbnail(path: String, source_slot: Option<i64>) -> Result<String, String> {
-    let display_path = path.clone();
-    let resolved_slot = source_slot.unwrap_or(1);
-    tauri::async_runtime::spawn_blocking(move || {
-        utils::create_display_thumbnail_file(&path, resolved_slot)
-    })
-        .await
-        .map_err(|e| {
-            format!(
-                "表示用サムネイル生成タスクの待機に失敗しました ({}): {}",
-                display_path, e
-            )
-        })?
-}
-
-#[tauri::command]
-async fn create_grid_thumbnail(path: String, source_slot: Option<i64>) -> Result<String, String> {
-    let display_path = path.clone();
-    let resolved_slot = source_slot.unwrap_or(1);
-    tauri::async_runtime::spawn_blocking(move || {
-        utils::create_grid_thumbnail_file(&path, resolved_slot)
-    })
-        .await
-        .map_err(|e| {
-            format!(
-                "一覧用サムネイル生成タスクの待機に失敗しました ({}): {}",
-                display_path, e
-            )
-        })?
-}
-
-#[tauri::command]
 async fn save_photo_memo_cmd(
     photo_path: String,
     memo: String,
@@ -380,8 +348,6 @@ pub fn run() {
             get_photos,
             get_world_filter_options_cmd,
             get_selected_photo_refs_cmd,
-            create_display_thumbnail,
-            create_grid_thumbnail,
             save_photo_memo_cmd,
             get_photo_memo_cmd,
             get_photo_tags_cmd,

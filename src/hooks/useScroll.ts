@@ -5,18 +5,17 @@ interface UseScrollArgs {
     columnCount: number;
     gridHeight: number;
     ROW_HEIGHT: number;
-    totalHeightOverride?: number;
     disableProgrammaticBounds?: boolean;
 }
 
-export const useScroll = ({ photosLength, columnCount, gridHeight, ROW_HEIGHT, totalHeightOverride, disableProgrammaticBounds = false }: UseScrollArgs) => {
+export const useScroll = ({ photosLength, columnCount, gridHeight, ROW_HEIGHT, disableProgrammaticBounds = false }: UseScrollArgs) => {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
     const animationFrameRef = useRef<number | null>(null);
     const pendingScrollTopRef = useRef(0);
 
     const totalRows = Math.ceil(photosLength / columnCount);
-    const totalHeight = totalHeightOverride ?? totalRows * ROW_HEIGHT;
+    const totalHeight = totalRows * ROW_HEIGHT;
     const maxScrollTop = Math.max(0, totalHeight - gridHeight);
 
     useLayoutEffect(() => {
@@ -29,7 +28,7 @@ export const useScroll = ({ photosLength, columnCount, gridHeight, ROW_HEIGHT, t
         if (scrollContainerRef.current && Math.abs(scrollContainerRef.current.scrollTop - nextScrollTop) > 1) {
             scrollContainerRef.current.scrollTop = nextScrollTop;
         }
-    }, [columnCount, disableProgrammaticBounds, gridHeight, maxScrollTop, photosLength, totalHeightOverride]);
+    }, [columnCount, disableProgrammaticBounds, gridHeight, maxScrollTop, photosLength]);
 
     const handleGridScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
         scrollContainerRef.current = e.currentTarget;
@@ -50,41 +49,6 @@ export const useScroll = ({ photosLength, columnCount, gridHeight, ROW_HEIGHT, t
             }
         };
     }, []);
-
-    const handleJumpToRow = useCallback((rowIndex: number) => {
-        if (scrollContainerRef.current) {
-            const nextScrollTop = rowIndex * ROW_HEIGHT;
-            pendingScrollTopRef.current = nextScrollTop;
-            setScrollTop(nextScrollTop);
-            scrollContainerRef.current.scrollTo({
-                top: nextScrollTop,
-                behavior: "smooth",
-            });
-        }
-    }, [ROW_HEIGHT]);
-
-    const handleJumpToRatio = useCallback((ratio: number, smooth = false) => {
-        if (disableProgrammaticBounds) {
-            return;
-        }
-        if (!scrollContainerRef.current) {
-            return;
-        }
-
-        const nextScrollTop = Math.max(0, Math.min(maxScrollTop, ratio * maxScrollTop));
-        pendingScrollTopRef.current = nextScrollTop;
-        setScrollTop(nextScrollTop);
-
-        if (smooth) {
-            scrollContainerRef.current.scrollTo({
-                top: nextScrollTop,
-                behavior: "smooth",
-            });
-            return;
-        }
-
-        scrollContainerRef.current.scrollTop = nextScrollTop;
-    }, [disableProgrammaticBounds, maxScrollTop]);
 
     const handleGridWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (disableProgrammaticBounds) {
@@ -120,12 +84,8 @@ export const useScroll = ({ photosLength, columnCount, gridHeight, ROW_HEIGHT, t
 
     return {
         scrollTop,
-        totalHeight,
         onGridRef,
         handleGridScroll,
         handleGridWheel,
-        handleJumpToRow,
-        handleJumpToRatio,
-        maxScrollTop,
     };
 };
