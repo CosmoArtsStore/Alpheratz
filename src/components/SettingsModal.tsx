@@ -8,6 +8,11 @@ interface SettingsModalProps {
   onToggleStartup: () => void;
   themeMode: "light" | "dark";
   onToggleTheme: () => void;
+  masonryEnabled: boolean;
+  onToggleMasonry: () => void;
+  isUnknownWorldAnalysisRunning: boolean;
+  unknownWorldAnalysisLabel: string | null;
+  onStartUnknownWorldAnalysis: () => void;
   embedded?: boolean;
 }
 
@@ -21,6 +26,11 @@ export const SettingsModal = ({
   onToggleStartup,
   themeMode,
   onToggleTheme,
+  masonryEnabled,
+  onToggleMasonry,
+  isUnknownWorldAnalysisRunning,
+  unknownWorldAnalysisLabel,
+  onStartUnknownWorldAnalysis,
   embedded = false,
 }: SettingsModalProps) => {
   const containerClassName = embedded
@@ -102,6 +112,56 @@ export const SettingsModal = ({
                 >
                   <span className="toggle-switch-knob" />
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-section-grid">
+            <div className="memo-section">
+              <label>ピンボード表示を有効化</label>
+              <div className="settings-toggle-row">
+                <div className="settings-toggle-copy">
+                  <p className="startup-toggle-text">
+                    有効にすると、Pinterest のような高さ違いのカードを並べるピンボード表示を使えるようになります。無効時はグリッド表示のみです。
+                  </p>
+                  <p className="settings-danger-text">
+                    高負荷がかかります。
+                  </p>
+                </div>
+                <button
+                  className={`toggle-switch ${masonryEnabled ? "active" : ""}`}
+                  onClick={onToggleMasonry}
+                  aria-label="ピンボード表示を切り替える"
+                  type="button"
+                >
+                  <span className="toggle-switch-knob" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-section-grid">
+            <div className="memo-section">
+              <label>ワールド不明写真を一括分析</label>
+              <div className="settings-toggle-copy">
+                <p className="startup-toggle-text">
+                  ワールド不明の写真に対して PDQ 分析をまとめて進めます。写真モーダルの類似写真探索を使う前準備として利用できます。
+                </p>
+                <div className="settings-path-row">
+                  <button
+                    className="save-button settings-action-button"
+                    onClick={onStartUnknownWorldAnalysis}
+                    disabled={isUnknownWorldAnalysisRunning}
+                    type="button"
+                  >
+                    {isUnknownWorldAnalysisRunning ? "分析中..." : "一括分析を開始"}
+                  </button>
+                </div>
+                {unknownWorldAnalysisLabel && (
+                  <p className="startup-toggle-text">
+                    {unknownWorldAnalysisLabel}
+                  </p>
+                )}
               </div>
             </div>
           </div>

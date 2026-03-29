@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { ScanProgress } from "../types";
 import { ToastType } from "./useToasts";
+import { DETACH_RUNTIME_DATA } from "../config/runtimeFlags";
 
 export const useScan = (addToast?: (msg: string, type?: ToastType) => void) => {
     const [scanStatus, setScanStatus] = useState<"idle" | "scanning" | "completed" | "error">("idle");
@@ -12,6 +13,7 @@ export const useScan = (addToast?: (msg: string, type?: ToastType) => void) => {
     const isScanningRef = useRef(false);
 
     const startScan = useCallback(async () => {
+        if (DETACH_RUNTIME_DATA) return;
         if (isScanningRef.current) return;
         isScanningRef.current = true;
         setScanStatus("scanning");
@@ -26,12 +28,20 @@ export const useScan = (addToast?: (msg: string, type?: ToastType) => void) => {
     }, [addToast]);
 
     const refreshSettings = useCallback(async () => {
+        if (DETACH_RUNTIME_DATA) {
+            setPhotoFolderPath("");
+            setSecondaryPhotoFolderPath("");
+            return;
+        }
         const setting = await invoke<{ photoFolderPath?: string; secondaryPhotoFolderPath?: string }>("get_setting_cmd");
         setPhotoFolderPath(setting.photoFolderPath || "");
         setSecondaryPhotoFolderPath(setting.secondaryPhotoFolderPath || "");
     }, []);
 
     useEffect(() => {
+        if (DETACH_RUNTIME_DATA) {
+            return;
+        }
         let disposed = false;
         const unlistenFns: UnlistenFn[] = [];
 
@@ -63,6 +73,14 @@ export const useScan = (addToast?: (msg: string, type?: ToastType) => void) => {
     }, [addToast]);
 
     useEffect(() => {
+        if (DETACH_RUNTIME_DATA) {
+            setPhotoFolderPath("");
+            setSecondaryPhotoFolderPath("");
+            setScanStatus("idle");
+            setScanProgress({ processed: 0, total: 0, current_world: "", phase: "scan" });
+            return;
+        }
+
         let cancelled = false;
 
         const initialize = async () => {
@@ -96,6 +114,7 @@ export const useScan = (addToast?: (msg: string, type?: ToastType) => void) => {
     }, [addToast, startScan]);
 
     const cancelScan = useCallback(async () => {
+        if (DETACH_RUNTIME_DATA) return;
         try {
             await invoke("cancel_scan");
         } catch (err) {

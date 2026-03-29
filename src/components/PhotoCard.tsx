@@ -1,7 +1,6 @@
 import { CSSProperties } from "react";
 import { DisplayPhotoItem } from "../types";
 import { AnimatedFavoriteStar } from "./AnimatedFavoriteStar";
-import { useDeferredImageSrc } from "../hooks/useDeferredImageSrc";
 
 interface PhotoCardProps {
   data: DisplayPhotoItem[];
@@ -23,9 +22,22 @@ export const PhotoCard = ({
   const index = rowIndex * columnCount + columnIndex;
   const item = data[index - startIndex];
   const photo = item?.photo;
-  const thumbImage = useDeferredImageSrc(photo?.grid_thumb_path, !!photo?.grid_thumb_path);
 
-  if (!photo) return null;
+  if (!photo) {
+    return (
+      <div style={style} className="photo-card-wrapper">
+        <div className="photo-card photo-card-empty">
+          <div className="photo-thumb-container photo-thumb-container-skeleton">
+            <div className="photo-thumb-skeleton" />
+          </div>
+          <div className="photo-info photo-info-skeleton">
+            <div className="photo-world photo-world-placeholder" />
+            <div className="photo-date photo-date-placeholder" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const selected = isSelected(item);
 
@@ -50,10 +62,7 @@ export const PhotoCard = ({
               {selected ? "✓" : ""}
             </button>
           )}
-          {thumbImage.src
-            ? <img src={thumbImage.src} alt={photo.photo_filename} className="photo-thumb" loading="lazy" decoding="async" draggable={false} onLoad={thumbImage.onLoad} onError={thumbImage.onError} />
-            : <div className="photo-thumb-skeleton" />
-          }
+          <div className="photo-thumb-skeleton" />
           {photo.is_favorite && (
             <span className="photo-favorite-corner" aria-hidden="true">
               <AnimatedFavoriteStar liked={true} className="favorite-star-corner" />
@@ -69,9 +78,6 @@ export const PhotoCard = ({
           <div className="photo-meta-row">
             {photo.match_source === "stella_db" && <span className="photo-pill">DB</span>}
             {photo.match_source === "phash" && <span className="photo-pill">類似一致</span>}
-            {photo.orientation && (
-              <span className="photo-pill">{photo.orientation}</span>
-            )}
           </div>
           <div className="photo-world">{photo.world_name || "ワールド不明"}</div>
           <div className="photo-date">{photo.timestamp}</div>

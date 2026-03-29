@@ -50,11 +50,14 @@ struct ScanPhotoData {
     timestamp: String,
     world_id: Option<String>,
     world_name: Option<String>,
+    world_group_id: String,
     orientation: Option<String>,
     image_width: Option<i64>,
     image_height: Option<i64>,
     source_slot: i64,
     match_source: Option<String>,
+    phash: Option<String>,
+    phash_version: i64,
 }
 
 #[derive(Clone, Copy)]
@@ -156,15 +159,7 @@ fn resolve_photo_dirs() -> Result<Vec<(i64, PathBuf)>, PhotoDirErrorKind> {
 }
 
 fn scan_analyze_concurrency() -> usize {
-    std::thread::available_parallelism()
-        .map(|value| value.get().clamp(4, 16))
-        .unwrap_or(8)
-}
-
-fn thumbnail_prewarm_concurrency() -> usize {
-    std::thread::available_parallelism()
-        .map(|value| value.get().clamp(4, 16))
-        .unwrap_or(8)
+    10
 }
 
 pub async fn do_scan(app: AppHandle) -> Result<(), String> {
@@ -216,25 +211,6 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
         .collect();
     mark_missing_photos(&conn, &existing_photos, &found_path_set)?;
 
-    let prewarm_items: Vec<(String, PathBuf, i64)> = found_files
-        .iter()
-        .filter_map(|(slot, filename, path)| match utils::needs_analysis_thumbnail_prewarm(
-            &path.to_string_lossy(),
-            *slot,
-        ) {
-            Ok(true) => Some((filename.clone(), path.clone(), *slot)),
-            Ok(false) => None,
-            Err(err) => {
-                crate::utils::log_warn(&format!(
-                    "既存キャッシュ確認に失敗したため事前生成対象へ含めます [{}]: {}",
-                    path.display(),
-                    err
-                ));
-                Some((filename.clone(), path.clone(), *slot))
-            }
-        })
-        .collect();
-
     let candidate_files: Vec<(String, PathBuf, i64, ScanRefreshKind)> = found_files
         .iter()
         .cloned()
@@ -264,9 +240,8 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
         })
         .collect();
 
-    let prewarm_total = prewarm_items.len();
     let analyze_total = candidate_files.len();
-    let total_work = prewarm_total + analyze_total;
+    let total_work = analyze_total;
     emit_warn(
         &app,
         "scan:progress",
@@ -277,15 +252,6 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
             phase: "scan".into(),
         },
     );
-
-    prewarm_analysis_thumbnails(
-        app.clone(),
-        &cancel_status,
-        &prewarm_items,
-        0,
-        total_work,
-    )
-    .await?;
 
     let existing_photos = Arc::new(existing_photos);
     let analyze_concurrency = scan_analyze_concurrency();
@@ -348,7 +314,7 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
                 &app,
                 "scan:progress",
                 ScanProgress {
-                    processed: prewarm_total + processed,
+                    processed,
                     total: total_work,
                     current_world: format!("分析中: {}", current_world),
                     phase: "scan".into(),
@@ -356,93 +322,24 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
             );
         }
     }
-
-    let phash_total = phash::count_pending_phash_for_scan()?;
-    phash::run_pending_phash_for_scan(app.clone(), total_work, total_work + phash_total).await?;
-    emit_warn(&app, "scan:completed", ());
-    Ok(())
-}
-
-async fn prewarm_analysis_thumbnails(
-    app: AppHandle,
-    cancel_status: &ScanCancelStatus,
-    items: &[(String, PathBuf, i64)],
-    processed_base: usize,
-    total_work: usize,
-) -> Result<(), String> {
-    let total = items.len();
     emit_warn(
         &app,
         "scan:progress",
         ScanProgress {
-            processed: processed_base,
-            total: total_work.max(processed_base + total),
-            current_world: "分析用キャッシュを生成中...".into(),
+            processed: total_work,
+            total: total_work,
+            current_world: "後処理中...".into(),
             phase: "scan".into(),
         },
     );
-
-    let warmup_concurrency = thumbnail_prewarm_concurrency();
-    let semaphore = Arc::new(tokio::sync::Semaphore::new(warmup_concurrency));
-    let mut join_set = tokio::task::JoinSet::new();
-    let mut next_index = 0usize;
-    let mut processed = 0usize;
-
-    while next_index < total || !join_set.is_empty() {
-        while next_index < total && join_set.len() < warmup_concurrency {
-            if cancel_status.0.load(Ordering::SeqCst) {
-                crate::utils::log_warn("サムネイル事前生成中にスキャンが中断されました。");
-                emit_warn(&app, "scan:error", "スキャンを中断しました");
-                return Ok(());
-            }
-
-            let (filename, photo_path, source_slot) = items[next_index].clone();
-            let permit = Arc::clone(&semaphore)
-                .acquire_owned()
-                .await
-                .map_err(|err| scan_err("サムネイル事前生成の同時実行制御を取得できません", err))?;
-            join_set.spawn(async move {
-                let _permit = permit;
-                let result = tauri::async_runtime::spawn_blocking(move || {
-                    utils::prewarm_analysis_thumbnail_files(
-                        &photo_path.to_string_lossy(),
-                        source_slot,
-                    )
-                })
-                .await
-                .map_err(|err| scan_err("サムネイル生成タスクの待機に失敗しました", err))?;
-                Ok::<_, String>((filename, result))
-            });
-            next_index += 1;
-        }
-
-        let Some(join_result) = join_set.join_next().await else {
-            break;
-        };
-        let (filename, warmup_result) = join_result
-            .map_err(|err| scan_err("サムネイル生成タスクが異常終了しました", err))??;
-        if let Err(err) = warmup_result {
-            crate::utils::log_warn(&format!(
-                "分析用キャッシュの事前生成に失敗しました [{}]: {}",
-                filename, err
-            ));
-        }
-
-        processed += 1;
-        if processed % 10 == 0 || processed == total {
-            emit_warn(
-                &app,
-                "scan:progress",
-                ScanProgress {
-                    processed: processed_base + processed,
-                    total: total_work.max(processed_base + total),
-                    current_world: format!("キャッシュ生成中: {}", filename),
-                    phase: "scan".into(),
-                },
-            );
-        }
+    phash::rebuild_pdq_groups()?;
+    if let Ok(mut progress) = app.state::<crate::phash::PHashWorkerState>().progress.lock() {
+        progress.done = total_work;
+        progress.total = total_work;
+        progress.current = None;
     }
-
+    emit_warn(&app, "phash_complete", ());
+    emit_warn(&app, "scan:completed", ());
     Ok(())
 }
 
@@ -493,6 +390,7 @@ fn analyze_photo(
     existing_photos: &HashMap<String, ExistingPhotoInfo>,
     refresh_kind: ScanRefreshKind,
 ) -> Result<Option<ScanPhotoData>, String> {
+    utils::prewarm_analysis_thumbnail_files(&path.to_string_lossy(), source_slot)?;
     let timestamp = resolve_photo_timestamp(path, filename)?;
 
     let normalized_path = path.to_slash_lossy().to_string();
@@ -544,6 +442,22 @@ fn analyze_photo(
             (orientation, image_width, image_height)
         }
     };
+    let phash = match refresh_kind {
+        ScanRefreshKind::PathOnly => None,
+        ScanRefreshKind::Full | ScanRefreshKind::MetadataOnly => match phash::compute_pdq_variants_from_path(&normalized_path, source_slot) {
+            Ok(value) => Some(value),
+            Err(err) => {
+                crate::utils::log_warn(&format!(
+                    "PDQ 計算に失敗したため空として扱います [{}]: {}",
+                    path.display(),
+                    err
+                ));
+                None
+            }
+        },
+    };
+
+    let world_group_id = build_world_group_id(world_id.as_deref(), world_name.as_deref(), &path.to_slash_lossy());
 
     Ok(Some(ScanPhotoData {
         filename: filename.to_string(),
@@ -551,11 +465,14 @@ fn analyze_photo(
         timestamp,
         world_id,
         world_name,
+        world_group_id,
         orientation,
         image_width,
         image_height,
         source_slot,
         match_source,
+        phash,
+        phash_version: phash::PHASH_VERSION,
     }))
 }
 
@@ -606,6 +523,16 @@ fn resolve_world_info_lightweight(
     }
 
     (None, None, None)
+}
+
+fn build_world_group_id(world_id: Option<&str>, world_name: Option<&str>, photo_path: &str) -> String {
+    if let Some(value) = world_id.map(str::trim).filter(|value| !value.is_empty()) {
+        return format!("id:{value}");
+    }
+    if let Some(value) = world_name.map(str::trim).filter(|value| !value.is_empty()) {
+        return format!("name:{value}");
+    }
+    format!("unknown:{photo_path}")
 }
 
 fn resolve_photo_timestamp(path: &Path, filename: &str) -> Result<String, String> {
@@ -717,24 +644,33 @@ fn upsert_photo_batch(conn: &mut Connection, items: &[ScanPhotoData]) -> Result<
                     photo_filename,
                     world_id,
                     world_name,
+                    world_group_id,
                     timestamp,
                     orientation,
                     image_width,
                     image_height,
                     source_slot,
                     match_source,
+                    phash,
+                    phash_version,
                     is_missing
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0)
-                ON CONFLICT(photo_path) DO UPDATE SET
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, 0)
+                 ON CONFLICT(photo_path) DO UPDATE SET
                     photo_filename = excluded.photo_filename,
                     world_id = COALESCE(excluded.world_id, photos.world_id),
                     world_name = COALESCE(excluded.world_name, photos.world_name),
+                    world_group_id = excluded.world_group_id,
                     timestamp = excluded.timestamp,
                     orientation = COALESCE(excluded.orientation, photos.orientation),
                     image_width = COALESCE(excluded.image_width, photos.image_width),
                     image_height = COALESCE(excluded.image_height, photos.image_height),
                     source_slot = excluded.source_slot,
                     match_source = COALESCE(excluded.match_source, photos.match_source),
+                    phash = COALESCE(excluded.phash, photos.phash),
+                    phash_version = CASE
+                        WHEN excluded.phash IS NOT NULL THEN excluded.phash_version
+                        ELSE photos.phash_version
+                    END,
                     is_missing = 0",
             )
             .map_err(|e| format!("写真更新ステートメントを準備できません: {}", e))?;
@@ -745,12 +681,15 @@ fn upsert_photo_batch(conn: &mut Connection, items: &[ScanPhotoData]) -> Result<
                 item.filename,
                 item.world_id,
                 item.world_name,
+                item.world_group_id,
                 item.timestamp,
                 item.orientation,
                 item.image_width,
                 item.image_height,
                 item.source_slot,
                 item.match_source,
+                item.phash,
+                item.phash_version,
             ])
             .map_err(|e| format!("写真を更新できません [{}]: {}", item.filename, e))?;
         }

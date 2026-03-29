@@ -17,10 +17,17 @@ export const GalleryPhotoCard = ({
     showSelectionToggle,
 }: GalleryPhotoCardProps) => {
     const photo = item.photo;
-    const thumbImage = useDeferredImageSrc(photo.display_thumb_path, !!photo.display_thumb_path);
     const aspectRatio = photo.image_width && photo.image_height && photo.image_width > 0 && photo.image_height > 0
         ? `${photo.image_width} / ${photo.image_height}`
-        : (photo.orientation === "portrait" ? "9 / 16" : "16 / 9");
+        : "16 / 9";
+    const { src } = useDeferredImageSrc(
+        photo.display_thumb_path ?? photo.grid_thumb_path,
+        true,
+        {
+            originalPath: photo.resolved_photo_path,
+            sourceSlot: photo.source_slot,
+        },
+    );
 
     return (
         <div
@@ -36,6 +43,15 @@ export const GalleryPhotoCard = ({
             tabIndex={0}
         >
             <div className="gallery-photo-thumb" style={{ aspectRatio }}>
+                {src && (
+                    <img
+                        className="gallery-photo-image"
+                        src={src}
+                        alt=""
+                        draggable={false}
+                        loading="lazy"
+                    />
+                )}
                 {showSelectionToggle && (
                     <button
                         className={`photo-select-toggle ${selected ? "selected" : ""}`}
@@ -49,20 +65,7 @@ export const GalleryPhotoCard = ({
                         {selected ? "✓" : ""}
                     </button>
                 )}
-                {thumbImage.src ? (
-                    <img
-                        src={thumbImage.src}
-                        alt={photo.photo_filename}
-                        className="gallery-photo-image"
-                        loading="lazy"
-                        decoding="async"
-                        draggable={false}
-                        onLoad={thumbImage.onLoad}
-                        onError={thumbImage.onError}
-                    />
-                ) : (
-                    <div className="photo-thumb-skeleton" />
-                )}
+                {!src && <div className="photo-thumb-skeleton" />}
             </div>
         </div>
     );

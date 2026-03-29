@@ -19,6 +19,8 @@ pub struct AlpheratzSetting {
     pub theme_mode: String,
     #[serde(default, rename = "viewMode", alias = "view_mode")]
     pub view_mode: String,
+    #[serde(default, rename = "enableMasonryLayout", alias = "enable_masonry_layout")]
+    pub enable_masonry_layout: bool,
     #[serde(default, rename = "enableStartup", alias = "enable_startup")]
     pub enable_startup: bool,
     #[serde(
@@ -49,21 +51,16 @@ pub struct BackupPathEntry {
 
 impl Default for AlpheratzSetting {
     fn default() -> Self {
-        let tweet_templates = vec![
-            "おは{world-name}\n\n#{タグを追加}".to_string(),
-            "World: {world-name}\nAuthor:\n\n#VRChat_world紹介".to_string(),
-            "World: {world-name}\nAuthor:\nCloth:\n\n#VRChatPhotography".to_string(),
-        ];
-        let active_tweet_template = tweet_templates[0].clone();
         AlpheratzSetting {
             photo_folder_path: String::new(),
             secondary_photo_folder_path: String::new(),
             theme_mode: "light".to_string(),
             view_mode: "standard".to_string(),
+            enable_masonry_layout: false,
             enable_startup: false,
             startup_preference_set: false,
-            tweet_templates,
-            active_tweet_template,
+            tweet_templates: Vec::new(),
+            active_tweet_template: String::new(),
         }
     }
 }

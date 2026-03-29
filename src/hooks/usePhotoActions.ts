@@ -1,15 +1,16 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Photo } from "../types";
+import { DETACH_AUXILIARY_RUNTIME_DATA, DETACH_RUNTIME_DATA } from "../config/runtimeFlags";
 
-export const usePhotoActions = (setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>, addToast: (msg: string) => void) => {
+export const usePhotoActions = (addToast: (msg: string) => void) => {
     const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
     const [photoHistory, setPhotoHistory] = useState<Photo[]>([]);
     const [localMemo, setLocalMemo] = useState("");
     const [isSavingMemo, setIsSavingMemo] = useState(false);
 
     const handleSaveMemo = async () => {
-        if (!selectedPhoto) return;
+        if (DETACH_RUNTIME_DATA || DETACH_AUXILIARY_RUNTIME_DATA || !selectedPhoto) return;
         setIsSavingMemo(true);
         try {
             await invoke("save_photo_memo_cmd", {
@@ -17,9 +18,6 @@ export const usePhotoActions = (setPhotos: React.Dispatch<React.SetStateAction<P
                 memo: localMemo,
                 sourceSlot: selectedPhoto.source_slot ?? 1,
             });
-            setPhotos((prev) => prev.map((p) =>
-                p.photo_path === selectedPhoto.photo_path ? { ...p, memo: localMemo } : p
-            ));
             setSelectedPhoto((prev) => (prev ? { ...prev, memo: localMemo } : null));
             addToast("メモを保存しました。");
         } catch (err) {
@@ -30,6 +28,9 @@ export const usePhotoActions = (setPhotos: React.Dispatch<React.SetStateAction<P
     };
 
     const handleOpenWorld = async () => {
+        if (DETACH_RUNTIME_DATA || DETACH_AUXILIARY_RUNTIME_DATA) {
+            return;
+        }
         if (selectedPhoto?.world_id) {
             try {
                 await invoke("open_world_url", { worldId: selectedPhoto.world_id });
@@ -70,6 +71,10 @@ export const usePhotoActions = (setPhotos: React.Dispatch<React.SetStateAction<P
     }, []);
 
     useEffect(() => {
+        if (DETACH_RUNTIME_DATA || DETACH_AUXILIARY_RUNTIME_DATA) {
+            setLocalMemo("");
+            return;
+        }
         if (!selectedPhoto) {
             setLocalMemo("");
             return;
@@ -94,9 +99,6 @@ export const usePhotoActions = (setPhotos: React.Dispatch<React.SetStateAction<P
                 }
                 setLocalMemo(memo);
                 setSelectedPhoto((prev) => (prev && prev.photo_path === selectedPhoto.photo_path ? { ...prev, memo, tags } : prev));
-                setPhotos((prev) => prev.map((photo) => (
-                    photo.photo_path === selectedPhoto.photo_path ? { ...photo, memo, tags } : photo
-                )));
             })
             .catch((err) => {
                 if (isMounted) {

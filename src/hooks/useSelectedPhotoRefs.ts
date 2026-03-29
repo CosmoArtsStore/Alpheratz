@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SelectedPhotoRef } from "../types";
 import { ToastType } from "./useToasts";
+import { DETACH_AUXILIARY_RUNTIME_DATA, DETACH_RUNTIME_DATA } from "../config/runtimeFlags";
 
 export const useSelectedPhotoRefs = (
     photoPaths: string[],
@@ -10,6 +11,10 @@ export const useSelectedPhotoRefs = (
     const [selectedPhotoRefs, setSelectedPhotoRefs] = useState<SelectedPhotoRef[]>([]);
 
     useEffect(() => {
+        if (DETACH_RUNTIME_DATA || DETACH_AUXILIARY_RUNTIME_DATA) {
+            setSelectedPhotoRefs([]);
+            return;
+        }
         if (photoPaths.length === 0) {
             setSelectedPhotoRefs([]);
             return;

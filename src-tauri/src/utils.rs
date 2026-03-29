@@ -3,11 +3,14 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
 
 const REGISTRY_BASE_KEY: &str = "Software\\CosmoArtsStore\\STELLAProject";
 const LOG_FILE_PREFIX: &str = "info";
+const BROWSE_CACHE_LIMIT_BYTES: u64 = 256 * 1024 * 1024;
+const PDQ_CACHE_LIMIT_BYTES: u64 = 64 * 1024 * 1024;
 
 fn write_bootstrap_log(level: &str, msg: &str) {
     let fallback_dir = std::env::temp_dir().join("STELLAProject").join("Alpheratz");
@@ -308,6 +311,128 @@ fn resolve_thumbnail_cache_path(
     Ok(cache_dir.join(format!("{}.thumb.{}.jpg", filename, cache_version)))
 }
 
+fn prune_thumbnail_cache(source_slot: i64, cache_version: &str, max_bytes: u64) -> Result<(), String> {
+    let cache_dir = get_alpheratz_img_cache_dir(source_slot)
+        .ok_or_else(|| "Alpheratz の imgCache フォルダを取得できません".to_string())?;
+    let suffix = format!(".thumb.{}.jpg", cache_version);
+
+    let mut entries = Vec::new();
+    let mut total_bytes = 0u64;
+    for entry in fs::read_dir(&cache_dir)
+        .map_err(|err| format!("サムネイルキャッシュを走査できません [{}]: {}", cache_dir.display(), err))?
+    {
+        let entry = entry.map_err(|err| {
+            format!(
+                "サムネイルキャッシュ項目を読み取れません [{}]: {}",
+                cache_dir.display(),
+                err
+            )
+        })?;
+        let path = entry.path();
+        let is_target = matches!(
+            path.file_name().and_then(|value| value.to_str()),
+            Some(value) if value.ends_with(&suffix)
+        );
+        if !is_target {
+            continue;
+        }
+        let metadata = entry.metadata().map_err(|err| {
+            format!(
+                "サムネイルキャッシュ属性を取得できません [{}]: {}",
+                path.display(),
+                err
+            )
+        })?;
+        let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+        let file_len = metadata.len();
+        total_bytes = total_bytes.saturating_add(file_len);
+        entries.push((path, file_len, modified));
+    }
+
+    if total_bytes <= max_bytes {
+        return Ok(());
+    }
+
+    entries.sort_by_key(|(_, _, modified)| *modified);
+
+    for (path, file_len, _) in entries {
+        fs::remove_file(&path).map_err(|err| {
+            format!(
+                "古いサムネイルキャッシュを削除できません [{}]: {}",
+                path.display(),
+                err
+            )
+        })?;
+        total_bytes = total_bytes.saturating_sub(file_len);
+        if total_bytes <= max_bytes {
+            break;
+        }
+    }
+
+    Ok(())
+}
+
+fn thumbnail_cache_limit_for(cache_version: &str) -> u64 {
+    if cache_version == "pdq.v2" {
+        PDQ_CACHE_LIMIT_BYTES
+    } else {
+        BROWSE_CACHE_LIMIT_BYTES
+    }
+}
+
+pub fn prune_thumbnail_cache_for_slot(source_slot: i64) -> Result<(), String> {
+    prune_thumbnail_cache(source_slot, "pdq.v2", thumbnail_cache_limit_for("pdq.v2"))?;
+    prune_thumbnail_cache(
+        source_slot,
+        "browse.v3",
+        thumbnail_cache_limit_for("browse.v3"),
+    )?;
+    Ok(())
+}
+
+pub fn read_thumbnail_bytes(path: &str) -> Result<Vec<u8>, String> {
+    let requested = PathBuf::from(path);
+    if !requested.exists() {
+        return Err(format!("サムネイルファイルが見つかりません: {}", requested.display()));
+    }
+    if requested.extension().and_then(|value| value.to_str()) != Some("jpg") {
+        return Err(format!(
+            "サムネイル拡張子が不正です [{}]",
+            requested.display()
+        ));
+    }
+
+    let canonical_path = requested.canonicalize().map_err(|err| {
+        format!(
+            "サムネイルパスを正規化できません [{}]: {}",
+            requested.display(),
+            err
+        )
+    })?;
+
+    let slot_dirs = [1_i64, 2_i64]
+        .into_iter()
+        .filter_map(get_alpheratz_img_cache_dir)
+        .filter_map(|dir| dir.canonicalize().ok())
+        .collect::<Vec<_>>();
+
+    let allowed = slot_dirs.iter().any(|dir| canonical_path.starts_with(dir));
+    if !allowed {
+        return Err(format!(
+            "imgCache 配下ではないサムネイルは読み込めません [{}]",
+            canonical_path.display()
+        ));
+    }
+
+    fs::read(&canonical_path).map_err(|err| {
+        format!(
+            "サムネイルファイルを読み込めません [{}]: {}",
+            canonical_path.display(),
+            err
+        )
+    })
+}
+
 pub fn resolve_thumbnail_cache_path_string(
     path: &str,
     source_slot: i64,
@@ -340,13 +465,14 @@ fn create_thumbnail_file_with_size(
             e
         )
     })?;
+    prune_thumbnail_cache(source_slot, cache_version, thumbnail_cache_limit_for(cache_version))?;
 
     Ok(cache_path.to_string_lossy().to_string())
 }
 
 pub fn prewarm_analysis_thumbnail_files(path: &str, source_slot: i64) -> Result<(), String> {
     let pdq_cache_path = resolve_thumbnail_cache_path(path, source_slot, "pdq.v2")?;
-    let browse_cache_path = resolve_thumbnail_cache_path(path, source_slot, "browse.v1")?;
+    let browse_cache_path = resolve_thumbnail_cache_path(path, source_slot, "browse.v3")?;
 
     let needs_pdq = !pdq_cache_path.exists();
     let needs_browse = !browse_cache_path.exists();
@@ -365,16 +491,22 @@ pub fn prewarm_analysis_thumbnail_files(path: &str, source_slot: i64) -> Result<
                 e
             )
         })?;
+        prune_thumbnail_cache(source_slot, "pdq.v2", thumbnail_cache_limit_for("pdq.v2"))?;
     }
 
     if needs_browse {
-        img.thumbnail(512, 512).save(&browse_cache_path).map_err(|e| {
+        img.thumbnail(400, 400).save(&browse_cache_path).map_err(|e| {
             format!(
                 "一覧サムネイルを保存できません ({}): {}",
                 browse_cache_path.display(),
                 e
             )
         })?;
+        prune_thumbnail_cache(
+            source_slot,
+            "browse.v3",
+            thumbnail_cache_limit_for("browse.v3"),
+        )?;
     }
 
     Ok(())
@@ -382,7 +514,7 @@ pub fn prewarm_analysis_thumbnail_files(path: &str, source_slot: i64) -> Result<
 
 pub fn needs_analysis_thumbnail_prewarm(path: &str, source_slot: i64) -> Result<bool, String> {
     let pdq_cache_path = resolve_thumbnail_cache_path(path, source_slot, "pdq.v2")?;
-    let browse_cache_path = resolve_thumbnail_cache_path(path, source_slot, "browse.v1")?;
+    let browse_cache_path = resolve_thumbnail_cache_path(path, source_slot, "browse.v3")?;
     Ok(!pdq_cache_path.exists() || !browse_cache_path.exists())
 }
 
@@ -391,11 +523,11 @@ pub fn create_thumbnail_file(path: &str, source_slot: i64) -> Result<String, Str
 }
 
 pub fn create_display_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    create_thumbnail_file_with_size(path, source_slot, 512, "browse.v1")
+    create_thumbnail_file_with_size(path, source_slot, 400, "browse.v3")
 }
 
 pub fn create_grid_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    create_thumbnail_file_with_size(path, source_slot, 512, "browse.v1")
+    create_thumbnail_file_with_size(path, source_slot, 400, "browse.v3")
 }
 
 pub fn copy_photo_files(photo_paths: &[String], destination_dir: &str) -> Result<usize, String> {

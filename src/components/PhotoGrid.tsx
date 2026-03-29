@@ -1,6 +1,4 @@
 import { UIEvent, CSSProperties } from "react";
-import { Grid as FixedSizeGrid } from "react-window";
-import { useMasonry, usePositioner, useResizeObserver, type RenderComponentProps } from "masonic";
 import { DisplayPhotoItem } from "../types";
 import { PhotoCard } from "./PhotoCard";
 import { GalleryPhotoCard } from "./GalleryPhotoCard";
@@ -16,21 +14,6 @@ interface PhotoGridCellProps {
     startIndex?: number;
 }
 
-interface FixedSizeGridComponentProps {
-    columnCount: number;
-    columnWidth: number;
-    rowCount: number;
-    rowHeight: number;
-    overscanRowCount?: number;
-    overscanColumnCount?: number;
-    cellComponent: typeof PhotoCard;
-    cellProps: any;
-    onScroll: (e: UIEvent<HTMLDivElement>) => void;
-    outerRef: (node: HTMLDivElement | null) => void;
-    style: CSSProperties;
-    className: string;
-}
-
 interface PhotoGridProps {
     photos: DisplayPhotoItem[];
     viewMode: "standard" | "gallery";
@@ -43,103 +26,86 @@ interface PhotoGridProps {
     panelWidth: number;
     handleGridScroll: (e: UIEvent<HTMLDivElement>) => void;
     handleGridWheel: (e: React.WheelEvent<HTMLDivElement>) => void;
+    onReachGridEnd?: () => void;
     cellProps: PhotoGridCellProps;
     onGridRef: (node: HTMLDivElement | null) => void;
+    showBottomLoader?: boolean;
 }
 
-const FixedSizeGridComponent = FixedSizeGrid as unknown as React.ComponentType<FixedSizeGridComponentProps>;
-
 const GALLERY_COLUMN_GUTTER = 14;
-const GALLERY_MIN_COLUMN_WIDTH = 220;
-const GALLERY_ITEM_HEIGHT_ESTIMATE = 260;
-
-const GalleryMasonryItem = ({
-    index,
-    width,
-    data,
-    onSelect,
-    onToggleSelect,
-    isSelected,
-    showSelectionToggle,
-}: RenderComponentProps<DisplayPhotoItem> & {
-    onSelect: (item: DisplayPhotoItem, shiftKey: boolean) => void;
-    onToggleSelect: (item: DisplayPhotoItem, shiftKey: boolean) => void;
-    isSelected: (item: DisplayPhotoItem) => boolean;
-    showSelectionToggle: boolean;
-}) => (
-    <div
-        className="gallery-photo-card-wrapper"
-        style={{ width }}
-        data-index={index}
-    >
-        <GalleryPhotoCard
-            item={data}
-            onSelect={onSelect}
-            onToggleSelect={onToggleSelect}
-            selected={isSelected(data)}
-            showSelectionToggle={showSelectionToggle}
-        />
-    </div>
-);
+const GALLERY_MIN_COLUMN_WIDTH = 248;
 
 const VirtualMasonryGrid = ({
     photos,
     gridHeight,
     panelWidth,
-    scrollTop,
     handleGridScroll,
     handleGridWheel,
+    onReachGridEnd,
     cellProps,
     onGridRef,
+    showBottomLoader,
 }: {
     photos: DisplayPhotoItem[];
     gridHeight: number;
     panelWidth: number;
-    scrollTop: number;
     handleGridScroll: (e: UIEvent<HTMLDivElement>) => void;
     handleGridWheel: (e: React.WheelEvent<HTMLDivElement>) => void;
+    onReachGridEnd?: () => void;
     cellProps: PhotoGridCellProps;
     onGridRef: (node: HTMLDivElement | null) => void;
+    showBottomLoader?: boolean;
 }) => {
-    const masonryColumnCount = Math.max(1, Math.floor((panelWidth + GALLERY_COLUMN_GUTTER) / (GALLERY_MIN_COLUMN_WIDTH + GALLERY_COLUMN_GUTTER)));
-    const positioner = usePositioner({
-        width: panelWidth,
-        columnWidth: GALLERY_MIN_COLUMN_WIDTH,
-        columnGutter: GALLERY_COLUMN_GUTTER,
-        rowGutter: GALLERY_COLUMN_GUTTER,
-        columnCount: masonryColumnCount,
-    }, [panelWidth, masonryColumnCount, photos.length]);
-    const resizeObserver = useResizeObserver(positioner);
-    const masonry = useMasonry<DisplayPhotoItem>({
-        items: photos,
-        positioner,
-        resizeObserver,
-        height: gridHeight,
-        scrollTop,
-        itemHeightEstimate: GALLERY_ITEM_HEIGHT_ESTIMATE,
-        overscanBy: 1,
-        role: "grid",
-        render: (renderProps) => (
-            <GalleryMasonryItem
-                {...renderProps}
-                onSelect={cellProps.onSelect}
-                onToggleSelect={cellProps.onToggleSelect}
-                isSelected={cellProps.isSelected}
-                showSelectionToggle={cellProps.showSelectionToggle}
-            />
-        ),
-        itemKey: (item) => item.photo.photo_path,
-    });
+    const availableWidth = Math.max(0, panelWidth);
+    const masonryColumnCount = Math.max(
+        1,
+        Math.floor((availableWidth + GALLERY_COLUMN_GUTTER) / (GALLERY_MIN_COLUMN_WIDTH + GALLERY_COLUMN_GUTTER)),
+    );
+
+    const handleMasonryScroll = (e: UIEvent<HTMLDivElement>) => {
+        handleGridScroll(e);
+        const remaining = e.currentTarget.scrollHeight - e.currentTarget.scrollTop - e.currentTarget.clientHeight;
+        if (remaining <= 480) {
+            onReachGridEnd?.();
+        }
+    };
 
     return (
         <div
             className="grid-scroll-wrapper gallery-mode-shell"
             onWheel={handleGridWheel}
-            onScroll={handleGridScroll}
+            onScroll={handleMasonryScroll}
             ref={onGridRef}
-            style={{ height: gridHeight, width: panelWidth }}
+            style={{ height: gridHeight, width: "100%" }}
         >
-            {masonry}
+            <div
+                className="gallery-grid"
+                style={{
+                    columnCount: masonryColumnCount,
+                    columnGap: `${GALLERY_COLUMN_GUTTER}px`,
+                }}
+            >
+                {photos.map((item) => (
+                    <div
+                        key={item.photo.photo_path}
+                        className="gallery-photo-card-wrapper"
+                    >
+                        <GalleryPhotoCard
+                            item={item}
+                            onSelect={cellProps.onSelect}
+                            onToggleSelect={cellProps.onToggleSelect}
+                            selected={cellProps.isSelected(item)}
+                            showSelectionToggle={cellProps.showSelectionToggle}
+                        />
+                    </div>
+                ))}
+            </div>
+            {showBottomLoader && (
+                <div className="gallery-load-more-indicator" aria-live="polite">
+                    <div className="spinner" />
+                    <span>読み込み中...</span>
+                </div>
+            )}
         </div>
     );
 };
@@ -147,7 +113,6 @@ const VirtualMasonryGrid = ({
 export const PhotoGrid = ({
     photos,
     viewMode,
-    scrollTop,
     columnCount,
     columnWidth,
     totalRows,
@@ -156,8 +121,10 @@ export const PhotoGrid = ({
     panelWidth,
     handleGridScroll,
     handleGridWheel,
+    onReachGridEnd,
     cellProps,
     onGridRef,
+    showBottomLoader,
 }: PhotoGridProps) => {
     if (viewMode === "gallery") {
         return (
@@ -165,35 +132,52 @@ export const PhotoGrid = ({
                 photos={photos}
                 gridHeight={gridHeight}
                 panelWidth={panelWidth}
-                scrollTop={scrollTop}
                 handleGridScroll={handleGridScroll}
                 handleGridWheel={handleGridWheel}
+                onReachGridEnd={onReachGridEnd}
                 cellProps={cellProps}
                 onGridRef={onGridRef}
+                showBottomLoader={showBottomLoader}
             />
         );
     }
 
     return (
-            <div className="grid-scroll-wrapper" onWheel={handleGridWheel}>
-            {photos.length > 0 && (
-                <>
-                    <FixedSizeGridComponent
-                        columnCount={columnCount}
-                        columnWidth={columnWidth}
-                        rowCount={totalRows}
-                        rowHeight={ROW_HEIGHT}
-                        overscanRowCount={0}
-                        overscanColumnCount={0}
-                        cellComponent={PhotoCard as any}
-                        cellProps={cellProps}
-                        onScroll={handleGridScroll}
-                        outerRef={onGridRef}
-                        style={{ height: gridHeight, width: panelWidth }}
-                        className="photo-grid"
-                    />
-                </>
-            )}
+        <div
+            className="grid-scroll-wrapper photo-grid-fixed-shell"
+            onWheel={handleGridWheel}
+            onScroll={handleGridScroll}
+            ref={onGridRef}
+            style={{ height: gridHeight, width: panelWidth }}
+        >
+            <div
+                className="photo-grid-fixed"
+                style={{
+                    gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                    gridTemplateRows: `repeat(${Math.max(1, totalRows)}, ${ROW_HEIGHT}px)`,
+                }}
+            >
+                {Array.from({ length: Math.max(1, columnCount * totalRows) }, (_, index) => {
+                    const rowIndex = Math.floor(index / columnCount);
+                    const columnIndex = index % columnCount;
+                    return (
+                        <PhotoCard
+                            key={`grid-slot-${index}`}
+                            data={photos}
+                            onSelect={cellProps.onSelect}
+                            onToggleSelect={cellProps.onToggleSelect}
+                            isSelected={cellProps.isSelected}
+                            showTags={cellProps.showTags}
+                            showSelectionToggle={cellProps.showSelectionToggle}
+                            columnCount={columnCount}
+                            startIndex={0}
+                            columnIndex={columnIndex}
+                            rowIndex={rowIndex}
+                            style={{ width: columnWidth, height: ROW_HEIGHT } as CSSProperties}
+                        />
+                    );
+                })}
+            </div>
         </div>
     );
 };

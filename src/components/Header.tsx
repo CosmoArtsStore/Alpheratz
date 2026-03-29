@@ -10,6 +10,7 @@ interface HeaderProps {
   activeFilterCount?: number;
   controlsDisabled?: boolean;
   filterDisabled?: boolean;
+  showFilterButton?: boolean;
 }
 
 export const Header = ({
@@ -22,24 +23,27 @@ export const Header = ({
   activeFilterCount = 0,
   controlsDisabled = false,
   filterDisabled = false,
+  showFilterButton = true,
 }: HeaderProps) => {
   return (
     <header className={`header ${controlsDisabled ? "disabled" : ""}`}>
       <div className="header-left-tools">
-        <button
-          className={`header-filter-button ${activeFilterCount > 0 ? "active" : ""}`}
-          onClick={onToggleFilters}
-          disabled={controlsDisabled || filterDisabled}
-          aria-label="検索条件"
-          title="検索条件"
-          type="button"
-        >
-          <span className="header-filter-icon">
-            <Icons.Filter />
-          </span>
-          <span className="header-filter-label">検索条件</span>
-          {activeFilterCount > 0 && <span className="header-filter-count">{activeFilterCount}</span>}
-        </button>
+        {showFilterButton && (
+          <button
+            className={`header-filter-button ${activeFilterCount > 0 ? "active" : ""}`}
+            onClick={onToggleFilters}
+            disabled={controlsDisabled || filterDisabled}
+            aria-label="検索条件"
+            title="検索条件"
+            type="button"
+          >
+            <span className="header-filter-icon">
+              <Icons.Filter />
+            </span>
+            <span className="header-filter-label">検索条件</span>
+            {activeFilterCount > 0 && <span className="header-filter-count">{activeFilterCount}</span>}
+          </button>
+        )}
       </div>
 
       <div className="header-search">

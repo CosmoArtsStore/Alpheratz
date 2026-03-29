@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { DETACH_AUXILIARY_RUNTIME_DATA, DETACH_RUNTIME_DATA } from "../config/runtimeFlags";
 
 type PhashProgress = {
     done: number;
@@ -19,6 +20,12 @@ export function usePhashWorker() {
     const [isRunning, setIsRunning] = useState(false);
 
     useEffect(() => {
+        if (DETACH_RUNTIME_DATA || DETACH_AUXILIARY_RUNTIME_DATA) {
+            setProgress(EMPTY_PROGRESS);
+            setIsRunning(false);
+            return;
+        }
+
         const unlistenFns: UnlistenFn[] = [];
 
         const setup = async () => {

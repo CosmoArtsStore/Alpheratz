@@ -1045,7 +1045,8 @@ body {
 
 .alpheratz-root .preset-btn {
   min-height: 32px;
-  font-size: 0.76rem;
+  padding: 0.36rem 0.44rem;
+  font-size: 0.72rem;
   font-weight: 700;
 }
 
@@ -1207,10 +1208,10 @@ body {
   top: calc(100% + 0.5rem);
   left: 0;
   z-index: 6;
-  width: min(100%, 420px);
+  width: min(100%, 360px);
   overflow: hidden;
   border: 1px solid var(--a-border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--a-surface);
   box-shadow: 0 12px 40px rgba(26, 29, 46, 0.14);
   animation: a-calendar-in 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
@@ -1233,22 +1234,22 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.45rem;
-  padding: 0.58rem 0.72rem 0.48rem;
+  padding: 0.48rem 0.6rem 0.4rem;
   border-bottom: 1px solid var(--a-border);
 }
 
 .alpheratz-root .cal-preset-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.38rem;
-  padding: 0.4rem 0.6rem 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.34rem;
+  padding: 0.36rem 0.54rem 0;
 }
 
 .alpheratz-root .date-field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.38rem;
-  padding: 0.48rem 0.6rem 0;
+  gap: 0.34rem;
+  padding: 0.42rem 0.54rem 0;
 }
 
 .alpheratz-root .date-range-chip {
@@ -1256,7 +1257,7 @@ body {
   flex-direction: column;
   gap: 0.18rem;
   align-items: flex-start;
-  padding: 0.46rem 0.6rem;
+  padding: 0.4rem 0.52rem;
   border: 1px solid var(--a-border);
   border-radius: 10px;
   background: var(--a-surface-soft);
@@ -1294,7 +1295,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--a-text-dim);
 }
@@ -1314,7 +1315,7 @@ body {
 }
 
 .alpheratz-root .cal-top-hint {
-  font-size: 0.66rem;
+  font-size: 0.6rem;
   color: var(--a-text-faint);
 }
 
@@ -1328,7 +1329,7 @@ body {
 
 .alpheratz-root .cal-month {
   width: 100%;
-  padding: 0.46rem 0.5rem;
+  padding: 0.38rem 0.42rem;
 }
 
 .alpheratz-root .cal-month + .cal-month {
@@ -1339,12 +1340,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.32rem;
+  margin-bottom: 0.24rem;
 }
 
 .alpheratz-root .cal-nav {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border: 1px solid var(--a-border);
   border-radius: 8px;
   background: var(--a-surface-soft);
@@ -1364,7 +1365,7 @@ body {
 }
 
 .alpheratz-root .cal-month-title {
-  font-size: 0.74rem;
+  font-size: 0.68rem;
   font-weight: 800;
 }
 
@@ -1375,9 +1376,9 @@ body {
 }
 
 .alpheratz-root .cal-wd {
-  padding: 0.08rem 0;
+  padding: 0.06rem 0;
   text-align: center;
-  font-size: 0.54rem;
+  font-size: 0.5rem;
   font-weight: 800;
   color: var(--a-text-faint);
 }
@@ -1401,9 +1402,9 @@ body {
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 6px;
+  border-radius: 5px;
   background: transparent;
-  font-size: 0.6rem;
+  font-size: 0.56rem;
   font-weight: 600;
   color: var(--a-text);
   cursor: pointer;
@@ -1569,7 +1570,7 @@ body {
   background: var(--a-toggle-off-soft);
   cursor: pointer;
   user-select: none;
-  transition: border-color 0.2s, background 0.2s, transform 0.15s, color 0.2s;
+  transition: border-color 0.18s, background 0.18s, transform 0.15s, box-shadow 0.18s, color 0.18s;
 }
 
 .alpheratz-root.theme-dark .fav-toggle,
@@ -1583,13 +1584,22 @@ body {
 
 .alpheratz-root .fav-toggle:hover {
   transform: translateY(-1px);
-  border-color: var(--a-warn-border);
-  background: var(--a-warn-soft);
+  border-color: color-mix(in srgb, #ffffff 28%, var(--a-toggle-off-border));
+  background: color-mix(in srgb, #ffffff 12%, var(--a-toggle-off-soft));
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
 }
 
 .alpheratz-root .fav-toggle.active {
-  background: var(--a-warn-soft);
-  border-color: var(--a-warn-border);
+  background: #eab308;
+  border-color: #eab308;
+  box-shadow: none;
+}
+
+.alpheratz-root .fav-toggle.active:hover {
+  transform: translateY(-1px);
+  background: #eab308;
+  border-color: #eab308;
+  box-shadow: 0 6px 14px rgba(234, 179, 8, 0.22);
 }
 
 .alpheratz-root .fav-star {
@@ -1598,7 +1608,7 @@ body {
 }
 
 .alpheratz-root .fav-toggle.active .fav-star {
-  color: var(--a-warn);
+  color: #ffffff;
 }
 
 .alpheratz-root.theme-dark .fav-star,
@@ -1614,11 +1624,7 @@ body {
 }
 
 .alpheratz-root .fav-toggle.active .fav-text {
-  color: var(--a-warn);
-}
-
-.alpheratz-root.theme-dark .fav-toggle.active .fav-text {
-  color: var(--a-warn);
+  color: #ffffff;
 }
 
 .alpheratz-root .fav-check {
@@ -1963,6 +1969,69 @@ body {
   overflow: hidden;
 }
 
+.alpheratz-root .photo-grid-fixed-shell {
+  overflow: auto;
+}
+
+.alpheratz-root .photo-grid-fixed {
+  display: grid;
+  align-content: start;
+  justify-items: stretch;
+}
+
+.alpheratz-root .photo-card.photo-card-empty {
+  pointer-events: none;
+  cursor: default;
+}
+
+.alpheratz-root .photo-world-placeholder {
+  width: 78%;
+  min-height: 1rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.alpheratz-root .photo-date-placeholder {
+  width: 52%;
+  min-height: 0.85rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.alpheratz-root .view-preparing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 250, 252, 0.72);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.alpheratz-root.theme-dark .view-preparing-overlay {
+  background: rgba(15, 23, 42, 0.56);
+}
+
+.alpheratz-root .view-preparing-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1.2rem 1.4rem;
+  border: 1px solid var(--a-border);
+  border-radius: 18px;
+  background: var(--a-surface);
+  box-shadow: var(--a-shadow-lg);
+}
+
+.alpheratz-root .view-preparing-title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--a-text);
+}
+
 .alpheratz-root .workspace-screen {
   flex: 1;
   min-width: 0;
@@ -2240,12 +2309,39 @@ body {
 }
 
 .alpheratz-root .gallery-grid {
-  position: relative;
+  width: 100%;
   min-width: 0;
+  padding: 0 0 0.75rem;
+}
+
+.alpheratz-root .gallery-mode-shell {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .alpheratz-root .gallery-photo-card-wrapper {
   min-width: 0;
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 14px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.alpheratz-root .gallery-load-more-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 1rem 0 1.4rem;
+  color: var(--a-text-muted);
+  font-size: 0.88rem;
+}
+
+.alpheratz-root .gallery-load-more-indicator .spinner {
+  width: 18px;
+  height: 18px;
 }
 
 .alpheratz-root .gallery-photo-card {
@@ -2417,6 +2513,10 @@ body {
   background: linear-gradient(135deg, #eef2ff, #dbe5ff);
 }
 
+.alpheratz-root .photo-thumb-container.photo-thumb-container-skeleton {
+  background: linear-gradient(135deg, rgba(226, 232, 240, 0.6), rgba(219, 234, 254, 0.55));
+}
+
 .alpheratz-root .photo-select-toggle {
   position: absolute;
   top: 0.6rem;
@@ -2541,6 +2641,13 @@ body {
   animation: a-shimmer 1.5s infinite;
 }
 
+.alpheratz-root .photo-thumb-skeleton-lib {
+  display: block;
+  width: 100%;
+  height: 100%;
+  line-height: 1;
+}
+
 @keyframes a-shimmer {
   0% {
     background-position: 200% 0;
@@ -2554,6 +2661,17 @@ body {
 .alpheratz-root .photo-info {
   flex: 1;
   padding: 0.72rem 0.8rem 0.8rem;
+}
+
+.alpheratz-root .photo-info.photo-info-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.alpheratz-root .photo-tags-preview.photo-tags-preview-skeleton {
+  margin-top: 0.1rem;
+  align-items: center;
 }
 
 .alpheratz-root .photo-meta-row,
@@ -3039,17 +3157,18 @@ body {
 
 .alpheratz-root .bulk-selection-dismiss {
   flex: 0 0 auto;
-  width: 34px;
-  padding: 0;
-  border-color: color-mix(in srgb, var(--a-danger-solid) 44%, transparent);
-  background: var(--a-danger-solid);
-  color: #ffffff;
+  min-width: 84px;
+  width: auto;
+  padding: 0.28rem 0.88rem;
+  border-color: color-mix(in srgb, var(--a-primary) 22%, transparent);
+  background: #ffffff;
+  color: var(--a-primary);
 }
 
 .alpheratz-root .bulk-selection-dismiss:hover {
-  border-color: color-mix(in srgb, var(--a-danger-solid-hover) 52%, transparent);
-  background: var(--a-danger-solid-hover);
-  color: #ffffff;
+  border-color: color-mix(in srgb, var(--a-accent-light) 28%, transparent);
+  background: color-mix(in srgb, var(--a-primary) 8%, #ffffff);
+  color: var(--a-primary);
 }
 
 .alpheratz-root.bulk-selection-locked .header,
@@ -3058,9 +3177,21 @@ body {
   pointer-events: none;
 }
 
+.alpheratz-root.view-transitioning .header,
+.alpheratz-root.view-transitioning .left-rail,
+.alpheratz-root.view-transitioning .filter-sidebar {
+  pointer-events: none;
+}
+
 .alpheratz-root.bulk-selection-locked .header,
 .alpheratz-root.bulk-selection-locked .left-rail,
 .alpheratz-root.bulk-selection-locked .filter-sidebar.open {
+  opacity: 0.58;
+}
+
+.alpheratz-root.view-transitioning .header,
+.alpheratz-root.view-transitioning .left-rail,
+.alpheratz-root.view-transitioning .filter-sidebar.open {
   opacity: 0.58;
 }
 
@@ -3072,6 +3203,19 @@ body {
 .alpheratz-root .folder-change-warning p {
   margin: 0;
   line-height: 1.6;
+}
+
+.alpheratz-root .settings-toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.alpheratz-root .settings-danger-text {
+  margin: 0;
+  color: var(--a-danger);
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .alpheratz-root .backup-restore-warning {
@@ -3608,9 +3752,9 @@ body {
 
 .alpheratz-root .photo-modal-filename {
   position: absolute;
-  right: 0.9rem;
-  bottom: 0.9rem;
-  max-width: calc(100% - 1.8rem);
+  left: 0.9rem;
+  top: 0.9rem;
+  max-width: min(70%, calc(100% - 1.8rem));
   padding: 0.35rem 0.6rem;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
@@ -3993,25 +4137,25 @@ body {
 }
 
 .alpheratz-root .photo-modal-bottom-action.favorite-active {
-  color: var(--a-warn);
-  background: var(--a-warn-soft);
-  border-color: var(--a-warn-border);
+  color: var(--a-text);
+  background: var(--a-surface-soft);
+  border-color: var(--a-border-strong);
 }
 
 .alpheratz-root.theme-light .photo-modal-bottom-action.favorite-active {
-  color: var(--a-warn);
-  background: var(--a-warn-soft);
+  color: #1f2937;
+  background: #f3f4f6;
 }
 
 .alpheratz-root .photo-modal-bottom-action.favorite-active:hover {
-  color: var(--a-warn);
-  background: color-mix(in srgb, var(--a-warn) 16%, var(--a-surface));
-  border-color: color-mix(in srgb, var(--a-warn) 42%, transparent);
+  color: var(--a-text);
+  background: var(--a-surface-hover);
+  border-color: var(--a-border-strong);
 }
 
 .alpheratz-root.theme-light .photo-modal-bottom-action.favorite-active:hover {
-  color: var(--a-warn);
-  background: color-mix(in srgb, var(--a-warn) 16%, var(--a-surface));
+  color: #111827;
+  background: #e5e7eb;
 }
 
 .alpheratz-root .photo-modal-bottom-action:disabled {
@@ -4180,6 +4324,163 @@ body {
 .alpheratz-root .photo-modal-tag-dropdown {
   min-width: 0;
   position: relative;
+}
+
+.alpheratz-root .photo-tag-modal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.4rem;
+  background: rgba(6, 10, 18, 0.46);
+}
+
+.alpheratz-root .photo-tag-modal {
+  width: min(620px, calc(100% - 2rem));
+  max-height: min(70vh, 620px);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  padding: 1rem;
+  border: 1px solid var(--a-border);
+  border-radius: 18px;
+  background: var(--a-surface);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.22);
+}
+
+.alpheratz-root .photo-tag-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.alpheratz-root .photo-tag-modal-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.alpheratz-root .photo-tag-modal-close {
+  position: static;
+}
+
+.alpheratz-root .photo-tag-modal-search {
+  margin: 0;
+}
+
+.alpheratz-root .photo-tag-modal-list {
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--a-border);
+  border-radius: 14px;
+  background: var(--a-surface-soft);
+  padding: 0.35rem;
+}
+
+.alpheratz-root .photo-tag-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.alpheratz-root .photo-tag-modal-count {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--a-text-dim);
+}
+
+.alpheratz-root .photo-tag-modal-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.alpheratz-root .photo-similar-modal {
+  width: min(760px, calc(100% - 2rem));
+}
+
+.alpheratz-root .similar-search-status {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--a-border);
+  border-radius: 14px;
+  background: var(--a-surface-soft);
+  color: var(--a-text-dim);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.alpheratz-root .photo-similar-modal-list {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-right: 0.2rem;
+}
+
+.alpheratz-root .photo-similar-candidate {
+  width: 100%;
+  border: 1px solid var(--a-border);
+  border-radius: 16px;
+  background: var(--a-surface-soft);
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 0.8rem;
+  padding: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s, box-shadow 0.16s, transform 0.16s;
+}
+
+.alpheratz-root .photo-similar-candidate:hover {
+  border-color: var(--a-border-strong);
+  transform: translateY(-1px);
+}
+
+.alpheratz-root .photo-similar-candidate.selected {
+  border-color: rgba(29, 155, 240, 0.72);
+  box-shadow: 0 0 0 2px rgba(29, 155, 240, 0.18);
+}
+
+.alpheratz-root .photo-similar-candidate-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e2e8f0, #dbeafe);
+}
+
+.alpheratz-root .photo-similar-candidate-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.alpheratz-root .photo-similar-candidate-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.alpheratz-root .photo-similar-candidate-world {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--a-text);
+  word-break: break-word;
+}
+
+.alpheratz-root .photo-similar-candidate-date,
+.alpheratz-root .photo-similar-candidate-score {
+  font-size: 0.78rem;
+  color: var(--a-text-dim);
 }
 
 .alpheratz-root .photo-modal-tag-dropdown .dd-trigger {
@@ -4708,10 +5009,6 @@ body {
 .alpheratz-root .similar-photo-thumb.active {
   border-color: #22d3ee;
   box-shadow: 0 0 0 1.5px #22d3ee, 0 6px 16px rgba(34, 211, 238, 0.18);
-}
-
-.alpheratz-root .photo-modal-image.has-similar-strip .photo-modal-filename {
-  bottom: 124px;
 }
 
 .alpheratz-root .similar-photo-thumb img,

@@ -5,6 +5,8 @@ pub struct PhotoRecord {
     pub photo_filename: String,
     pub photo_path: String,
     #[serde(default)]
+    pub resolved_photo_path: Option<String>,
+    #[serde(default)]
     pub grid_thumb_path: Option<String>,
     #[serde(default)]
     pub display_thumb_path: Option<String>,
@@ -33,6 +35,7 @@ impl Default for PhotoRecord {
         Self {
             photo_filename: String::new(),
             photo_path: String::new(),
+            resolved_photo_path: None,
             grid_thumb_path: None,
             display_thumb_path: None,
             world_id: None,
@@ -73,8 +76,28 @@ pub struct PhotoPage {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct GroupedPhotoRecord {
+    pub photo: PhotoRecord,
+    pub group_count: usize,
+    pub group_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct GroupedPhotoPage {
+    pub items: Vec<GroupedPhotoRecord>,
+    pub total: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SelectedPhotoRef {
     pub photo_path: String,
     pub source_slot: i64,
     pub is_favorite: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct SimilarWorldCandidate {
+    pub photo: PhotoRecord,
+    pub distance: u32,
+    pub similarity: f32,
 }
