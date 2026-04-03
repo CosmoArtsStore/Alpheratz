@@ -1,9 +1,6 @@
 export interface Photo {
     photo_filename: string;
     photo_path: string;
-    resolved_photo_path?: string | null;
-    grid_thumb_path?: string | null;
-    display_thumb_path?: string | null;
     world_id: string | null;
     world_name: string | null;
     timestamp: string;
@@ -19,10 +16,20 @@ export interface Photo {
     is_missing?: boolean;
 }
 
+export interface PhotoQuery {
+    startDate: string | null;
+    endDate: string | null;
+    worldQuery: string | null;
+    worldExact: string | null;
+    orientation: string | null;
+    favoritesOnly: boolean | null;
+    tagFilters: string[] | null;
+    includePhash: boolean;
+}
+
 export interface DisplayPhotoItem {
     photo: Photo;
     groupCount?: number;
-    groupKey?: string;
     groupPhotos?: Photo[];
 }
 
@@ -40,37 +47,4 @@ export interface MonthGroup {
     label: string;
     rowIndex: number;
     count: number;
-}
-
-export interface WorldFilterOption {
-    world_name: string | null;
-    count: number;
-}
-
-export interface PhotoPage {
-    items: Photo[];
-    total: number;
-}
-
-export interface GroupedPhotoRecord {
-    photo: Photo;
-    group_count: number;
-    group_key: string;
-}
-
-export interface GroupedPhotoPage {
-    items: GroupedPhotoRecord[];
-    total: number;
-}
-
-export interface SelectedPhotoRef {
-    photo_path: string;
-    source_slot: number;
-    is_favorite: boolean;
-}
-
-export interface SimilarWorldCandidate {
-    photo: Photo;
-    distance: number;
-    similarity: number;
 }

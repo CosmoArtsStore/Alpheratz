@@ -1,41 +1,37 @@
-import { useState, useMemo, useEffect } from "react";
+﻿import { useState, useMemo, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useRef } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
+import "./App.light.css";
+import "./App.dark.css";
 
 import { usePhotos } from "./hooks/usePhotos";
 import { useScan } from "./hooks/useScan";
 import { useGridDimensions } from "./hooks/useGridDimensions";
 import { useScroll } from "./hooks/useScroll";
+import { useMonthGroups } from "./hooks/useMonthGroups";
 import { useToasts } from "./hooks/useToasts";
 import { usePhotoActions } from "./hooks/usePhotoActions";
 import { usePhashWorker } from "./hooks/usePhashWorker";
-import { useSelectedPhotoRefs } from "./hooks/useSelectedPhotoRefs";
 
 import { Header } from "./components/Header";
+import { MonthNav } from "./components/MonthNav";
 import { PhotoGrid } from "./components/PhotoGrid";
 import { PhotoModal } from "./components/PhotoModal";
 import { SettingsModal } from "./components/SettingsModal";
-import { TagMasterModal } from "./components/TagMasterModal";
-import { TweetTemplatePanel } from "./components/TweetTemplatePanel";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { ScanningOverlay } from "./components/ScanningOverlay";
 import { EmptyState } from "./components/EmptyState";
 import { Icons } from "./components/Icons";
-import { DisplayPhotoItem, Photo, WorldFilterOption } from "./types";
-import { buildDisplayPhotoItems, getDateRangeFromPreset, replaceTemplateToken } from "./utils/photoDisplay";
-import { DETACH_AUXILIARY_RUNTIME_DATA, DETACH_RUNTIME_DATA } from "./config/runtimeFlags";
+import { DisplayPhotoItem, Photo } from "./types";
+import { buildVirtualGalleryLayout } from "./components/galleryLayout";
 
 const CARD_WIDTH = 270;
-const STANDARD_GRID_COLUMN_COUNT = 6;
-const STANDARD_GRID_VISIBLE_ROW_COUNT = 4;
+const ROW_HEIGHT = 246;
 type DatePreset = "none" | "today" | "last7days" | "thisMonth" | "lastMonth" | "halfYear" | "oneYear" | "custom";
 type ThemeMode = "light" | "dark";
 type ViewMode = "standard" | "gallery";
-type GroupingMode = "none" | "world";
-type DisplayFolderMode = "all" | "primary" | "secondary";
-type MainScreen = "gallery" | "settings" | "tagMaster" | "template";
+type GroupingMode = "none" | "similar" | "world";
 type AppSetting = {
   photoFolderPath?: string;
   secondaryPhotoFolderPath?: string;
@@ -43,7 +39,6 @@ type AppSetting = {
   startupPreferenceSet?: boolean;
   themeMode?: ThemeMode;
   viewMode?: ViewMode;
-  enableMasonryLayout?: boolean;
   tweetTemplates?: string[];
   activeTweetTemplate?: string;
 };
@@ -52,36 +47,280 @@ type BackupCandidate = {
   backup_folder_name: string;
   created_at: string;
 };
-type PendingResetRequest = {
-  slot: 1 | 2;
-  path: string;
-};
+// Tuned against F:\bk_photo poster samples while avoiding chain-merging unrelated neighbors.
+const SIMILAR_PHOTO_MAX_DISTANCE = 124;
 const MAX_SIMILAR_PHOTOS_IN_MODAL = 24;
-const MAX_TAG_LENGTH = 40;
+const DEFAULT_TWEET_TEMPLATES = [
+  [
+    "おは{world-name}",
+    "",
+    "#{タグを追加}",
+  ].join("\n"),
+  [
+    "World: {world-name}",
+    "Author:",
+    "",
+    "#VRChat_world紹介",
+  ].join("\n"),
+  [
+    "World: {world-name}",
+    "Author:",
+    "Cloth:",
+    "",
+    "#VRChatPhotography",
+  ].join("\n"),
+];
+const DEFAULT_TWEET_TEMPLATE = DEFAULT_TWEET_TEMPLATES[0];
 
-const isEditableTarget = (target: EventTarget | null) => {
-  if (!(target instanceof HTMLElement)) {
+const replaceTemplateToken = (template: string, token: string, value: string) => (
+  template.split(token).join(value)
+);
+
+const formatDate = (date: Date) => date.toISOString().slice(0, 10);
+
+const getToday = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+const getDateRangeFromPreset = (preset: Exclude<DatePreset, "none" | "custom">) => {
+  const today = getToday();
+
+  if (preset === "today") {
+    const value = formatDate(today);
+    return { from: value, to: value };
+  }
+
+  if (preset === "last7days") {
+    const from = new Date(today);
+    from.setDate(today.getDate() - 6);
+    return { from: formatDate(from), to: formatDate(today) };
+  }
+
+  if (preset === "thisMonth") {
+    const from = new Date(today.getFullYear(), today.getMonth(), 1);
+    const to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return { from: formatDate(from), to: formatDate(to) };
+  }
+
+  if (preset === "halfYear") {
+    const from = new Date(today);
+    from.setMonth(today.getMonth() - 6);
+    return { from: formatDate(from), to: formatDate(today) };
+  }
+
+  if (preset === "oneYear") {
+    const from = new Date(today);
+    from.setFullYear(today.getFullYear() - 1);
+    return { from: formatDate(from), to: formatDate(today) };
+  }
+
+  const from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const to = new Date(today.getFullYear(), today.getMonth(), 0);
+  return { from: formatDate(from), to: formatDate(to) };
+};
+
+const PDQ_HASH_HEX_RE = /^[0-9a-f]{64}$/i;
+
+const parseHashVariants = (value?: string | null): string[] => (
+  (value ?? "")
+    .split("|")
+    .map((item) => item.trim().toLowerCase())
+    .filter((item) => PDQ_HASH_HEX_RE.test(item))
+);
+
+const getPhotoHashVariants = (photo: Photo) => (
+  Array.from(new Set(parseHashVariants(photo.phash)))
+);
+
+const getHammingDistance = (left: string, right: string) => {
+  let distance = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    const leftValue = Number.parseInt(left[index], 16);
+    const rightValue = Number.parseInt(right[index], 16);
+    const xor = leftValue ^ rightValue;
+    distance += xor.toString(2).split("1").length - 1;
+  }
+  return distance;
+};
+
+const getClosestHashDistance = (left: string[], right: string[]) => {
+  if (left.length === 0 || right.length === 0) {
+    return null;
+  }
+
+  let best = Number.POSITIVE_INFINITY;
+  for (const leftHash of left) {
+    for (const rightHash of right) {
+      const distance = getHammingDistance(leftHash, rightHash);
+      if (distance < best) {
+        best = distance;
+      }
+      if (best === 0) {
+        return 0;
+      }
+    }
+  }
+
+  return Number.isFinite(best) ? best : null;
+};
+
+const normalizeWorldName = (value?: string | null) => (value ?? "").trim().toLocaleLowerCase("ja");
+
+const canGroupByPhotoMeta = (left: Photo, right: Photo) => {
+  const leftWorld = normalizeWorldName(left.world_name);
+  const rightWorld = normalizeWorldName(right.world_name);
+
+  if (leftWorld && rightWorld && leftWorld !== rightWorld) {
     return false;
   }
 
-  const tagName = target.tagName;
-  return target.isContentEditable || tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
+  const leftOrientation = left.orientation ?? "unknown";
+  const rightOrientation = right.orientation ?? "unknown";
+  if (leftOrientation !== "unknown" && rightOrientation !== "unknown" && leftOrientation !== rightOrientation) {
+    return false;
+  }
+
+  if ((left.source_slot ?? 1) !== (right.source_slot ?? 1)) {
+    return false;
+  }
+
+  return true;
+};
+
+const areAdjacentPhotosSimilar = (left: Photo, right: Photo) => {
+  if (!canGroupByPhotoMeta(left, right)) {
+    return false;
+  }
+
+  const distance = getClosestHashDistance(
+    getPhotoHashVariants(left),
+    getPhotoHashVariants(right),
+  );
+
+  return distance !== null && distance <= SIMILAR_PHOTO_MAX_DISTANCE;
+};
+
+const buildAdjacentSimilarPhotoGroup = (photos: Photo[], anchorPhotoPath: string) => {
+  const entries = photos.map((photo) => ({
+    photo,
+    hashes: getPhotoHashVariants(photo),
+  }));
+  const anchorIndex = entries.findIndex((entry) => entry.photo.photo_path === anchorPhotoPath);
+  if (anchorIndex < 0) {
+    return [];
+  }
+
+  let start = anchorIndex;
+  while (start > 0) {
+    const previousPhoto = entries[start - 1].photo;
+    const currentPhoto = entries[start].photo;
+    const anchorPhoto = entries[anchorIndex].photo;
+    if (
+      !areAdjacentPhotosSimilar(previousPhoto, currentPhoto)
+      || !areAdjacentPhotosSimilar(previousPhoto, anchorPhoto)
+    ) {
+      break;
+    }
+    start -= 1;
+  }
+
+  let end = anchorIndex;
+  while (end < entries.length - 1) {
+    const currentPhoto = entries[end].photo;
+    const nextPhoto = entries[end + 1].photo;
+    const anchorPhoto = entries[anchorIndex].photo;
+    if (
+      !areAdjacentPhotosSimilar(currentPhoto, nextPhoto)
+      || !areAdjacentPhotosSimilar(nextPhoto, anchorPhoto)
+    ) {
+      break;
+    }
+    end += 1;
+  }
+
+  return entries.slice(start, end + 1).map((entry) => entry.photo);
+};
+
+const buildWorldGroupedPhotoItems = (photos: Photo[]): DisplayPhotoItem[] => {
+  const groups = new Map<string, Photo[]>();
+
+  for (const photo of photos) {
+    const key = photo.world_name?.trim() || "ワールド不明";
+    const current = groups.get(key);
+    if (current) {
+      current.push(photo);
+    } else {
+      groups.set(key, [photo]);
+    }
+  }
+
+  return Array.from(groups.entries())
+    .sort(([leftWorld, leftPhotos], [rightWorld, rightPhotos]) => {
+      const worldCompare = leftWorld.localeCompare(rightWorld, "ja");
+      if (worldCompare !== 0) {
+        return worldCompare;
+      }
+      const leftTimestamp = leftPhotos[0]?.timestamp ?? "";
+      const rightTimestamp = rightPhotos[0]?.timestamp ?? "";
+      return rightTimestamp.localeCompare(leftTimestamp);
+    })
+    .map(([, group]) => {
+      const sortedGroup = group.slice().sort((left, right) => right.timestamp.localeCompare(left.timestamp));
+      return {
+        photo: sortedGroup[0],
+        groupCount: sortedGroup.length,
+        groupPhotos: sortedGroup,
+      };
+    });
+};
+
+const buildAdjacentSimilarPhotoGroups = (photos: Photo[]) => {
+  const groups: Photo[][] = [];
+  let currentGroup: Photo[] = [];
+
+  for (let index = 0; index < photos.length; index += 1) {
+    const currentPhoto = photos[index];
+    if (currentGroup.length === 0) {
+      currentGroup = [currentPhoto];
+      continue;
+    }
+
+    const previousPhoto = photos[index - 1];
+    const anchorPhoto = currentGroup[0];
+
+    if (
+      areAdjacentPhotosSimilar(previousPhoto, currentPhoto)
+      && areAdjacentPhotosSimilar(anchorPhoto, currentPhoto)
+    ) {
+      currentGroup.push(currentPhoto);
+      continue;
+    }
+
+    groups.push(currentGroup);
+    currentGroup = [currentPhoto];
+  }
+
+  if (currentGroup.length > 0) {
+    groups.push(currentGroup);
+  }
+
+  return groups;
 };
 
 function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [worldFilters, setWorldFilters] = useState<string[]>([]);
-  const [activeMainScreen, setActiveMainScreen] = useState<MainScreen>("gallery");
+  const [showSettings, setShowSettings] = useState(false);
   const [pendingFolderPath, setPendingFolderPath] = useState<string | null>(null);
   const [pendingFolderSlot, setPendingFolderSlot] = useState<1 | 2>(1);
   const [pendingRestoreCandidate, setPendingRestoreCandidate] = useState<BackupCandidate | null>(null);
-  const [pendingResetRequest, setPendingResetRequest] = useState<PendingResetRequest | null>(null);
   const [isApplyingFolderChange, setIsApplyingFolderChange] = useState(false);
   const [startupEnabled, setStartupEnabled] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [viewMode, setViewMode] = useState<ViewMode>("standard");
-  const [isMasonryEnabled, setIsMasonryEnabled] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -90,35 +329,26 @@ function App() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [masterTags, setMasterTags] = useState<string[]>([]);
-  const [worldFilterOptions, setWorldFilterOptions] = useState<WorldFilterOption[]>([]);
   const [groupingMode, setGroupingMode] = useState<GroupingMode>("none");
-  const [displayFolderMode, setDisplayFolderMode] = useState<DisplayFolderMode>("all");
-  const [viewPreparationLabel, setViewPreparationLabel] = useState<string | null>(null);
-  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedPhotoPaths, setSelectedPhotoPaths] = useState<string[]>([]);
   const [selectionAnchorPhotoPath, setSelectionAnchorPhotoPath] = useState<string | null>(null);
-  const [bulkTagSelections, setBulkTagSelections] = useState<string[]>([]);
+  const [bulkTagSelection, setBulkTagSelection] = useState("");
+  const [bulkTagDraft, setBulkTagDraft] = useState("");
   const [isBulkTagModalOpen, setIsBulkTagModalOpen] = useState(false);
-  const [selectedBackendGroupPhotos, setSelectedBackendGroupPhotos] = useState<Photo[] | null>(null);
-  const [tweetTemplates, setTweetTemplates] = useState<string[]>([]);
-  const [activeTweetTemplate, setActiveTweetTemplate] = useState("");
+  const [tweetTemplates, setTweetTemplates] = useState<string[]>([DEFAULT_TWEET_TEMPLATE]);
+  const [activeTweetTemplate, setActiveTweetTemplate] = useState(DEFAULT_TWEET_TEMPLATE);
+  const [isTweetTemplatePanelOpen, setIsTweetTemplatePanelOpen] = useState(false);
   const [tweetTemplateDraft, setTweetTemplateDraft] = useState("");
   const [editingTweetTemplate, setEditingTweetTemplate] = useState<string | null>(null);
-  const viewPreparationTokenRef = useRef(0);
-  const pendingFolderPreparationRef = useRef<number | null>(null);
-  const pendingGroupingPreparationRef = useRef<number | null>(null);
-  const viewPreparationTimeoutRef = useRef<number | null>(null);
-  const pendingModalPageNavigationRef = useRef<"next" | "prev" | null>(null);
-  const { progress: pdqProgress, isRunning: isPdqRunning } = usePhashWorker();
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const { rightPanelRef, gridWrapperRef, panelWidth, gridHeight, columnCount: measuredColumnCount } = useGridDimensions(CARD_WIDTH);
+  const { rightPanelRef, gridWrapperRef, panelWidth, gridHeight, columnCount } = useGridDimensions(CARD_WIDTH);
   const { toasts, addToast } = useToasts();
-  const isPagingActive = viewMode === "standard";
+  const { progress: similarPrepProgress, isRunning: isPhashRunning } = usePhashWorker();
   const photoFilters = useMemo(() => ({
     searchQuery: debouncedQuery,
     worldFilters,
@@ -127,31 +357,9 @@ function App() {
     orientationFilter,
     favoritesOnly,
     tagFilters,
-    includePhash: false,
-    pagingEnabled: isPagingActive,
-    viewMode,
-    sourceSlot: displayFolderMode === "primary" ? 1 : (displayFolderMode === "secondary" ? 2 : null),
-    groupingMode: DETACH_AUXILIARY_RUNTIME_DATA ? "none" : groupingMode,
-  }), [debouncedQuery, worldFilters, dateFrom, dateTo, orientationFilter, favoritesOnly, tagFilters, groupingMode, isPagingActive, viewMode, displayFolderMode]);
-  const {
-    photos,
-    visiblePhotos,
-    displayItems: fetchedDisplayItems,
-    setPhotos,
-    loadPhotos,
-    isLoading,
-    isLoadingMore,
-    isPageTransitioning,
-    totalCount,
-    pageIndex,
-    pageSize,
-    hasMorePhotos,
-    hasPrevPage,
-    hasNextPage,
-    loadMorePhotos,
-    goToPrevPage,
-    goToNextPage,
-  } = usePhotos(photoFilters, addToast);
+    includePhash: groupingMode === "similar",
+  }), [debouncedQuery, worldFilters, dateFrom, dateTo, orientationFilter, favoritesOnly, tagFilters, groupingMode]);
+  const { photos, setPhotos, loadPhotos, isLoading } = usePhotos(photoFilters, addToast);
   const {
     scanStatus,
     scanProgress,
@@ -174,19 +382,33 @@ function App() {
     handleSaveMemo,
     handleOpenWorld,
     onSelectPhoto,
-  } = usePhotoActions(addToast);
+  } = usePhotoActions(setPhotos, addToast);
 
-  const hasSecondaryFolder = !!secondaryPhotoFolderPath.trim();
-  const displayPhotos = useMemo(() => (isPagingActive ? visiblePhotos : photos), [isPagingActive, photos, visiblePhotos]);
+  const filteredPhotos = photos;
+  const areAllPHashesReady = useMemo(
+    () => photos.every((photo) => parseHashVariants(photo.phash).length > 0),
+    [photos],
+  );
+  const isSimilarGroupingAvailable = !isPhashRunning && areAllPHashesReady;
+
+  const displayPhotos = useMemo(() => filteredPhotos, [filteredPhotos]);
   const selectedPhotoPathSet = useMemo(() => new Set(selectedPhotoPaths), [selectedPhotoPaths]);
-  const { selectedPhotoRefs, setSelectedPhotoRefs } = useSelectedPhotoRefs(selectedPhotoPaths, addToast);
 
   const displayPhotoItems = useMemo<DisplayPhotoItem[]>(() => {
     if (groupingMode === "world") {
-      return fetchedDisplayItems;
+      return buildWorldGroupedPhotoItems(displayPhotos);
     }
-    return buildDisplayPhotoItems(displayPhotos);
-  }, [displayPhotos, fetchedDisplayItems, groupingMode]);
+
+    if (groupingMode !== "similar") {
+      return displayPhotos.map((photo) => ({ photo }));
+    }
+
+    return buildAdjacentSimilarPhotoGroups(displayPhotos).map((group) => ({
+      photo: group[0],
+      groupCount: group.length,
+      groupPhotos: group,
+    }));
+  }, [displayPhotos, groupingMode]);
 
   const selectedPhotoView = useMemo(() => {
     if (!selectedPhoto) {
@@ -194,9 +416,8 @@ function App() {
     }
     return displayPhotos.find((photo) => photo.photo_path === selectedPhoto.photo_path)
       ?? photos.find((photo) => photo.photo_path === selectedPhoto.photo_path)
-      ?? selectedBackendGroupPhotos?.find((photo) => photo.photo_path === selectedPhoto.photo_path)
       ?? selectedPhoto;
-  }, [selectedPhoto, displayPhotos, photos, selectedBackendGroupPhotos]);
+  }, [selectedPhoto, displayPhotos, photos]);
   const selectedPhotoIndex = useMemo(() => (
     selectedPhotoView
       ? displayPhotoItems.findIndex((item) => (
@@ -205,108 +426,22 @@ function App() {
       ))
       : -1
   ), [displayPhotoItems, selectedPhotoView]);
-  const selectedGroupedPhotos = useMemo(() => {
-    if (!selectedPhotoView) {
-      return null;
+  const similarPhotos = useMemo(() => {
+    if (groupingMode !== "similar" || !isSimilarGroupingAvailable || !selectedPhotoView) {
+      return [];
     }
-
-    if (groupingMode === "world") {
-      return selectedBackendGroupPhotos;
-    }
-
-    return displayPhotoItems.find((item) => (
-      item.groupPhotos?.some((photo) => photo.photo_path === selectedPhotoView.photo_path)
-    ))?.groupPhotos ?? null;
-  }, [groupingMode, selectedPhotoView, displayPhotoItems, selectedBackendGroupPhotos]);
-  const modalGroupedPhotos = useMemo(
-    () => selectedGroupedPhotos?.slice(0, MAX_SIMILAR_PHOTOS_IN_MODAL) ?? [],
-    [selectedGroupedPhotos],
-  );
-  const showGroupedPhotosInModal = groupingMode === "world";
-  const groupedPhotoLabel = "ワールド";
-  const hasActiveTweetTemplate = activeTweetTemplate.trim().length > 0;
-  const isGroupingUnavailableInMasonry = viewMode === "gallery";
+    return buildAdjacentSimilarPhotoGroup(filteredPhotos, selectedPhotoView.photo_path).slice(0, MAX_SIMILAR_PHOTOS_IN_MODAL);
+  }, [groupingMode, isSimilarGroupingAvailable, filteredPhotos, selectedPhotoView]);
 
   useEffect(() => {
-    if (DETACH_RUNTIME_DATA || DETACH_AUXILIARY_RUNTIME_DATA) {
-      setSelectedBackendGroupPhotos(null);
-      return;
-    }
-    if (groupingMode !== "world" || !selectedPhotoView) {
-      setSelectedBackendGroupPhotos(null);
-      return;
-    }
-
-    const selectedGroupKey = displayPhotoItems.find((item) => item.photo.photo_path === selectedPhotoView.photo_path)?.groupKey;
-    if (!selectedGroupKey) {
-      setSelectedBackendGroupPhotos(null);
-      return;
-    }
-
-    let cancelled = false;
-    invoke<Photo[]>("get_world_group_photos_cmd", {
-        groupKey: selectedGroupKey,
-        startDate: dateFrom || null,
-        endDate: dateTo || null,
-      sourceSlot: displayFolderMode === "primary" ? 1 : (displayFolderMode === "secondary" ? 2 : null),
-      orientation: orientationFilter === "all" ? null : orientationFilter,
-      favoritesOnly: favoritesOnly || null,
-      tagFilters: tagFilters.length > 0 ? tagFilters : null,
-    })
-      .then((groupPhotos) => {
-        if (!cancelled) {
-          setSelectedBackendGroupPhotos(groupPhotos);
-        }
-      })
-        .catch((err) => {
-          if (!cancelled) {
-            setSelectedBackendGroupPhotos(null);
-            addToast(`ワールド写真一覧の読み込みに失敗しました: ${String(err)}`, "error");
-          }
-        });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    addToast,
-    dateFrom,
-    dateTo,
-    displayFolderMode,
-    displayPhotoItems,
-    favoritesOnly,
-    groupingMode,
-    orientationFilter,
-    selectedPhotoView,
-    tagFilters,
-  ]);
-
-  useEffect(() => {
-    if (viewMode === "gallery" && groupingMode !== "none") {
+    if (!isSimilarGroupingAvailable && groupingMode === "similar") {
       setGroupingMode("none");
     }
-  }, [groupingMode, viewMode]);
+  }, [isSimilarGroupingAvailable, groupingMode]);
 
   useEffect(() => {
-    if (pendingModalPageNavigationRef.current && !isPageTransitioning && photos.length > 0) {
-      const targetPhoto = pendingModalPageNavigationRef.current === "next"
-        ? photos[0]
-        : photos[photos.length - 1];
-      pendingModalPageNavigationRef.current = null;
-      if (targetPhoto) {
-        setSelectedPhoto(targetPhoto);
-      }
-    }
-  }, [isPageTransitioning, photos, setSelectedPhoto]);
-
-  useEffect(() => {
-    const isSelectedPhotoVisible = photos.some((photo) => photo.photo_path === selectedPhoto?.photo_path)
-        || selectedBackendGroupPhotos?.some((photo) => photo.photo_path === selectedPhoto?.photo_path);
-
-    if (selectedPhoto && !isSelectedPhotoVisible && !pendingModalPageNavigationRef.current) {
-      closePhotoModal();
-    }
-  }, [closePhotoModal, photos, selectedPhoto, selectedBackendGroupPhotos]);
+    setSelectedPhotoPaths((prev) => prev.filter((photoPath) => photos.some((photo) => photo.photo_path === photoPath)));
+  }, [photos]);
 
   useEffect(() => {
     if (selectionAnchorPhotoPath && !photos.some((photo) => photo.photo_path === selectionAnchorPhotoPath)) {
@@ -314,120 +449,10 @@ function App() {
     }
   }, [photos, selectionAnchorPhotoPath]);
 
-  useEffect(() => {
-    if (displayFolderMode === "secondary" && !hasSecondaryFolder) {
-      setDisplayFolderMode("all");
-    }
-  }, [displayFolderMode, hasSecondaryFolder]);
-
-  useEffect(() => {
-    if (pendingFolderPreparationRef.current === null || isLoading) {
-      return;
-    }
-
-    const token = pendingFolderPreparationRef.current;
-    const animationFrame = window.requestAnimationFrame(() => {
-      if (pendingFolderPreparationRef.current === token) {
-        pendingFolderPreparationRef.current = null;
-        finishViewPreparation(token);
-      }
-    });
-
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [isLoading]);
-
-  useEffect(() => {
-    if (pendingGroupingPreparationRef.current === null) {
-      return;
-    }
-
-    const token = pendingGroupingPreparationRef.current;
-    if (viewPreparationTimeoutRef.current !== null) {
-      window.clearTimeout(viewPreparationTimeoutRef.current);
-    }
-
-    viewPreparationTimeoutRef.current = window.setTimeout(() => {
-      if (pendingGroupingPreparationRef.current === token) {
-        window.requestAnimationFrame(() => {
-          if (pendingGroupingPreparationRef.current === token) {
-            pendingGroupingPreparationRef.current = null;
-            finishViewPreparation(token);
-          }
-        });
-      }
-      viewPreparationTimeoutRef.current = null;
-    }, 220);
-
-    return () => {
-      if (viewPreparationTimeoutRef.current !== null) {
-        window.clearTimeout(viewPreparationTimeoutRef.current);
-        viewPreparationTimeoutRef.current = null;
-      }
-    };
-  }, [displayPhotoItems, groupingMode]);
-
-  useEffect(() => {
-    return () => {
-      clearPendingViewPreparations();
-    };
-  }, []);
-
   const updatePhoto = (photoPath: string, updater: (photo: Photo) => Photo) => {
     setPhotos((prev) => prev.map((photo) => (
       photo.photo_path === photoPath ? updater(photo) : photo
     )));
-  };
-
-  const beginViewPreparation = (label: string) => {
-    const nextToken = viewPreparationTokenRef.current + 1;
-    viewPreparationTokenRef.current = nextToken;
-    setViewPreparationLabel(label);
-    return nextToken;
-  };
-
-  const clearPendingViewPreparations = () => {
-    pendingFolderPreparationRef.current = null;
-    pendingGroupingPreparationRef.current = null;
-    if (viewPreparationTimeoutRef.current !== null) {
-      window.clearTimeout(viewPreparationTimeoutRef.current);
-      viewPreparationTimeoutRef.current = null;
-    }
-  };
-
-  const finishViewPreparation = (token: number) => {
-    if (viewPreparationTokenRef.current === token) {
-      setViewPreparationLabel(null);
-    }
-  };
-
-  const prepareGroupingModeChange = (nextGroupingMode: GroupingMode) => {
-    if (groupingMode === nextGroupingMode || viewPreparationLabel) {
-      return;
-    }
-
-    clearPendingViewPreparations();
-    const token = beginViewPreparation("表示を準備中...");
-    pendingGroupingPreparationRef.current = token;
-    window.setTimeout(() => {
-      if (pendingGroupingPreparationRef.current === token) {
-        setGroupingMode(nextGroupingMode);
-      }
-    }, 0);
-  };
-
-  const prepareDisplayFolderModeChange = (nextDisplayFolderMode: DisplayFolderMode) => {
-    if (displayFolderMode === nextDisplayFolderMode || viewPreparationLabel) {
-      return;
-    }
-
-    clearPendingViewPreparations();
-    const token = beginViewPreparation("フォルダ表示を準備中...");
-    pendingFolderPreparationRef.current = token;
-    window.setTimeout(() => {
-      if (pendingFolderPreparationRef.current === token) {
-        setDisplayFolderMode(nextDisplayFolderMode);
-      }
-    }, 0);
   };
 
   const buildSettingPayload = (overrides: Partial<AppSetting> = {}): AppSetting => ({
@@ -436,7 +461,6 @@ function App() {
     enableStartup: startupEnabled,
     themeMode,
     viewMode,
-    enableMasonryLayout: isMasonryEnabled,
     tweetTemplates,
     activeTweetTemplate,
     ...overrides,
@@ -459,10 +483,6 @@ function App() {
   const addTag = async (photoPath: string, tag: string) => {
     const normalized = tag.trim();
     if (!normalized) {
-      return;
-    }
-    if (normalized.length > MAX_TAG_LENGTH) {
-      addToast(`タグは${MAX_TAG_LENGTH}文字以内で入力してください。`, "error");
       return;
     }
 
@@ -505,46 +525,6 @@ function App() {
     }
   };
 
-  const applySimilarWorldMatch = async (sourcePhoto: Photo) => {
-    if (!selectedPhotoView) {
-      return;
-    }
-
-    try {
-      await invoke("apply_world_match_from_photo_cmd", {
-        targetPhotoPath: selectedPhotoView.photo_path,
-        sourcePhotoPath: sourcePhoto.photo_path,
-      });
-
-      const nextWorldId = sourcePhoto.world_id ?? null;
-      const nextWorldName = sourcePhoto.world_name ?? null;
-
-      updatePhoto(selectedPhotoView.photo_path, (photo) => ({
-        ...photo,
-        world_id: nextWorldId,
-        world_name: nextWorldName,
-        match_source: "phash",
-      }));
-      setSelectedPhoto((prev) => (
-        prev && prev.photo_path === selectedPhotoView.photo_path
-          ? { ...prev, world_id: nextWorldId, world_name: nextWorldName, match_source: "phash" }
-          : prev
-      ));
-      addToast("ワールド情報を反映しました。");
-    } catch (err) {
-      addToast(`ワールド情報の反映に失敗しました: ${String(err)}`, "error");
-    }
-  };
-
-  const handleStartUnknownWorldAnalysis = async () => {
-    try {
-      await invoke("start_unknown_world_pdq_analysis_cmd");
-      addToast("ワールド不明写真の一括分析を開始しました");
-    } catch (err) {
-      addToast(`ワールド不明写真の一括分析を開始できませんでした: ${String(err)}`, "error");
-    }
-  };
-
   const toggleSelectedPhoto = (item: DisplayPhotoItem, shiftKey: boolean) => {
     const photoPath = item.photo.photo_path;
     if (shiftKey && selectionAnchorPhotoPath) {
@@ -576,21 +556,7 @@ function App() {
     setSelectionAnchorPhotoPath(null);
   };
 
-  const handleToggleMultiSelectMode = () => {
-    setIsMultiSelectMode((prev) => {
-      if (prev) {
-        clearSelectedPhotos();
-      }
-      return !prev;
-    });
-  };
-
-  const handlePhotoActivate = (item: DisplayPhotoItem, shiftKey: boolean) => {
-    if (isMultiSelectMode) {
-      toggleSelectedPhoto(item, shiftKey);
-      return;
-    }
-
+  const handlePhotoActivate = (item: DisplayPhotoItem) => {
     onSelectPhoto(item.photo);
   };
 
@@ -621,30 +587,35 @@ function App() {
     setDateTo(value);
   };
 
-  const standardColumnCount = viewMode === "standard" ? STANDARD_GRID_COLUMN_COUNT : measuredColumnCount;
-  const standardColumnWidth = useMemo(
-    () => Math.max(180, Math.floor(panelWidth / Math.max(1, standardColumnCount))),
-    [panelWidth, standardColumnCount],
+  const galleryLayout = useMemo(
+    () => buildVirtualGalleryLayout(displayPhotoItems.map((item) => item.photo), panelWidth, columnCount),
+    [displayPhotoItems, panelWidth, columnCount],
   );
-  const standardRowHeight = useMemo(
-    () => Math.max(150, Math.floor(gridHeight / STANDARD_GRID_VISIBLE_ROW_COUNT)),
-    [gridHeight],
+  const standardColumnWidth = useMemo(
+    () => Math.max(CARD_WIDTH, Math.floor(panelWidth / Math.max(1, columnCount))),
+    [panelWidth, columnCount],
   );
 
   const {
     scrollTop,
+    totalHeight,
     onGridRef,
     handleGridScroll,
     handleGridWheel,
+    handleJumpToRatio,
+    maxScrollTop,
   } = useScroll({
     photosLength: displayPhotoItems.length,
-    columnCount: viewMode === "standard" ? standardColumnCount : measuredColumnCount,
+    columnCount,
     gridHeight,
-    ROW_HEIGHT: standardRowHeight,
-    disableProgrammaticBounds: viewMode === "gallery",
+    ROW_HEIGHT,
+    totalHeightOverride: viewMode === "gallery" ? galleryLayout.totalHeight : undefined,
   });
 
+  const { monthGroups, monthsByYear, activeMonthIndex } = useMonthGroups(filteredPhotos, columnCount, scrollTop, ROW_HEIGHT);
+
   const finalizeFolderSelection = async (newPath: string, restoreBackup: boolean) => {
+    setIsApplyingFolderChange(true);
     try {
       await invoke("save_setting_cmd", {
         setting: buildSettingPayload({
@@ -665,32 +636,20 @@ function App() {
       addToast(restoreBackup ? "バックアップデータを反映して再スキャンを開始します" : "写真フォルダを更新しました");
     } catch (err) {
       addToast(`写真フォルダの切替に失敗しました: ${String(err)}`, "error");
-    }
-  };
-
-  const handleFinalizeFolderSelection = async (newPath: string, restoreBackup: boolean) => {
-    setIsApplyingFolderChange(true);
-    try {
-      await finalizeFolderSelection(newPath, restoreBackup);
     } finally {
       setIsApplyingFolderChange(false);
     }
   };
 
-  const applyFolderChange = async (newPath: string, createBackup: boolean) => {
+  const applyFolderChange = async (newPath: string, resetExisting: boolean) => {
     setIsApplyingFolderChange(true);
     try {
-      const currentPath = pendingFolderSlot === 1 ? photoFolderPath : secondaryPhotoFolderPath;
-
-      if (createBackup && currentPath) {
-        await invoke("create_cache_backup_cmd", { photoFolderPath: currentPath });
-      }
-
-      if (pendingFolderSlot === 1) {
+      if (resetExisting) {
+        if (photoFolderPath) {
+          await invoke("create_cache_backup_cmd", { photoFolderPath });
+        }
         await invoke("reset_photo_cache_cmd");
         setPhotos([]);
-      } else {
-        await invoke("reset_photo_cache_for_slot_cmd", { sourceSlot: 2 });
       }
 
       const backupCandidate = await invoke<BackupCandidate | null>("get_backup_candidate_cmd", {
@@ -711,67 +670,6 @@ function App() {
     }
   };
 
-  const executeResetFolder = async (slot: 1 | 2, createBackup: boolean) => {
-    const currentPath = slot === 1 ? photoFolderPath : secondaryPhotoFolderPath;
-    if (!currentPath) {
-      return;
-    }
-
-    const nextPrimaryPath = slot === 1 ? "" : photoFolderPath;
-    const nextSecondaryPath = slot === 2 ? "" : secondaryPhotoFolderPath;
-
-    setIsApplyingFolderChange(true);
-    try {
-      if (createBackup) {
-        await invoke("create_cache_backup_cmd", { photoFolderPath: currentPath });
-      }
-
-      await invoke("reset_photo_cache_for_slot_cmd", { sourceSlot: slot });
-      await invoke("save_setting_cmd", {
-        setting: buildSettingPayload({
-          photoFolderPath: nextPrimaryPath,
-          secondaryPhotoFolderPath: nextSecondaryPath,
-        }),
-      });
-
-      await refreshSettings();
-      await loadPhotos();
-
-      if (nextPrimaryPath || nextSecondaryPath) {
-        await startScan();
-      } else {
-        setPhotos([]);
-      }
-
-      setPendingResetRequest(null);
-      addToast(slot === 1 ? "1st 写真フォルダをリセットしました" : "2nd 写真フォルダをリセットしました");
-    } catch (err) {
-      addToast(`写真フォルダのリセットに失敗しました: ${String(err)}`, "error");
-    } finally {
-      setIsApplyingFolderChange(false);
-    }
-  };
-
-  const promptFolderChange = (slot: 1 | 2, newPath: string) => {
-    setPendingFolderSlot(slot);
-    setPendingFolderPath(newPath);
-    setPendingResetRequest(null);
-  };
-
-  const handleFolderChangeBackupDecision = async (createBackup: boolean) => {
-    if (!pendingFolderPath) {
-      return;
-    }
-    await applyFolderChange(pendingFolderPath, createBackup);
-  };
-
-  const handleResetBackupDecision = async (createBackup: boolean) => {
-    if (!pendingResetRequest) {
-      return;
-    }
-    await executeResetFolder(pendingResetRequest.slot, createBackup);
-  };
-
   const handleChooseFolder = async (slot: 1 | 2) => {
     try {
       const selected = await open({ directory: true });
@@ -784,24 +682,29 @@ function App() {
       if (newPath === currentPath) {
         return;
       }
-      if (currentPath) {
-        promptFolderChange(slot, newPath);
+      if (slot === 1 && photoFolderPath) {
+        setPendingFolderSlot(1);
+        setPendingFolderPath(newPath);
         return;
       }
-      setPendingFolderSlot(slot);
+
+      if (slot === 2) {
+        await invoke("save_setting_cmd", {
+          setting: buildSettingPayload({
+            secondaryPhotoFolderPath: newPath,
+          }),
+        });
+        await refreshSettings();
+        await loadPhotos();
+        await startScan();
+        addToast("2nd 参照フォルダを更新しました");
+        return;
+      }
+
       await applyFolderChange(newPath, false);
     } catch (err) {
       addToast(`写真フォルダの更新に失敗しました: ${String(err)}`, "error");
     }
-  };
-
-  const handleResetFolder = async (slot: 1 | 2) => {
-    const currentPath = slot === 1 ? photoFolderPath : secondaryPhotoFolderPath;
-    if (!currentPath) {
-      return;
-    }
-    setPendingFolderPath(null);
-    setPendingResetRequest({ slot, path: currentPath });
   };
 
   const handleStartupPreference = async (enabled: boolean) => {
@@ -815,33 +718,21 @@ function App() {
   };
 
   useEffect(() => {
-    if (DETACH_RUNTIME_DATA || DETACH_AUXILIARY_RUNTIME_DATA) {
-      setStartupEnabled(false);
-      setThemeMode("light");
-      setIsMasonryEnabled(false);
-      setViewMode("standard");
-      setTweetTemplates([]);
-      setActiveTweetTemplate("");
-      setMasterTags([]);
-      setWorldFilterOptions([]);
-      return;
-    }
-
     const loadAppSetting = async () => {
       try {
         const setting = await invoke<AppSetting>("get_setting_cmd");
-        const masonryEnabled = !!setting.enableMasonryLayout;
         setStartupEnabled(!!setting.enableStartup);
         setThemeMode(setting.themeMode === "dark" ? "dark" : "light");
-        setIsMasonryEnabled(masonryEnabled);
-        setViewMode(masonryEnabled && setting.viewMode === "gallery" ? "gallery" : "standard");
-        const resolvedTemplates = setting.tweetTemplates ?? [];
+        setViewMode(setting.viewMode === "gallery" ? "gallery" : "standard");
+        const resolvedTemplates = setting.tweetTemplates && setting.tweetTemplates.length > 0
+          ? setting.tweetTemplates
+          : DEFAULT_TWEET_TEMPLATES;
         const resolvedActiveTemplate = resolvedTemplates.includes(setting.activeTweetTemplate ?? "")
-          ? setting.activeTweetTemplate ?? ""
-          : (resolvedTemplates[0] ?? "");
+          ? setting.activeTweetTemplate ?? DEFAULT_TWEET_TEMPLATE
+          : resolvedTemplates[0];
         setTweetTemplates(resolvedTemplates);
         setActiveTweetTemplate(resolvedActiveTemplate);
-        await Promise.all([loadMasterTags(), loadWorldFilterOptions()]);
+        await loadMasterTags();
       } catch (err) {
         addToast(`設定の読み込みに失敗しました: ${String(err)}`, "error");
       }
@@ -849,14 +740,6 @@ function App() {
 
     loadAppSetting();
   }, []);
-
-  useEffect(() => {
-    if (DETACH_RUNTIME_DATA || DETACH_AUXILIARY_RUNTIME_DATA) {
-      setWorldFilterOptions([]);
-      return;
-    }
-    void loadWorldFilterOptions();
-  }, [photos.length]);
 
   const handleThemeToggle = async () => {
     const nextTheme: ThemeMode = themeMode === "dark" ? "light" : "dark";
@@ -872,29 +755,7 @@ function App() {
     }
   };
 
-  const handleMasonryToggle = async () => {
-    const nextMasonryEnabled = !isMasonryEnabled;
-    const nextViewMode: ViewMode = nextMasonryEnabled ? viewMode : "standard";
-
-    try {
-      await invoke("save_setting_cmd", {
-        setting: buildSettingPayload({
-          enableMasonryLayout: nextMasonryEnabled,
-          viewMode: nextViewMode,
-        }),
-      });
-      setIsMasonryEnabled(nextMasonryEnabled);
-      setViewMode(nextViewMode);
-    } catch (err) {
-      addToast(`表示設定の更新に失敗しました: ${String(err)}`, "error");
-    }
-  };
-
   const loadMasterTags = async () => {
-    if (DETACH_RUNTIME_DATA || DETACH_AUXILIARY_RUNTIME_DATA) {
-      setMasterTags([]);
-      return;
-    }
     try {
       const tags = await invoke<string[]>("get_all_tags_cmd");
       setMasterTags(tags);
@@ -903,26 +764,9 @@ function App() {
     }
   };
 
-  const loadWorldFilterOptions = async () => {
-    if (DETACH_RUNTIME_DATA || DETACH_AUXILIARY_RUNTIME_DATA) {
-      setWorldFilterOptions([]);
-      return;
-    }
-    try {
-      const options = await invoke<WorldFilterOption[]>("get_world_filter_options_cmd");
-      setWorldFilterOptions(options);
-    } catch (err) {
-      addToast(`ワールド一覧の読み込みに失敗しました: ${String(err)}`, "error");
-    }
-  };
-
   const createTagMaster = async (tag: string) => {
     const normalized = tag.trim();
     if (!normalized) {
-      return;
-    }
-    if (normalized.length > MAX_TAG_LENGTH) {
-      addToast(`タグは${MAX_TAG_LENGTH}文字以内で入力してください。`, "error");
       return;
     }
 
@@ -946,9 +790,6 @@ function App() {
   };
 
   const handleViewModeChange = async (nextViewMode: ViewMode) => {
-    if (nextViewMode === "gallery" && !isMasonryEnabled) {
-      return;
-    }
     try {
       await invoke("save_setting_cmd", {
         setting: buildSettingPayload({
@@ -1058,8 +899,13 @@ function App() {
   };
 
   const handleDeleteTweetTemplate = async (template: string) => {
+    if (tweetTemplates.length <= 1) {
+      addToast("ツイートテンプレートは1件以上必要です。", "error");
+      return;
+    }
+
     const nextTemplates = tweetTemplates.filter((item) => item !== template);
-    const nextActiveTemplate = activeTweetTemplate === template ? (nextTemplates[0] ?? "") : activeTweetTemplate;
+    const nextActiveTemplate = activeTweetTemplate === template ? nextTemplates[0] : activeTweetTemplate;
     try {
       await invoke("save_setting_cmd", {
         setting: buildSettingPayload({
@@ -1084,11 +930,7 @@ function App() {
     const date = photo.timestamp ? photo.timestamp.slice(0, 16).replace("T", " ") : "";
     const memo = photo.memo?.trim() || "";
     const tags = photo.tags.map((tag) => `#${tag.replace(/\s+/g, "")}`).join(" ");
-    const source = activeTweetTemplate.trim();
-
-    if (!source) {
-      return "";
-    }
+    const source = activeTweetTemplate || DEFAULT_TWEET_TEMPLATE;
 
     return [
       ["{world}", world],
@@ -1123,27 +965,31 @@ function App() {
     }
   };
 
-  const worldNameList = useMemo(
-    () => worldFilterOptions.map((option) => option.world_name ?? ""),
-    [worldFilterOptions],
-  );
+  const worldNameList = useMemo(() => {
+    const names = Array.from(new Set(photos.map((photo) => photo.world_name || ""))).sort();
+    return names.some((name) => !!name.trim()) ? names : [];
+  }, [photos]);
   const worldCounts = useMemo(() => (
-    worldFilterOptions.reduce<Record<string, number>>((acc, option) => {
-      const key = option.world_name ?? "unknown";
-      acc[key] = option.count;
+    photos.reduce<Record<string, number>>((acc, photo) => {
+      const key = photo.world_name || "unknown";
+      acc[key] = (acc[key] ?? 0) + 1;
       return acc;
     }, {})
-  ), [worldFilterOptions]);
+  ), [photos]);
   const tagOptions = useMemo(() => (
     masterTags.slice().sort((left, right) => left.localeCompare(right, "ja"))
   ), [masterTags]);
   const hasMasterTags = tagOptions.length > 0;
-  const selectedCount = selectedPhotoPaths.length;
-  const isBulkSelectionLocked = isMultiSelectMode && selectedCount > 0;
-  const isWorkspaceTransitioning = !!viewPreparationLabel;
+  const selectedPhotos = useMemo(
+    () => selectedPhotoPaths
+      .map((photoPath) => photos.find((photo) => photo.photo_path === photoPath))
+      .filter((photo): photo is Photo => photo !== undefined),
+    [selectedPhotoPaths, photos],
+  );
+  const selectedCount = selectedPhotos.length;
   const bulkFavoriteWillEnable = useMemo(
-    () => selectedPhotoRefs.length !== selectedCount || selectedPhotoRefs.some((photo) => !photo.is_favorite),
-    [selectedCount, selectedPhotoRefs],
+    () => selectedPhotos.some((photo) => !photo.is_favorite),
+    [selectedPhotos],
   );
   const activeFilterCount = useMemo(() => (
     [
@@ -1156,20 +1002,19 @@ function App() {
   ), [worldFilters, dateFrom, dateTo, orientationFilter, favoritesOnly, tagFilters]);
 
   const handleBulkFavorite = async () => {
-    if (selectedPhotoRefs.length === 0) {
+    if (selectedPhotos.length === 0) {
       return;
     }
 
     const nextFavoriteState = bulkFavoriteWillEnable;
     try {
       await invoke("bulk_set_photo_favorite_cmd", {
-        photos: selectedPhotoRefs.map((photo) => ({
+        photos: selectedPhotos.map((photo) => ({
           photoPath: photo.photo_path,
           sourceSlot: photo.source_slot ?? 1,
         })),
         isFavorite: nextFavoriteState,
       });
-      setSelectedPhotoRefs((prev) => prev.map((photo) => ({ ...photo, is_favorite: nextFavoriteState })));
       setPhotos((prev) => prev.map((photo) => (
         selectedPhotoPathSet.has(photo.photo_path)
           ? { ...photo, is_favorite: nextFavoriteState }
@@ -1181,56 +1026,49 @@ function App() {
   };
 
   const openBulkTagModal = () => {
-    setBulkTagSelections([]);
+    setBulkTagSelection("");
+    setBulkTagDraft("");
     setIsBulkTagModalOpen(true);
   };
 
   const applyBulkTag = async () => {
-    const resolvedTags = bulkTagSelections
-      .map((tag) => tag.trim())
-      .filter((tag, index, tags) => !!tag && tags.indexOf(tag) === index);
-    if (resolvedTags.length === 0) {
+    const resolvedTag = (bulkTagDraft.trim() || bulkTagSelection.trim());
+    if (!resolvedTag) {
       addToast("一括タグ付けに使うタグを選択してください。", "error");
       return;
     }
-    if (resolvedTags.some((tag) => tag.length > MAX_TAG_LENGTH)) {
-      addToast(`タグは${MAX_TAG_LENGTH}文字以内で入力してください。`, "error");
-      return;
-    }
-    if (selectedPhotoRefs.length === 0) {
+    if (selectedPhotos.length === 0) {
       setIsBulkTagModalOpen(false);
       return;
     }
 
     try {
-      const targetPhotos = selectedPhotoRefs.map((photo) => ({
-        photoPath: photo.photo_path,
-        sourceSlot: photo.source_slot ?? 1,
-      }));
-      for (const tag of resolvedTags) {
-        await invoke("bulk_add_photo_tag_cmd", {
-          photos: targetPhotos,
-          tag,
-        });
-      }
+      await invoke("bulk_add_photo_tag_cmd", {
+        photos: selectedPhotos.map((photo) => ({
+          photoPath: photo.photo_path,
+          sourceSlot: photo.source_slot ?? 1,
+        })),
+        tag: resolvedTag,
+      });
       setPhotos((prev) => prev.map((photo) => (
-        selectedPhotoPathSet.has(photo.photo_path)
+        selectedPhotoPathSet.has(photo.photo_path) && !photo.tags.includes(resolvedTag)
           ? {
             ...photo,
-            tags: [...new Set([...photo.tags, ...resolvedTags])].sort((left, right) => left.localeCompare(right, "ja")),
+            tags: [...photo.tags, resolvedTag].sort((left, right) => left.localeCompare(right, "ja")),
           }
           : photo
       )));
-      setBulkTagSelections([]);
+      setBulkTagDraft("");
+      setBulkTagSelection("");
       setIsBulkTagModalOpen(false);
-      addToast(`${selectedCount}件にタグを追加しました。`);
+      addToast(`${selectedPhotos.length}件にタグを追加しました。`);
     } catch (err) {
       addToast(`一括タグ付けに失敗しました: ${String(err)}`, "error");
     }
   };
 
   const handleBulkCopy = async () => {
-    if (selectedPhotoPaths.length === 0) {
+    if (selectedPhotos.length === 0) {
       return;
     }
 
@@ -1246,7 +1084,7 @@ function App() {
       }
 
       await invoke("bulk_copy_photos_cmd", {
-        photoPaths: selectedPhotoPaths,
+        photoPaths: selectedPhotos.map((photo) => photo.photo_path),
         destinationDir: destination,
       });
     } catch (err) {
@@ -1260,77 +1098,15 @@ function App() {
       onSelect: handlePhotoActivate,
       onToggleSelect: toggleSelectedPhoto,
       isSelected: (item: DisplayPhotoItem) => selectedPhotoPathSet.has(item.photo.photo_path),
-      showTags: isMultiSelectMode && selectedCount > 0,
-      showSelectionToggle: isMultiSelectMode,
-      columnCount: standardColumnCount,
-      startIndex: 0,
+      showTags: selectedCount > 0,
+      columnCount,
     }),
-    [displayPhotoItems, isMultiSelectMode, selectedPhotoPathSet, selectedCount, standardColumnCount],
+    [displayPhotoItems, columnCount, selectedPhotoPathSet, selectedCount],
   );
-  const displayTotalRows = viewMode === "standard"
-    ? STANDARD_GRID_VISIBLE_ROW_COUNT
-    : Math.max(1, Math.ceil(displayPhotoItems.length / standardColumnCount));
-  const isGalleryScreen = activeMainScreen === "gallery";
-  useEffect(() => {
-    if (!isGalleryScreen || !isPagingActive) {
-      return undefined;
-    }
-
-    const hasBlockingModal = !!selectedPhotoView
-      || isBulkTagModalOpen
-      || !!pendingFolderPath
-      || !!pendingRestoreCandidate
-      || !!pendingResetRequest;
-
-    if (hasBlockingModal) {
-      return undefined;
-    }
-
-    const handlePageKeydown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || isEditableTarget(event.target) || scanStatus === "scanning" || isWorkspaceTransitioning) {
-        return;
-      }
-
-        const key = event.key.toLowerCase();
-        if (key === "arrowleft" || key === "arrowup" || key === "a" || key === "w") {
-          if (!hasPrevPage) {
-            return;
-          }
-          event.preventDefault();
-         void goToPrevPage({ defer: event.repeat });
-          return;
-        }
-
-        if (key === "arrowright" || key === "arrowdown" || key === "d" || key === "s") {
-          if (!hasNextPage) {
-            return;
-          }
-          event.preventDefault();
-         void goToNextPage({ defer: event.repeat });
-        }
-      };
-
-    window.addEventListener("keydown", handlePageKeydown);
-    return () => window.removeEventListener("keydown", handlePageKeydown);
-  }, [
-    goToNextPage,
-    goToPrevPage,
-    hasNextPage,
-    hasPrevPage,
-    isBulkTagModalOpen,
-    isGalleryScreen,
-    isLoading,
-    isPagingActive,
-    pendingFolderPath,
-    pendingResetRequest,
-    pendingRestoreCandidate,
-    scanStatus,
-    selectedPhotoView,
-    isWorkspaceTransitioning,
-  ]);
+  const displayTotalRows = Math.ceil(displayPhotoItems.length / columnCount);
 
   return (
-    <div className={`alpheratz-root ${themeMode === "dark" ? "theme-dark" : "theme-light"} ${isBulkSelectionLocked ? "bulk-selection-locked" : ""} ${isWorkspaceTransitioning ? "view-transitioning" : ""}`}>
+    <div className={`alpheratz-root ${themeMode === "dark" ? "dark-theme" : "light-theme"}`}>
       <Header
         onRefresh={() => {
           if (scanStatus === "scanning") {
@@ -1339,78 +1115,58 @@ function App() {
           }
           void startScan();
         }}
-        onOpenSettings={() => setActiveMainScreen((prev) => (prev === "settings" ? "gallery" : "settings"))}
+        onOpenSettings={() => setShowSettings(true)}
         onToggleFilters={() => setIsFilterOpen((prev) => !prev)}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
+        hashProgressLabel={isPhashRunning ? `ハッシュ計測中... ${similarPrepProgress.done}/${similarPrepProgress.total || 0}` : null}
         activeFilterCount={activeFilterCount}
-        controlsDisabled={isBulkSelectionLocked || isWorkspaceTransitioning}
-        filterDisabled={!isGalleryScreen}
-        showFilterButton={isGalleryScreen}
       />
 
       <main className={`main-content ${isFilterOpen ? "filter-open" : ""}`}>
         {scanStatus === "scanning" && (
           <ScanningOverlay
             progress={scanProgress}
-            title="分析中..."
-            description="一覧表示に必要なキャッシュと分析情報を取り込んでいます"
+            title="スキャン中..."
+            description="一覧表示に必要な情報を取り込んでいます"
             onCancel={cancelScan}
             canCancel={true}
           />
         )}
-        {isGalleryScreen && isFilterOpen && <button className="filter-backdrop" onClick={() => setIsFilterOpen(false)} aria-label="絞り込みを閉じる" />}
-        {isGalleryScreen && (
-          <FilterSidebar
-            isOpen={isFilterOpen}
-            activeFilterCount={activeFilterCount}
-            filteredCount={totalCount}
-            worldFilters={worldFilters}
-            setWorldFilters={setWorldFilters}
-            worldNameList={worldNameList}
-            worldCounts={worldCounts}
-            datePreset={datePreset}
-            onDatePresetSelect={handleDatePresetSelect}
-            dateFrom={dateFrom}
-            setDateFrom={handleDateFromChange}
-            dateTo={dateTo}
-            setDateTo={handleDateToChange}
-            orientationFilter={orientationFilter}
-            setOrientationFilter={setOrientationFilter}
-            orientationFilterDisabled={false}
-            favoritesOnly={favoritesOnly}
-            setFavoritesOnly={setFavoritesOnly}
-            tagFilters={tagFilters}
-            setTagFilters={setTagFilters}
-            tagOptions={tagOptions}
-            onReset={resetFilters}
-          />
-        )}
+        {isFilterOpen && <button className="filter-backdrop" onClick={() => setIsFilterOpen(false)} aria-label="絞り込みを閉じる" />}
+        <FilterSidebar
+          isOpen={isFilterOpen}
+          activeFilterCount={activeFilterCount}
+          filteredCount={filteredPhotos.length}
+          worldFilters={worldFilters}
+          setWorldFilters={setWorldFilters}
+          worldNameList={worldNameList}
+          worldCounts={worldCounts}
+          datePreset={datePreset}
+          onDatePresetSelect={handleDatePresetSelect}
+          dateFrom={dateFrom}
+          setDateFrom={handleDateFromChange}
+          dateTo={dateTo}
+          setDateTo={handleDateToChange}
+          orientationFilter={orientationFilter}
+          setOrientationFilter={setOrientationFilter}
+          orientationFilterDisabled={false}
+          favoritesOnly={favoritesOnly}
+          setFavoritesOnly={setFavoritesOnly}
+          tagFilters={tagFilters}
+          setTagFilters={setTagFilters}
+          tagOptions={tagOptions}
+          onReset={resetFilters}
+        />
         <div className="grid-area">
-          <aside className={`left-rail ${(isBulkSelectionLocked || isWorkspaceTransitioning) ? "disabled" : ""}`} aria-label="表示操作">
+          <aside className="left-rail" aria-label="表示操作">
             <div className="left-rail-controls">
-              <div className="left-rail-section">
-                <div className="left-rail-nav-group" role="group" aria-label="画面">
-                  <button
-                    className={`left-rail-button ${activeMainScreen === "gallery" ? "active" : ""}`}
-                    onClick={() => setActiveMainScreen("gallery")}
-                    disabled={isWorkspaceTransitioning}
-                    aria-label="ギャラリー"
-                    title="ギャラリー"
-                    type="button"
-                  >
-                    <span className="left-rail-icon"><Icons.Photo /></span>
-                    <span className="left-rail-label">ギャラリー</span>
-                  </button>
-                </div>
-              </div>
               <div className="left-rail-section">
                 <div className="left-rail-section-title">編集</div>
                 <div className="left-rail-nav-group" role="group" aria-label="編集">
                   <button
-                    className={`left-rail-button ${activeMainScreen === "tagMaster" ? "active" : ""}`}
-                    onClick={() => setActiveMainScreen((prev) => (prev === "tagMaster" ? "gallery" : "tagMaster"))}
-                    disabled={isWorkspaceTransitioning}
+                    className="left-rail-button"
+                    onClick={() => setShowSettings(true)}
                     aria-label="タグマスタ編集"
                     title="タグマスタ編集"
                     type="button"
@@ -1419,9 +1175,8 @@ function App() {
                     <span className="left-rail-label">タグマスタ編集</span>
                   </button>
                   <button
-                    className={`left-rail-button ${activeMainScreen === "template" ? "active" : ""}`}
-                    onClick={() => setActiveMainScreen((prev) => (prev === "template" ? "gallery" : "template"))}
-                    disabled={isWorkspaceTransitioning}
+                    className="left-rail-button"
+                    onClick={() => setIsTweetTemplatePanelOpen(true)}
                     aria-label="テンプレート編集"
                     title="テンプレート編集"
                     type="button"
@@ -1431,123 +1186,67 @@ function App() {
                   </button>
                 </div>
               </div>
-              {isGalleryScreen && (
-                <>
-                  <div className="left-rail-section">
-                    <div className="left-rail-section-title">選択</div>
-                    <div className="left-rail-nav-group" role="group" aria-label="選択">
-                      <button
-                        className={`left-rail-button ${isMultiSelectMode ? "active" : ""}`}
-                        onClick={handleToggleMultiSelectMode}
-                        disabled={isWorkspaceTransitioning}
-                        type="button"
-                      >
-                        <span className="left-rail-icon"><Icons.CheckSquare /></span>
-                        <span className="left-rail-label">複数選択</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="left-rail-section">
-                    <div className="left-rail-section-title">グループ化</div>
-                    <div className="left-rail-nav-group" role="group" aria-label="グループ化">
-                      <button
-                        className={`left-rail-button ${groupingMode === "none" ? "active" : ""}`}
-                        onClick={() => prepareGroupingModeChange("none")}
-                        disabled={isWorkspaceTransitioning}
-                        type="button"
-                      >
-                        <span className="left-rail-icon"><Icons.Stack /></span>
-                        <span className="left-rail-label">なし</span>
-                      </button>
-                        <button
-                          className={`left-rail-button ${groupingMode === "world" ? "active" : ""}`}
-                          onClick={() => prepareGroupingModeChange("world")}
-                          disabled={isWorkspaceTransitioning || isGroupingUnavailableInMasonry}
-                          title={isGroupingUnavailableInMasonry ? "ピンボード表示ではこの機能は使えません" : "ワールド名ごとにまとめる"}
-                          type="button"
-                        >
-                        <span className="left-rail-icon"><Icons.Globe /></span>
-                        <span className="left-rail-label">ワールド名でまとめる</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="left-rail-section">
-                    <div className="left-rail-section-title">表示フォルダ</div>
-                    <div className="left-rail-nav-group" role="group" aria-label="表示フォルダ">
-                      <button
-                        className={`left-rail-button ${displayFolderMode === "primary" ? "active" : ""}`}
-                        onClick={() => prepareDisplayFolderModeChange("primary")}
-                        disabled={isWorkspaceTransitioning}
-                        type="button"
-                      >
-                        <span className="left-rail-icon"><Icons.Folder /></span>
-                        <span className="left-rail-label">1st</span>
-                      </button>
-                      <button
-                        className={`left-rail-button ${displayFolderMode === "secondary" ? "active" : ""}`}
-                        onClick={() => prepareDisplayFolderModeChange("secondary")}
-                        disabled={!hasSecondaryFolder || isWorkspaceTransitioning}
-                        title={hasSecondaryFolder ? "2nd フォルダのみ表示" : "2nd フォルダが設定されていません"}
-                        type="button"
-                      >
-                        <span className="left-rail-icon"><Icons.Folder /></span>
-                        <span className="left-rail-label">2nd</span>
-                      </button>
-                      <button
-                        className={`left-rail-button ${displayFolderMode === "all" ? "active" : ""}`}
-                        onClick={() => prepareDisplayFolderModeChange("all")}
-                        disabled={isWorkspaceTransitioning}
-                        type="button"
-                      >
-                        <span className="left-rail-icon"><Icons.Stack /></span>
-                        <span className="left-rail-label">全フォルダ</span>
-                      </button>
-                    </div>
-                  </div>
-                  {isMasonryEnabled && (
-                    <div className="left-rail-section left-rail-section-viewmode">
-                      <div className="left-rail-section-title">表示形式</div>
-                      <div className="left-rail-nav-group" role="group" aria-label="表示形式">
-                        <button
-                          className={`left-rail-button ${viewMode === "standard" ? "active" : ""}`}
-                          onClick={() => void handleViewModeChange("standard")}
-                          disabled={isWorkspaceTransitioning}
-                          aria-label="グリッド"
-                          title="グリッド"
-                          type="button"
-                        >
-                          <span className="left-rail-icon"><Icons.Grid /></span>
-                          <span className="left-rail-label">グリッド</span>
-                        </button>
-                        <button
-                          className={`left-rail-button ${viewMode === "gallery" ? "active" : ""}`}
-                          onClick={() => void handleViewModeChange("gallery")}
-                          disabled={isWorkspaceTransitioning}
-                          aria-label="ピンボード"
-                          title="ピンボード"
-                          type="button"
-                        >
-                          <span className="left-rail-icon"><Icons.Gallery /></span>
-                          <span className="left-rail-label">ピンボード</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
+              <div className="left-rail-section">
+                <div className="left-rail-section-title">グループ化</div>
+                <div className="left-rail-nav-group" role="group" aria-label="グループ化">
+                  <button
+                    className={`left-rail-button ${groupingMode === "none" ? "active" : ""}`}
+                    onClick={() => setGroupingMode("none")}
+                    type="button"
+                  >
+                    <span className="left-rail-icon"><Icons.Stack /></span>
+                    <span className="left-rail-label">なし</span>
+                  </button>
+                  <button
+                    className={`left-rail-button ${groupingMode === "similar" ? "active" : ""}`}
+                    onClick={() => setGroupingMode("similar")}
+                    disabled={!isSimilarGroupingAvailable}
+                    title={isSimilarGroupingAvailable ? "隣接画像の類似度でまとめる" : "似た写真の準備が終わるまで使えません"}
+                    type="button"
+                  >
+                    <span className="left-rail-icon"><Icons.Sparkles /></span>
+                    <span className="left-rail-label">似た写真</span>
+                  </button>
+                  <button
+                    className={`left-rail-button ${groupingMode === "world" ? "active" : ""}`}
+                    onClick={() => setGroupingMode("world")}
+                    type="button"
+                  >
+                    <span className="left-rail-icon"><Icons.Globe /></span>
+                    <span className="left-rail-label">ワールド</span>
+                  </button>
+                </div>
+              </div>
+              <div className="left-rail-section left-rail-section-viewmode">
+                <div className="left-rail-section-title">表示形式</div>
+                <div className="left-rail-nav-group" role="group" aria-label="表示形式">
+                  <button
+                    className={`left-rail-button ${viewMode === "standard" ? "active" : ""}`}
+                    onClick={() => void handleViewModeChange("standard")}
+                    aria-label="グリッド"
+                    title="グリッド"
+                    type="button"
+                  >
+                    <span className="left-rail-icon"><Icons.Grid /></span>
+                    <span className="left-rail-label">グリッド</span>
+                  </button>
+                  <button
+                    className={`left-rail-button ${viewMode === "gallery" ? "active" : ""}`}
+                    onClick={() => void handleViewModeChange("gallery")}
+                    aria-label="ギャラリー"
+                    title="ギャラリー"
+                    type="button"
+                  >
+                    <span className="left-rail-icon"><Icons.Gallery /></span>
+                    <span className="left-rail-label">ギャラリー</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </aside>
 
           <div className="right-panel" ref={rightPanelRef}>
-            {isGalleryScreen && viewPreparationLabel && (
-              <div className="view-preparing-overlay" aria-live="polite" aria-busy="true">
-                <div className="view-preparing-card">
-                  <div className="spinner" />
-                  <div className="view-preparing-title">{viewPreparationLabel}</div>
-                </div>
-              </div>
-            )}
-            {isGalleryScreen && (scanStatus !== "scanning" && !isLoading && totalCount === 0) && (
+            {(scanStatus !== "scanning" && !isLoading && filteredPhotos.length === 0) && (
               <EmptyState
                 isFiltering={
                   !!searchQuery
@@ -1561,140 +1260,73 @@ function App() {
               />
             )}
 
-            {isGalleryScreen && (
-              <>
-                <div ref={gridWrapperRef} style={{ flex: 1, minHeight: 0, paddingBottom: selectedCount > 0 ? 92 : 0 }}>
-                  <PhotoGrid
-                    photos={displayPhotoItems}
-                    viewMode={viewMode}
-                    scrollTop={scrollTop}
-                    columnCount={viewMode === "standard" ? standardColumnCount : measuredColumnCount}
-                    columnWidth={standardColumnWidth}
-                    totalRows={displayTotalRows}
-                    ROW_HEIGHT={standardRowHeight}
-                    gridHeight={gridHeight}
-                    panelWidth={panelWidth}
-                    handleGridScroll={handleGridScroll}
-                    handleGridWheel={handleGridWheel}
-                    onReachGridEnd={() => {
-                      if (viewMode === "gallery" && hasMorePhotos && !isLoading && !isLoadingMore) {
-                        void loadMorePhotos();
-                      }
-                    }}
-                    cellProps={{ ...cellProps, data: displayPhotoItems }}
-                    onGridRef={onGridRef}
-                    showBottomLoader={viewMode === "gallery" && isLoadingMore}
-                  />
+            <div ref={gridWrapperRef} style={{ flex: 1, minHeight: 0, paddingBottom: selectedCount > 0 ? 92 : 0 }}>
+              <PhotoGrid
+                photos={displayPhotoItems}
+                viewMode={viewMode}
+                scrollTop={scrollTop}
+                columnCount={columnCount}
+                columnWidth={standardColumnWidth}
+                totalRows={displayTotalRows}
+                ROW_HEIGHT={ROW_HEIGHT}
+                gridHeight={gridHeight}
+                panelWidth={panelWidth}
+                handleGridScroll={handleGridScroll}
+                handleGridWheel={handleGridWheel}
+                totalHeight={totalHeight}
+                galleryLayout={galleryLayout}
+                cellProps={{ ...cellProps, data: displayPhotoItems }}
+                onGridRef={onGridRef}
+              />
+            </div>
+            {selectedCount > 0 && (
+              <div className="bulk-selection-bar" role="region" aria-label="複数選択アクション">
+                <div className="bulk-selection-count">{selectedCount}件選択中</div>
+                <div className="bulk-selection-actions">
+                  <button
+                    className={`bulk-selection-button ${bulkFavoriteWillEnable ? "primary" : ""}`}
+                    onClick={() => void handleBulkFavorite()}
+                    type="button"
+                  >
+                    {bulkFavoriteWillEnable ? "一括お気に入り" : "一括お気に入り解除"}
+                  </button>
+                  <button
+                    className="bulk-selection-button"
+                    onClick={openBulkTagModal}
+                    type="button"
+                  >
+                    一括タグ付け
+                  </button>
+                  <button
+                    className="bulk-selection-button"
+                    onClick={() => void handleBulkCopy()}
+                    type="button"
+                  >
+                    一括別フォルダコピー
+                  </button>
                 </div>
-                {isPagingActive && totalCount > 0 && (
-                  <div className="pager-bar pager-bar-bottom">
-                    <button
-                      className="pager-button"
-                      onClick={() => void goToPrevPage()}
-                      disabled={!hasPrevPage || scanStatus === "scanning" || isWorkspaceTransitioning}
-                      type="button"
-                    >
-                      前へ
-                    </button>
-                    <div className="pager-status">
-                      {pageIndex + 1} / {Math.max(1, Math.ceil(totalCount / pageSize))}
-                    </div>
-                    <button
-                      className="pager-button pager-button-primary"
-                      onClick={() => void goToNextPage()}
-                      disabled={!hasNextPage || scanStatus === "scanning" || isWorkspaceTransitioning}
-                      type="button"
-                    >
-                      次へ
-                    </button>
-                  </div>
-                )}
-                {isMultiSelectMode && selectedCount > 0 && (
-                  <div className="bulk-selection-bar" role="region" aria-label="複数選択アクション">
-                    <div className="bulk-selection-count">{selectedCount}件選択中</div>
-                    <div className="bulk-selection-actions">
-                      <button
-                        className={`bulk-selection-button ${bulkFavoriteWillEnable ? "primary" : ""}`}
-                        onClick={() => void handleBulkFavorite()}
-                        type="button"
-                      >
-                        {bulkFavoriteWillEnable ? "一括お気に入り" : "一括お気に入り解除"}
-                      </button>
-                      <button
-                        className="bulk-selection-button"
-                        onClick={openBulkTagModal}
-                        type="button"
-                      >
-                        一括タグ付け
-                      </button>
-                      <button
-                        className="bulk-selection-button"
-                        onClick={() => void handleBulkCopy()}
-                        type="button"
-                      >
-                        一括別フォルダコピー
-                      </button>
-                    </div>
-                    <button
-                      className="bulk-selection-dismiss"
-                      onClick={clearSelectedPhotos}
-                      aria-label="選択を解除"
-                      type="button"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-            {activeMainScreen === "settings" && (
-              <div className="workspace-screen">
-                <SettingsModal
-                  embedded={true}
-                  photoFolderPath={photoFolderPath}
-                  secondaryPhotoFolderPath={secondaryPhotoFolderPath}
-                  handleChooseFolder={handleChooseFolder}
-                  handleResetFolder={handleResetFolder}
-                  startupEnabled={startupEnabled}
-                  onToggleStartup={() => handleStartupPreference(!startupEnabled)}
-                  themeMode={themeMode}
-                  onToggleTheme={handleThemeToggle}
-                  masonryEnabled={isMasonryEnabled}
-                  onToggleMasonry={handleMasonryToggle}
-                  isUnknownWorldAnalysisRunning={isPdqRunning}
-                  unknownWorldAnalysisLabel={isPdqRunning ? `分析中 ${pdqProgress.done}/${pdqProgress.total || 0}` : null}
-                  onStartUnknownWorldAnalysis={handleStartUnknownWorldAnalysis}
-                />
-              </div>
-            )}
-            {activeMainScreen === "tagMaster" && (
-              <div className="workspace-screen">
-                <TagMasterModal
-                  embedded={true}
-                  masterTags={masterTags}
-                  onCreateTagMaster={createTagMaster}
-                  onDeleteTagMaster={deleteTagMaster}
-                />
-              </div>
-            )}
-            {activeMainScreen === "template" && (
-              <div className="workspace-screen">
-                <TweetTemplatePanel
-                  tweetTemplateDraft={tweetTemplateDraft}
-                  setTweetTemplateDraft={setTweetTemplateDraft}
-                  editingTweetTemplate={editingTweetTemplate}
-                  handleCancelTweetTemplateEdit={handleCancelTweetTemplateEdit}
-                  handleSaveTweetTemplate={handleSaveTweetTemplate}
-                  tweetTemplates={tweetTemplates}
-                  activeTweetTemplate={activeTweetTemplate}
-                  handleSelectTweetTemplate={handleSelectTweetTemplate}
-                  handleStartTweetTemplateEdit={handleStartTweetTemplateEdit}
-                  handleDeleteTweetTemplate={handleDeleteTweetTemplate}
-                />
+                <button
+                  className="bulk-selection-dismiss"
+                  onClick={clearSelectedPhotos}
+                  aria-label="選択を解除"
+                  type="button"
+                >
+                  ×
+                </button>
               </div>
             )}
           </div>
 
+          {groupingMode === "none" && (
+            <MonthNav
+              monthsByYear={monthsByYear}
+              monthGroups={monthGroups}
+              activeMonthIndex={activeMonthIndex}
+              scrollTop={scrollTop}
+              maxScrollTop={maxScrollTop}
+              handleJumpToRatio={handleJumpToRatio}
+            />
+          )}
         </div>
       </main>
 
@@ -1715,61 +1347,34 @@ function App() {
                 </div>
                 <div className="quick-tag-modal-body">
                   <p>{selectedCount}件の写真へ追加するタグを選択してください。</p>
-                  <label className="quick-tag-modal-label">追加するタグ</label>
-                  <div className="bulk-tag-picker">
-                    {hasMasterTags ? (
-                      tagOptions.map((tag) => {
-                        const isSelected = bulkTagSelections.includes(tag);
-                        return (
-                          <button
-                            key={tag}
-                            className={`bulk-tag-option ${isSelected ? "selected" : ""}`}
-                            onClick={() => {
-                              setBulkTagSelections((prev) => (
-                                prev.includes(tag)
-                                  ? prev.filter((item) => item !== tag)
-                                  : [...prev, tag]
-                              ));
-                            }}
-                            type="button"
-                          >
-                            {tag}
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="tag-dropdown-empty">タグが登録されていません。</div>
-                    )}
+                  <label className="quick-tag-modal-label" htmlFor="bulk-tag-select">既存タグ</label>
+                  <div className="tag-select-wrap">
+                    <select
+                      id="bulk-tag-select"
+                      className="tag-select"
+                      value={bulkTagSelection}
+                      disabled={!hasMasterTags}
+                      onChange={(event) => setBulkTagSelection(event.target.value)}
+                    >
+                      <option value="">{hasMasterTags ? "タグを選択..." : "タグが登録されていません"}</option>
+                      {tagOptions.map((tag) => (
+                        <option key={tag} value={tag}>
+                          {tag}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="quick-tag-modal-label">追加タグ</div>
-                  <div className="bulk-tag-selection-list">
-                    {bulkTagSelections.length > 0 ? (
-                      bulkTagSelections.map((tag) => (
-                        <button
-                          key={tag}
-                          className="tag-chip"
-                          onClick={() => setBulkTagSelections((prev) => prev.filter((item) => item !== tag))}
-                          type="button"
-                        >
-                          {tag} ×
-                        </button>
-                      ))
-                    ) : (
-                      <div className="bulk-tag-selection-empty">タグを選択するとここに表示されます。</div>
-                    )}
-                  </div>
+                  <label className="quick-tag-modal-label" htmlFor="bulk-tag-draft">新規タグ</label>
+                  <input
+                    id="bulk-tag-draft"
+                    className="quick-tag-input"
+                    value={bulkTagDraft}
+                    onChange={(event) => setBulkTagDraft(event.target.value)}
+                    placeholder="新しいタグを入力..."
+                    />
                   {!hasMasterTags && (
                     <div className="tag-select-empty-note">
-                      <button
-                        className="tag-master-link-button"
-                        onClick={() => {
-                          setIsBulkTagModalOpen(false);
-                          setActiveMainScreen("tagMaster");
-                        }}
-                        type="button"
-                      >
-                        タグマスタ編集を開く
-                      </button>
+                      タグが登録されていません。設定画面でタグを追加してください。
                     </div>
                   )}
                 </div>
@@ -1803,50 +1408,141 @@ function App() {
           setLocalMemo={setLocalMemo}
           handleSaveMemo={handleSaveMemo}
           isSavingMemo={isSavingMemo}
-            handleOpenWorld={handleOpenWorld}
-            canGoBack={photoHistory.length > 0}
-            onGoBack={goBackPhoto}
-            canGoPrev={selectedPhotoIndex > 0 || (isPagingActive && hasPrevPage)}
-            canGoNext={(selectedPhotoIndex >= 0 && selectedPhotoIndex < displayPhotoItems.length - 1) || (isPagingActive && hasNextPage)}
-            onGoPrev={() => {
-              if (selectedPhotoIndex > 0) {
-                const previousItem = displayPhotoItems[selectedPhotoIndex - 1];
-                setSelectedPhoto(previousItem.photo);
-                return;
-              }
-              if (isPagingActive && hasPrevPage && !isPageTransitioning) {
-                pendingModalPageNavigationRef.current = "prev";
-                void goToPrevPage();
-              }
-            }}
-            onGoNext={() => {
-              if (selectedPhotoIndex >= 0 && selectedPhotoIndex < displayPhotoItems.length - 1) {
-                const nextItem = displayPhotoItems[selectedPhotoIndex + 1];
-                setSelectedPhoto(nextItem.photo);
-                return;
-              }
-              if (isPagingActive && hasNextPage && !isPageTransitioning) {
-                pendingModalPageNavigationRef.current = "next";
-                void goToNextPage();
-              }
-            }}
-          groupedPhotos={modalGroupedPhotos}
-          groupedPhotoTotalCount={selectedGroupedPhotos?.length ?? 0}
-          groupedPhotoLabel={groupedPhotoLabel}
-          showGroupedPhotos={showGroupedPhotosInModal}
-          onSelectGroupedPhoto={setSelectedPhoto}
-          canTweet={hasActiveTweetTemplate}
-          tweetTooltipLabel={hasActiveTweetTemplate ? "ツイート投稿画面を開く" : "テンプレートがありません"}
+          handleOpenWorld={handleOpenWorld}
+          canGoBack={photoHistory.length > 0}
+          onGoBack={goBackPhoto}
+          canGoPrev={selectedPhotoIndex > 0}
+          canGoNext={selectedPhotoIndex >= 0 && selectedPhotoIndex < displayPhotoItems.length - 1}
+          onGoPrev={() => {
+            if (selectedPhotoIndex > 0) {
+              const previousItem = displayPhotoItems[selectedPhotoIndex - 1];
+              setSelectedPhoto(previousItem.photo);
+            }
+          }}
+          onGoNext={() => {
+            if (selectedPhotoIndex >= 0 && selectedPhotoIndex < displayPhotoItems.length - 1) {
+              const nextItem = displayPhotoItems[selectedPhotoIndex + 1];
+              setSelectedPhoto(nextItem.photo);
+            }
+          }}
+          similarPhotos={similarPhotos}
+          showSimilarPhotos={groupingMode === "similar"}
+          onSelectSimilarPhoto={setSelectedPhoto}
           onToggleFavorite={() => toggleFavorite(selectedPhotoView.photo_path, selectedPhotoView.is_favorite)}
           onTweet={() => void handleTweetPhoto(selectedPhotoView)}
           onAddTag={(tag) => addTag(selectedPhotoView.photo_path, tag)}
           onRemoveTag={(tag) => removeTag(selectedPhotoView.photo_path, tag)}
-          onOpenTagMaster={() => {
-            closePhotoModal();
-            setActiveMainScreen("tagMaster");
-          }}
-          onApplySimilarWorldMatch={applySimilarWorldMatch}
           addToast={addToast}
+        />
+      )}
+
+      {isTweetTemplatePanelOpen && (
+        <div className="modal-overlay" onClick={() => setIsTweetTemplatePanelOpen(false)}>
+          <div className="modal-content settings-panel tweet-template-panel" onClick={(event) => event.stopPropagation()}>
+            <button
+              className="modal-close"
+              onClick={() => {
+                setIsTweetTemplatePanelOpen(false);
+                handleCancelTweetTemplateEdit();
+              }}
+              aria-label="閉じる"
+              type="button"
+            >
+              ×
+            </button>
+            <div className="modal-body tweet-template-modal-body">
+              <div className="modal-info">
+                <div className="info-header"><h2>投稿テンプレート</h2></div>
+                <div className="memo-section">
+                  <label>{editingTweetTemplate ? "テンプレート編集" : "新規テンプレート"}</label>
+                  <textarea
+                    className="tweet-template-textarea"
+                    value={tweetTemplateDraft}
+                    onChange={(event) => setTweetTemplateDraft(event.target.value)}
+                    placeholder={`例:\nWorld: {world-name}\nAuthor:\n\n#VRChat_world紹介`}
+                  />
+                  <div className="tweet-template-help">
+                    使える置換: {"{world-name}"}
+                  </div>
+                  <div className="tweet-template-editor-actions">
+                    {editingTweetTemplate && (
+                      <button
+                        className="modal-secondary-button"
+                        onClick={handleCancelTweetTemplateEdit}
+                        type="button"
+                      >
+                        キャンセル
+                      </button>
+                    )}
+                    <button
+                      className="save-button"
+                      onClick={() => void handleSaveTweetTemplate()}
+                      type="button"
+                    >
+                      {editingTweetTemplate ? "更新" : "登録"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-info tweet-template-list-panel">
+                <div className="info-header"><h2>テンプレート一覧</h2></div>
+                <div className="memo-section">
+                  <label>登録済みテンプレート</label>
+                  <div className="tweet-template-list">
+                    {tweetTemplates.map((template) => (
+                      <div
+                        key={template}
+                        className={`tweet-template-item ${template === activeTweetTemplate ? "active" : ""}`}
+                      >
+                        <button
+                          className="tweet-template-select"
+                          onClick={() => void handleSelectTweetTemplate(template)}
+                          type="button"
+                        >
+                          <span className="tweet-template-item-title">
+                            {template === activeTweetTemplate ? "使用中" : "テンプレート"}
+                          </span>
+                          <span className="tweet-template-item-body">{template}</span>
+                        </button>
+                        <div className="tweet-template-item-actions">
+                          <button
+                            className="modal-secondary-button tweet-template-action-button"
+                            onClick={() => handleStartTweetTemplateEdit(template)}
+                            type="button"
+                          >
+                            編集
+                          </button>
+                          <button
+                            className="tag-master-remove"
+                            onClick={() => void handleDeleteTweetTemplate(template)}
+                            type="button"
+                          >
+                            削除
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          photoFolderPath={photoFolderPath}
+          secondaryPhotoFolderPath={secondaryPhotoFolderPath}
+          handleChooseFolder={handleChooseFolder}
+          startupEnabled={startupEnabled}
+          onToggleStartup={() => handleStartupPreference(!startupEnabled)}
+          themeMode={themeMode}
+          onToggleTheme={handleThemeToggle}
+          masterTags={masterTags}
+          onCreateTagMaster={createTagMaster}
+          onDeleteTagMaster={deleteTagMaster}
         />
       )}
       {pendingFolderPath && (
@@ -1861,10 +1557,10 @@ function App() {
             </button>
             <div className="modal-body" style={{ gridTemplateColumns: "1fr" }}>
               <div className="modal-info">
-                <div className="info-header"><h2>バックアップの確認</h2></div>
+                <div className="info-header"><h2>フォルダ変更の確認</h2></div>
                 <div className="folder-change-warning">
-                  <strong>変更前にバックアップを作成しますか？</strong>
-                  <p>現在のフォルダに紐づく写真一覧、タグ、お気に入り、メモ、キャッシュ情報を退避してから切り替えられます。</p>
+                  <strong>現在のデータはすべてリセットされます。</strong>
+                  <p>写真一覧、タグ、お気に入り、メモ、サムネイルキャッシュ、ログを削除してから新しいフォルダをスキャンします。</p>
                   <p>変更先: {pendingFolderPath}</p>
                 </div>
                 <div className="folder-change-actions">
@@ -1877,69 +1573,11 @@ function App() {
                     キャンセル
                   </button>
                   <button
-                    className="modal-secondary-button"
-                    onClick={() => void handleFolderChangeBackupDecision(false)}
-                    disabled={isApplyingFolderChange}
-                    type="button"
-                  >
-                    バックアップなしで続行
-                  </button>
-                  <button
                     className="world-link-button"
-                    onClick={() => void handleFolderChangeBackupDecision(true)}
+                    onClick={() => void applyFolderChange(pendingFolderPath, true)}
                     disabled={isApplyingFolderChange}
-                    type="button"
                   >
-                    {isApplyingFolderChange ? "切替中..." : "バックアップして続行"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {pendingResetRequest && (
-        <div className="modal-overlay" onClick={() => !isApplyingFolderChange && setPendingResetRequest(null)}>
-          <div className="modal-content settings-panel folder-change-modal" onClick={(event) => event.stopPropagation()}>
-            <button
-              className="modal-close"
-              onClick={() => !isApplyingFolderChange && setPendingResetRequest(null)}
-              aria-label="閉じる"
-            >
-              ×
-            </button>
-            <div className="modal-body" style={{ gridTemplateColumns: "1fr" }}>
-              <div className="modal-info">
-                <div className="info-header"><h2>リセット前の確認</h2></div>
-                <div className="folder-change-warning">
-                  <strong>リセット前にバックアップを作成しますか？</strong>
-                  <p>対象パス: {pendingResetRequest.path}</p>
-                  <p>リセット後は対象スロットの設定とキャッシュ情報を削除します。</p>
-                </div>
-                <div className="folder-change-actions">
-                  <button
-                    className="modal-secondary-button"
-                    onClick={() => setPendingResetRequest(null)}
-                    disabled={isApplyingFolderChange}
-                    type="button"
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    className="modal-secondary-button"
-                    onClick={() => void handleResetBackupDecision(false)}
-                    disabled={isApplyingFolderChange}
-                    type="button"
-                  >
-                    バックアップなしで続行
-                  </button>
-                  <button
-                    className="world-link-button"
-                    onClick={() => void handleResetBackupDecision(true)}
-                    disabled={isApplyingFolderChange}
-                    type="button"
-                  >
-                    {isApplyingFolderChange ? "リセット中..." : "バックアップして続行"}
+                    {isApplyingFolderChange ? "切替中..." : "リセットして続行"}
                   </button>
                 </div>
               </div>
@@ -1969,7 +1607,7 @@ function App() {
                 <div className="folder-change-actions">
                   <button
                     className="modal-secondary-button"
-                    onClick={() => void handleFinalizeFolderSelection(pendingRestoreCandidate.photo_folder_path, false)}
+                    onClick={() => void finalizeFolderSelection(pendingRestoreCandidate.photo_folder_path, false)}
                     disabled={isApplyingFolderChange}
                     type="button"
                   >
@@ -1977,7 +1615,7 @@ function App() {
                   </button>
                   <button
                     className="world-link-button"
-                    onClick={() => void handleFinalizeFolderSelection(pendingRestoreCandidate.photo_folder_path, true)}
+                    onClick={() => void finalizeFolderSelection(pendingRestoreCandidate.photo_folder_path, true)}
                     disabled={isApplyingFolderChange}
                   >
                     {isApplyingFolderChange ? "反映中..." : "反映する"}

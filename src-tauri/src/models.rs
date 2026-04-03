@@ -4,12 +4,6 @@ use serde::{Deserialize, Serialize};
 pub struct PhotoRecord {
     pub photo_filename: String,
     pub photo_path: String,
-    #[serde(default)]
-    pub resolved_photo_path: Option<String>,
-    #[serde(default)]
-    pub grid_thumb_path: Option<String>,
-    #[serde(default)]
-    pub display_thumb_path: Option<String>,
     pub world_id: Option<String>,
     pub world_name: Option<String>,
     pub timestamp: String,
@@ -30,14 +24,24 @@ pub struct PhotoRecord {
     pub is_missing: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PhotoQuery {
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub world_query: Option<String>,
+    pub world_exact: Option<String>,
+    pub orientation: Option<String>,
+    pub favorites_only: Option<bool>,
+    pub tag_filters: Option<Vec<String>>,
+    pub include_phash: Option<bool>,
+}
+
 impl Default for PhotoRecord {
     fn default() -> Self {
         Self {
             photo_filename: String::new(),
             photo_path: String::new(),
-            resolved_photo_path: None,
-            grid_thumb_path: None,
-            display_thumb_path: None,
             world_id: None,
             world_name: None,
             timestamp: String::new(),
@@ -61,43 +65,4 @@ pub struct ScanProgress {
     pub total: usize,
     pub current_world: String,
     pub phase: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct WorldFilterOption {
-    pub world_name: Option<String>,
-    pub count: i64,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct PhotoPage {
-    pub items: Vec<PhotoRecord>,
-    pub total: usize,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct GroupedPhotoRecord {
-    pub photo: PhotoRecord,
-    pub group_count: usize,
-    pub group_key: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct GroupedPhotoPage {
-    pub items: Vec<GroupedPhotoRecord>,
-    pub total: usize,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct SelectedPhotoRef {
-    pub photo_path: String,
-    pub source_slot: i64,
-    pub is_favorite: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct SimilarWorldCandidate {
-    pub photo: PhotoRecord,
-    pub distance: u32,
-    pub similarity: f32,
 }

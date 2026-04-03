@@ -3,23 +3,25 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
 
 const REGISTRY_BASE_KEY: &str = "Software\\CosmoArtsStore\\STELLAProject";
 const LOG_FILE_PREFIX: &str = "info";
-const BROWSE_CACHE_LIMIT_BYTES: u64 = 256 * 1024 * 1024;
-const PDQ_CACHE_LIMIT_BYTES: u64 = 64 * 1024 * 1024;
+
+fn write_bootstrap_stderr(message: &str) {
+    // Intentional: 起動前ログの保存先自体が使えない場合だけ、stderr を最後の退避先にする。
+    eprintln!("{message}");
+}
 
 fn write_bootstrap_log(level: &str, msg: &str) {
     let fallback_dir = std::env::temp_dir().join("STELLAProject").join("Alpheratz");
     if let Err(err) = fs::create_dir_all(&fallback_dir) {
-        eprintln!(
-            "[Alpheratz][WARN] bootstrap log dir create failed [{}]: {}",
+        write_bootstrap_stderr(&format!(
+            "[Alpheratz][WARN] 起動前ログディレクトリを作成できませんでした [{}]: {}",
             fallback_dir.display(),
             err
-        );
+        ));
         return;
     }
 
@@ -29,19 +31,19 @@ fn write_bootstrap_log(level: &str, msg: &str) {
         Ok(mut file) => {
             let now = Local::now().format("%Y-%m-%d %H:%M:%S");
             if let Err(err) = writeln!(file, "[{}] [{}] {}", now, level, msg) {
-                eprintln!(
-                    "[Alpheratz][WARN] bootstrap log write failed [{}]: {}",
+                write_bootstrap_stderr(&format!(
+                    "[Alpheratz][WARN] 起動前ログを書き込めませんでした [{}]: {}",
                     path.display(),
                     err
-                );
+                ));
             }
         }
         Err(err) => {
-            eprintln!(
-                "[Alpheratz][WARN] bootstrap log open failed [{}]: {}",
+            write_bootstrap_stderr(&format!(
+                "[Alpheratz][WARN] 起動前ログを開けませんでした [{}]: {}",
                 path.display(),
                 err
-            );
+            ));
         }
     }
 }
@@ -58,7 +60,7 @@ pub fn get_registry_component_install_dir(component: &str) -> Option<PathBuf> {
         Err(err) => {
             write_bootstrap_log(
                 "WARN",
-                &format!("registry open failed [{}]: {}", key_path, err),
+                &format!("レジストリキーを開けませんでした [{}]: {}", key_path, err),
             );
             return None;
         }
@@ -70,7 +72,7 @@ pub fn get_registry_component_install_dir(component: &str) -> Option<PathBuf> {
             write_bootstrap_log(
                 "WARN",
                 &format!(
-                    "registry value read failed [{}\\InstallLocation]: {}",
+                    "レジストリ値を読み取れませんでした [{}\\InstallLocation]: {}",
                     key_path, err
                 ),
             );
@@ -84,7 +86,7 @@ pub fn get_registry_component_install_dir(component: &str) -> Option<PathBuf> {
     } else {
         write_bootstrap_log(
             "WARN",
-            &format!("install dir does not exist: {}", path_buf.display()),
+            &format!("インストール先が存在しません: {}", path_buf.display()),
         );
         None
     }
@@ -99,7 +101,11 @@ pub fn get_alpheratz_data_dir() -> Option<PathBuf> {
     if let Err(err) = fs::create_dir_all(&data_dir) {
         write_bootstrap_log(
             "WARN",
-            &format!("data dir create failed [{}]: {}", data_dir.display(), err),
+            &format!(
+                "data ディレクトリを作成できませんでした [{}]: {}",
+                data_dir.display(),
+                err
+            ),
         );
         return None;
     }
@@ -111,7 +117,11 @@ pub fn get_alpheratz_log_dir() -> Option<PathBuf> {
     if let Err(err) = fs::create_dir_all(&log_dir) {
         write_bootstrap_log(
             "WARN",
-            &format!("log dir create failed [{}]: {}", log_dir.display(), err),
+            &format!(
+                "log ディレクトリを作成できませんでした [{}]: {}",
+                log_dir.display(),
+                err
+            ),
         );
         return None;
     }
@@ -123,7 +133,11 @@ pub fn get_alpheratz_cache_dir() -> Option<PathBuf> {
     if let Err(err) = fs::create_dir_all(&cache_dir) {
         write_bootstrap_log(
             "WARN",
-            &format!("cache dir create failed [{}]: {}", cache_dir.display(), err),
+            &format!(
+                "cache ディレクトリを作成できませんでした [{}]: {}",
+                cache_dir.display(),
+                err
+            ),
         );
         return None;
     }
@@ -144,7 +158,7 @@ pub fn get_alpheratz_slot_cache_dir(source_slot: i64) -> Option<PathBuf> {
         write_bootstrap_log(
             "WARN",
             &format!(
-                "slot cache dir create failed [{}]: {}",
+                "スロット別 cache ディレクトリを作成できませんでした [{}]: {}",
                 slot_cache_dir.display(),
                 err
             ),
@@ -160,7 +174,7 @@ pub fn get_alpheratz_setting_dir() -> Option<PathBuf> {
         write_bootstrap_log(
             "WARN",
             &format!(
-                "setting dir create failed [{}]: {}",
+                "setting ディレクトリを作成できませんでした [{}]: {}",
                 setting_dir.display(),
                 err
             ),
@@ -176,7 +190,7 @@ pub fn get_alpheratz_backup_dir() -> Option<PathBuf> {
         write_bootstrap_log(
             "WARN",
             &format!(
-                "backup dir create failed [{}]: {}",
+                "backup ディレクトリを作成できませんでした [{}]: {}",
                 backup_dir.display(),
                 err
             ),
@@ -194,7 +208,7 @@ pub fn get_alpheratz_db_cache_dir(_source_slot: i64) -> Option<PathBuf> {
         write_bootstrap_log(
             "WARN",
             &format!(
-                "db cache dir create failed [{}]: {}",
+                "db cache ディレクトリを作成できませんでした [{}]: {}",
                 db_cache_dir.display(),
                 err
             ),
@@ -210,7 +224,7 @@ pub fn get_alpheratz_img_cache_dir(source_slot: i64) -> Option<PathBuf> {
         write_bootstrap_log(
             "WARN",
             &format!(
-                "img cache dir create failed [{}]: {}",
+                "img cache ディレクトリを作成できませんでした [{}]: {}",
                 img_cache_dir.display(),
                 err
             ),
@@ -225,19 +239,39 @@ pub fn clear_directory_contents(dir: &Path) -> Result<(), String> {
         return Ok(());
     }
 
-    let entries = fs::read_dir(dir)
-        .map_err(|err| format!("directory read failed [{}]: {}", dir.display(), err))?;
+    let entries = fs::read_dir(dir).map_err(|err| {
+        format!(
+            "ディレクトリを読み取れませんでした [{}]: {}",
+            dir.display(),
+            err
+        )
+    })?;
 
     for entry in entries {
-        let entry = entry
-            .map_err(|err| format!("directory entry read failed [{}]: {}", dir.display(), err))?;
+        let entry = entry.map_err(|err| {
+            format!(
+                "ディレクトリエントリを読み取れませんでした [{}]: {}",
+                dir.display(),
+                err
+            )
+        })?;
         let path = entry.path();
         if path.is_dir() {
-            fs::remove_dir_all(&path)
-                .map_err(|err| format!("directory remove failed [{}]: {}", path.display(), err))?;
+            fs::remove_dir_all(&path).map_err(|err| {
+                format!(
+                    "ディレクトリを削除できませんでした [{}]: {}",
+                    path.display(),
+                    err
+                )
+            })?;
         } else {
-            fs::remove_file(&path)
-                .map_err(|err| format!("file remove failed [{}]: {}", path.display(), err))?;
+            fs::remove_file(&path).map_err(|err| {
+                format!(
+                    "ファイルを削除できませんでした [{}]: {}",
+                    path.display(),
+                    err
+                )
+            })?;
         }
     }
 
@@ -258,14 +292,14 @@ pub fn log_msg(level: &str, msg: &str) {
                 if let Err(err) = writeln!(file, "[{}] [{}] {}", now, level, msg) {
                     write_bootstrap_log(
                         "WARN",
-                        &format!("log write failed [{}]: {}", path.display(), err),
+                        &format!("ログを書き込めませんでした [{}]: {}", path.display(), err),
                     );
                 }
             }
             Err(err) => {
                 write_bootstrap_log(
                     "WARN",
-                    &format!("log open failed [{}]: {}", path.display(), err),
+                    &format!("ログを開けませんでした [{}]: {}", path.display(), err),
                 );
             }
         }
@@ -296,11 +330,12 @@ pub fn get_thumbnail_cache_dir() -> Result<PathBuf, String> {
     Ok(cache_dir)
 }
 
-fn resolve_thumbnail_cache_path(
+fn create_thumbnail_file_with_size(
     path: &str,
     source_slot: i64,
+    size: u32,
     cache_version: &str,
-) -> Result<PathBuf, String> {
+) -> Result<String, String> {
     let cache_dir = get_alpheratz_img_cache_dir(source_slot)
         .ok_or_else(|| "Alpheratz の imgCache フォルダを取得できません".to_string())?;
     let path_p = Path::new(path);
@@ -308,148 +343,7 @@ fn resolve_thumbnail_cache_path(
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or_else(|| format!("サムネイル対象のファイル名を解決できません: {}", path))?;
-    Ok(cache_dir.join(format!("{}.thumb.{}.jpg", filename, cache_version)))
-}
-
-fn prune_thumbnail_cache(source_slot: i64, cache_version: &str, max_bytes: u64) -> Result<(), String> {
-    let cache_dir = get_alpheratz_img_cache_dir(source_slot)
-        .ok_or_else(|| "Alpheratz の imgCache フォルダを取得できません".to_string())?;
-    let suffix = format!(".thumb.{}.jpg", cache_version);
-
-    let mut entries = Vec::new();
-    let mut total_bytes = 0u64;
-    for entry in fs::read_dir(&cache_dir)
-        .map_err(|err| format!("サムネイルキャッシュを走査できません [{}]: {}", cache_dir.display(), err))?
-    {
-        let entry = entry.map_err(|err| {
-            format!(
-                "サムネイルキャッシュ項目を読み取れません [{}]: {}",
-                cache_dir.display(),
-                err
-            )
-        })?;
-        let path = entry.path();
-        let is_target = matches!(
-            path.file_name().and_then(|value| value.to_str()),
-            Some(value) if value.ends_with(&suffix)
-        );
-        if !is_target {
-            continue;
-        }
-        let metadata = entry.metadata().map_err(|err| {
-            format!(
-                "サムネイルキャッシュ属性を取得できません [{}]: {}",
-                path.display(),
-                err
-            )
-        })?;
-        let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-        let file_len = metadata.len();
-        total_bytes = total_bytes.saturating_add(file_len);
-        entries.push((path, file_len, modified));
-    }
-
-    if total_bytes <= max_bytes {
-        return Ok(());
-    }
-
-    entries.sort_by_key(|(_, _, modified)| *modified);
-
-    for (path, file_len, _) in entries {
-        fs::remove_file(&path).map_err(|err| {
-            format!(
-                "古いサムネイルキャッシュを削除できません [{}]: {}",
-                path.display(),
-                err
-            )
-        })?;
-        total_bytes = total_bytes.saturating_sub(file_len);
-        if total_bytes <= max_bytes {
-            break;
-        }
-    }
-
-    Ok(())
-}
-
-fn thumbnail_cache_limit_for(cache_version: &str) -> u64 {
-    if cache_version == "pdq.v2" {
-        PDQ_CACHE_LIMIT_BYTES
-    } else {
-        BROWSE_CACHE_LIMIT_BYTES
-    }
-}
-
-pub fn prune_thumbnail_cache_for_slot(source_slot: i64) -> Result<(), String> {
-    prune_thumbnail_cache(source_slot, "pdq.v2", thumbnail_cache_limit_for("pdq.v2"))?;
-    prune_thumbnail_cache(
-        source_slot,
-        "browse.v3",
-        thumbnail_cache_limit_for("browse.v3"),
-    )?;
-    Ok(())
-}
-
-pub fn read_thumbnail_bytes(path: &str) -> Result<Vec<u8>, String> {
-    let requested = PathBuf::from(path);
-    if !requested.exists() {
-        return Err(format!("サムネイルファイルが見つかりません: {}", requested.display()));
-    }
-    if requested.extension().and_then(|value| value.to_str()) != Some("jpg") {
-        return Err(format!(
-            "サムネイル拡張子が不正です [{}]",
-            requested.display()
-        ));
-    }
-
-    let canonical_path = requested.canonicalize().map_err(|err| {
-        format!(
-            "サムネイルパスを正規化できません [{}]: {}",
-            requested.display(),
-            err
-        )
-    })?;
-
-    let slot_dirs = [1_i64, 2_i64]
-        .into_iter()
-        .filter_map(get_alpheratz_img_cache_dir)
-        .filter_map(|dir| dir.canonicalize().ok())
-        .collect::<Vec<_>>();
-
-    let allowed = slot_dirs.iter().any(|dir| canonical_path.starts_with(dir));
-    if !allowed {
-        return Err(format!(
-            "imgCache 配下ではないサムネイルは読み込めません [{}]",
-            canonical_path.display()
-        ));
-    }
-
-    fs::read(&canonical_path).map_err(|err| {
-        format!(
-            "サムネイルファイルを読み込めません [{}]: {}",
-            canonical_path.display(),
-            err
-        )
-    })
-}
-
-pub fn resolve_thumbnail_cache_path_string(
-    path: &str,
-    source_slot: i64,
-    cache_version: &str,
-) -> Result<String, String> {
-    Ok(resolve_thumbnail_cache_path(path, source_slot, cache_version)?
-        .to_string_lossy()
-        .to_string())
-}
-
-fn create_thumbnail_file_with_size(
-    path: &str,
-    source_slot: i64,
-    size: u32,
-    cache_version: &str,
-) -> Result<String, String> {
-    let cache_path = resolve_thumbnail_cache_path(path, source_slot, cache_version)?;
+    let cache_path = cache_dir.join(format!("{}.thumb.{}.jpg", filename, cache_version));
 
     if cache_path.exists() {
         return Ok(cache_path.to_string_lossy().to_string());
@@ -465,69 +359,22 @@ fn create_thumbnail_file_with_size(
             e
         )
     })?;
-    prune_thumbnail_cache(source_slot, cache_version, thumbnail_cache_limit_for(cache_version))?;
 
     Ok(cache_path.to_string_lossy().to_string())
 }
 
-pub fn prewarm_analysis_thumbnail_files(path: &str, source_slot: i64) -> Result<(), String> {
-    let pdq_cache_path = resolve_thumbnail_cache_path(path, source_slot, "pdq.v2")?;
-    let browse_cache_path = resolve_thumbnail_cache_path(path, source_slot, "browse.v3")?;
-
-    let needs_pdq = !pdq_cache_path.exists();
-    let needs_browse = !browse_cache_path.exists();
-    if !needs_pdq && !needs_browse {
-        return Ok(());
-    }
-
-    let img =
-        image::open(path).map_err(|e| format!("サムネイル用画像を開けません ({}): {}", path, e))?;
-
-    if needs_pdq {
-        img.thumbnail(100, 100).save(&pdq_cache_path).map_err(|e| {
-            format!(
-                "PDQ サムネイルを保存できません ({}): {}",
-                pdq_cache_path.display(),
-                e
-            )
-        })?;
-        prune_thumbnail_cache(source_slot, "pdq.v2", thumbnail_cache_limit_for("pdq.v2"))?;
-    }
-
-    if needs_browse {
-        img.thumbnail(400, 400).save(&browse_cache_path).map_err(|e| {
-            format!(
-                "一覧サムネイルを保存できません ({}): {}",
-                browse_cache_path.display(),
-                e
-            )
-        })?;
-        prune_thumbnail_cache(
-            source_slot,
-            "browse.v3",
-            thumbnail_cache_limit_for("browse.v3"),
-        )?;
-    }
-
-    Ok(())
-}
-
-pub fn needs_analysis_thumbnail_prewarm(path: &str, source_slot: i64) -> Result<bool, String> {
-    let pdq_cache_path = resolve_thumbnail_cache_path(path, source_slot, "pdq.v2")?;
-    let browse_cache_path = resolve_thumbnail_cache_path(path, source_slot, "browse.v3")?;
-    Ok(!pdq_cache_path.exists() || !browse_cache_path.exists())
-}
-
 pub fn create_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    create_thumbnail_file_with_size(path, source_slot, 100, "pdq.v2")
+    create_thumbnail_file_with_size(path, source_slot, 192, "pdq.v1")
 }
 
 pub fn create_display_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    create_thumbnail_file_with_size(path, source_slot, 400, "browse.v3")
+    // 大きめ表示向けキャッシュ。小さい一覧には使わない。
+    create_thumbnail_file_with_size(path, source_slot, 514, "display.v2")
 }
 
 pub fn create_grid_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    create_thumbnail_file_with_size(path, source_slot, 400, "browse.v3")
+    // WebView2 GPU プロセスの負荷を抑えつつ視認性を保つため、一覧表示は中間サイズにする。
+    create_thumbnail_file_with_size(path, source_slot, 384, "grid.v2")
 }
 
 pub fn copy_photo_files(photo_paths: &[String], destination_dir: &str) -> Result<usize, String> {
@@ -550,11 +397,17 @@ pub fn copy_photo_files(photo_paths: &[String], destination_dir: &str) -> Result
     for photo_path in photo_paths {
         let source_path = Path::new(photo_path);
         if !source_path.exists() {
-            return Err(format!("コピー元ファイルが見つかりません: {}", source_path.display()));
+            return Err(format!(
+                "コピー元ファイルが見つかりません: {}",
+                source_path.display()
+            ));
         }
 
         let file_name = source_path.file_name().ok_or_else(|| {
-            format!("コピー元ファイル名を解決できません: {}", source_path.display())
+            format!(
+                "コピー元ファイル名を解決できません: {}",
+                source_path.display()
+            )
         })?;
         let destination_file = unique_copy_target(destination_path, file_name);
         fs::copy(source_path, &destination_file).map_err(|err| {

@@ -19,8 +19,6 @@ pub struct AlpheratzSetting {
     pub theme_mode: String,
     #[serde(default, rename = "viewMode", alias = "view_mode")]
     pub view_mode: String,
-    #[serde(default, rename = "enableMasonryLayout", alias = "enable_masonry_layout")]
-    pub enable_masonry_layout: bool,
     #[serde(default, rename = "enableStartup", alias = "enable_startup")]
     pub enable_startup: bool,
     #[serde(
@@ -51,16 +49,21 @@ pub struct BackupPathEntry {
 
 impl Default for AlpheratzSetting {
     fn default() -> Self {
+        let tweet_templates = vec![
+            "おは{world-name}\n\n#{タグを追加}".to_string(),
+            "World: {world-name}\nAuthor:\n\n#VRChat_world紹介".to_string(),
+            "World: {world-name}\nAuthor:\nCloth:\n\n#VRChatPhotography".to_string(),
+        ];
+        let active_tweet_template = tweet_templates[0].clone();
         AlpheratzSetting {
             photo_folder_path: String::new(),
             secondary_photo_folder_path: String::new(),
             theme_mode: "light".to_string(),
             view_mode: "standard".to_string(),
-            enable_masonry_layout: false,
             enable_startup: false,
             startup_preference_set: false,
-            tweet_templates: Vec::new(),
-            active_tweet_template: String::new(),
+            tweet_templates,
+            active_tweet_template,
         }
     }
 }
@@ -93,7 +96,7 @@ pub fn load_setting() -> AlpheratzSetting {
                     Ok(s) => return s,
                     Err(err) => {
                         utils::log_warn(&format!(
-                            "Failed to parse settings JSON ({}): {}",
+                            "設定ファイルの JSON を解析できませんでした ({}): {}",
                             path.display(),
                             err
                         ));
@@ -101,7 +104,7 @@ pub fn load_setting() -> AlpheratzSetting {
                 },
                 Err(err) => {
                     utils::log_warn(&format!(
-                        "Failed to read settings file ({}): {}",
+                        "設定ファイルを読み込めませんでした ({}): {}",
                         path.display(),
                         err
                     ));
@@ -119,7 +122,7 @@ pub fn load_setting() -> AlpheratzSetting {
                     Ok(setting) => {
                         if let Err(err) = save_setting(&setting) {
                             utils::log_warn(&format!(
-                                "Failed to migrate legacy settings ({}): {}",
+                                "旧設定ファイルを移行できませんでした ({}): {}",
                                 legacy_path.display(),
                                 err
                             ));
@@ -127,13 +130,13 @@ pub fn load_setting() -> AlpheratzSetting {
                         return setting;
                     }
                     Err(err) => utils::log_warn(&format!(
-                        "Failed to parse legacy settings JSON ({}): {}",
+                        "旧設定ファイルの JSON を解析できませんでした ({}): {}",
                         legacy_path.display(),
                         err
                     )),
                 },
                 Err(err) => utils::log_warn(&format!(
-                    "Failed to read legacy settings file ({}): {}",
+                    "旧設定ファイルを読み込めませんでした ({}): {}",
                     legacy_path.display(),
                     err
                 )),
@@ -167,7 +170,7 @@ pub fn load_backup_paths() -> Vec<BackupPathEntry> {
             Ok(entries) => entries,
             Err(err) => {
                 utils::log_warn(&format!(
-                    "Failed to parse backup path JSON ({}): {}",
+                    "バックアップ管理ファイルの JSON を解析できませんでした ({}): {}",
                     path.display(),
                     err
                 ));
@@ -176,7 +179,7 @@ pub fn load_backup_paths() -> Vec<BackupPathEntry> {
         },
         Err(err) => {
             utils::log_warn(&format!(
-                "Failed to read backup path file ({}): {}",
+                "バックアップ管理ファイルを読み込めませんでした ({}): {}",
                 path.display(),
                 err
             ));

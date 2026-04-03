@@ -29,7 +29,7 @@ pub fn start_orientation_worker(app: AppHandle) {
 
     tauri::async_runtime::spawn(async move {
         if let Err(err) = run_orientation_worker(app.clone()).await {
-            crate::utils::log_err(&format!("orientation worker failed: {}", err));
+            crate::utils::log_err(&format!("縦横ワーカーに失敗しました: {}", err));
         }
 
         let state = app.state::<OrientationWorkerState>();
@@ -121,7 +121,10 @@ async fn run_orientation_worker(app: AppHandle) -> Result<(), String> {
             .map_err(|err| format!("縦横解析タスクの待機に失敗しました [{}]: {}", filename, err))?;
 
             if let Err(err) = result {
-                crate::utils::log_warn(&format!("orientation skipped [{}]: {}", filename, err));
+                crate::utils::log_warn(&format!(
+                    "縦横解析をスキップしました [{}]: {}",
+                    filename, err
+                ));
             }
 
             done += 1;
@@ -182,7 +185,7 @@ fn fetch_pending_orientation_batch() -> Result<Vec<(i64, String, String)>, Strin
         match row {
             Ok(item) => batch.push(item),
             Err(err) => {
-                crate::utils::log_warn(&format!("orientation target row decode failed: {}", err))
+                crate::utils::log_warn(&format!("縦横対象行を読み取れませんでした: {}", err))
             }
         }
     }
@@ -227,6 +230,9 @@ fn update_progress(app: &AppHandle, done: usize, total: usize, current: Option<S
 
 fn emit_event<T: Serialize + Clone>(app: &AppHandle, event: &str, payload: T) {
     if let Err(err) = app.emit(event, payload) {
-        crate::utils::log_warn(&format!("emit failed [{}]: {}", event, err));
+        crate::utils::log_warn(&format!(
+            "イベントを emit できませんでした [{}]: {}",
+            event, err
+        ));
     }
 }

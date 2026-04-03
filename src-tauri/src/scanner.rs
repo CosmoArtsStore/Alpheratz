@@ -3,7 +3,6 @@ use std::fs;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::sync::LazyLock;
 
 use chrono::{DateTime, Local};
@@ -50,17 +49,13 @@ struct ScanPhotoData {
     timestamp: String,
     world_id: Option<String>,
     world_name: Option<String>,
-    world_group_id: String,
     orientation: Option<String>,
     image_width: Option<i64>,
     image_height: Option<i64>,
     source_slot: i64,
     match_source: Option<String>,
-    phash: Option<String>,
-    phash_version: i64,
 }
 
-#[derive(Clone, Copy)]
 enum ScanRefreshKind {
     Full,
     MetadataOnly,
@@ -77,15 +72,18 @@ fn compile_regex(pattern: &str, name: &str) -> Regex {
         Ok(re) => re,
         Err(err) => {
             crate::utils::log_err(&format!("正規表現の初期化に失敗しました [{name}]: {err}"));
-            // フォールバックは絶対に一致しない固定値で、継続中のスキャンを安全側に倒す。
-            Regex::new(r"^$").expect("fallback regex must be valid")
+            // Intentional: フォールバックは絶対に一致しない固定値で、継続中のスキャンを安全側に倒す。
+            Regex::new(r"^$").expect("フォールバック用の固定正規表現が壊れています")
         }
     }
 }
 
 fn emit_warn<T: serde::Serialize + Clone>(app: &AppHandle, event: &str, payload: T) {
     if let Err(err) = app.emit(event, payload) {
-        crate::utils::log_warn(&format!("emit failed [{}]: {}", event, err));
+        crate::utils::log_warn(&format!(
+            "イベントを emit できませんでした [{}]: {}",
+            event, err
+        ));
     }
 }
 
@@ -158,10 +156,6 @@ fn resolve_photo_dirs() -> Result<Vec<(i64, PathBuf)>, PhotoDirErrorKind> {
     }
 }
 
-fn scan_analyze_concurrency() -> usize {
-    10
-}
-
 pub async fn do_scan(app: AppHandle) -> Result<(), String> {
     let photo_dirs = match resolve_photo_dirs() {
         Ok(paths) => paths,
@@ -212,8 +206,7 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
     mark_missing_photos(&conn, &existing_photos, &found_path_set)?;
 
     let candidate_files: Vec<(String, PathBuf, i64, ScanRefreshKind)> = found_files
-        .iter()
-        .cloned()
+        .into_iter()
         .filter_map(|(slot, filename, path)| {
             let normalized_path = path.to_slash_lossy().to_string();
             match existing_photos.get(&normalized_path) {
@@ -240,105 +233,55 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
         })
         .collect();
 
-    let analyze_total = candidate_files.len();
-    let total_work = analyze_total;
+    let total = candidate_files.len();
     emit_warn(
         &app,
         "scan:progress",
         ScanProgress {
             processed: 0,
-            total: total_work,
-            current_world: format!("{} 件の対象を確認しました", analyze_total),
+            total,
+            current_world: format!("{} 件の更新対象を確認しました", total),
             phase: "scan".into(),
         },
     );
 
-    let existing_photos = Arc::new(existing_photos);
-    let analyze_concurrency = scan_analyze_concurrency();
-    let semaphore = Arc::new(tokio::sync::Semaphore::new(analyze_concurrency));
-    let mut join_set = tokio::task::JoinSet::new();
-    let mut next_index = 0usize;
-    let mut processed = 0usize;
-
-    while next_index < analyze_total || !join_set.is_empty() {
-        while next_index < analyze_total && join_set.len() < analyze_concurrency {
-            if cancel_status.0.load(Ordering::SeqCst) {
-                crate::utils::log_warn("ユーザー操作でスキャンが中断されました。");
-                emit_warn(&app, "scan:error", "スキャンを中断しました");
-                return Ok(());
-            }
-
-            let (filename, path, source_slot, refresh_kind) = candidate_files[next_index].clone();
-            let existing_photos = Arc::clone(&existing_photos);
-            let permit = Arc::clone(&semaphore)
-                .acquire_owned()
-                .await
-                .map_err(|err| scan_err("スキャン同時実行制御を取得できません", err))?;
-            let current_index = next_index;
-            join_set.spawn(async move {
-                let _permit = permit;
-                let result = tauri::async_runtime::spawn_blocking(move || {
-                    analyze_photo(
-                        &path,
-                        &filename,
-                        source_slot,
-                        existing_photos.as_ref(),
-                        refresh_kind,
-                    )
-                })
-                .await
-                .map_err(|err| scan_err("写真分析タスクの待機に失敗しました", err))?;
-                Ok::<_, String>((current_index, result))
-            });
-            next_index += 1;
+    for (index, (filename, path, source_slot, refresh_kind)) in
+        candidate_files.into_iter().enumerate()
+    {
+        if cancel_status.0.load(Ordering::SeqCst) {
+            crate::utils::log_warn("ユーザー操作でスキャンが中断されました。");
+            emit_warn(&app, "scan:error", "スキャンを中断しました");
+            return Ok(());
         }
 
-        let Some(join_result) = join_set.join_next().await else {
-            break;
-        };
-        let (_, photo_result) = join_result
-            .map_err(|err| scan_err("写真分析タスクが異常終了しました", err))??;
-
-        processed += 1;
-        let mut current_world = "ワールド不明".to_string();
-        if let Some(photo) = photo_result? {
-            current_world = photo
+        if let Some(photo) = analyze_photo(
+            &path,
+            &filename,
+            source_slot,
+            &existing_photos,
+            refresh_kind,
+        )? {
+            let current_world = photo
                 .world_name
                 .clone()
                 .unwrap_or_else(|| "ワールド不明".to_string());
             upsert_photo_batch(&mut conn, &[photo])?;
-        }
 
-        if processed % 10 == 0 || processed == analyze_total {
-            emit_warn(
-                &app,
-                "scan:progress",
-                ScanProgress {
-                    processed,
-                    total: total_work,
-                    current_world: format!("分析中: {}", current_world),
-                    phase: "scan".into(),
-                },
-            );
+            if index % 10 == 0 || index == total.saturating_sub(1) {
+                emit_warn(
+                    &app,
+                    "scan:progress",
+                    ScanProgress {
+                        processed: index + 1,
+                        total,
+                        current_world,
+                        phase: "scan".into(),
+                    },
+                );
+            }
         }
     }
-    emit_warn(
-        &app,
-        "scan:progress",
-        ScanProgress {
-            processed: total_work,
-            total: total_work,
-            current_world: "後処理中...".into(),
-            phase: "scan".into(),
-        },
-    );
-    phash::rebuild_pdq_groups()?;
-    if let Ok(mut progress) = app.state::<crate::phash::PHashWorkerState>().progress.lock() {
-        progress.done = total_work;
-        progress.total = total_work;
-        progress.current = None;
-    }
-    emit_warn(&app, "phash_complete", ());
+
     emit_warn(&app, "scan:completed", ());
     Ok(())
 }
@@ -382,7 +325,6 @@ fn get_existing_photos(conn: &Connection) -> Result<HashMap<String, ExistingPhot
     Ok(map)
 }
 
-
 fn analyze_photo(
     path: &Path,
     filename: &str,
@@ -390,7 +332,6 @@ fn analyze_photo(
     existing_photos: &HashMap<String, ExistingPhotoInfo>,
     refresh_kind: ScanRefreshKind,
 ) -> Result<Option<ScanPhotoData>, String> {
-    utils::prewarm_analysis_thumbnail_files(&path.to_string_lossy(), source_slot)?;
     let timestamp = resolve_photo_timestamp(path, filename)?;
 
     let normalized_path = path.to_slash_lossy().to_string();
@@ -442,22 +383,6 @@ fn analyze_photo(
             (orientation, image_width, image_height)
         }
     };
-    let phash = match refresh_kind {
-        ScanRefreshKind::PathOnly => None,
-        ScanRefreshKind::Full | ScanRefreshKind::MetadataOnly => match phash::compute_pdq_variants_from_path(&normalized_path, source_slot) {
-            Ok(value) => Some(value),
-            Err(err) => {
-                crate::utils::log_warn(&format!(
-                    "PDQ 計算に失敗したため空として扱います [{}]: {}",
-                    path.display(),
-                    err
-                ));
-                None
-            }
-        },
-    };
-
-    let world_group_id = build_world_group_id(world_id.as_deref(), world_name.as_deref(), &path.to_slash_lossy());
 
     Ok(Some(ScanPhotoData {
         filename: filename.to_string(),
@@ -465,14 +390,11 @@ fn analyze_photo(
         timestamp,
         world_id,
         world_name,
-        world_group_id,
         orientation,
         image_width,
         image_height,
         source_slot,
         match_source,
-        phash,
-        phash_version: phash::PHASH_VERSION,
     }))
 }
 
@@ -523,16 +445,6 @@ fn resolve_world_info_lightweight(
     }
 
     (None, None, None)
-}
-
-fn build_world_group_id(world_id: Option<&str>, world_name: Option<&str>, photo_path: &str) -> String {
-    if let Some(value) = world_id.map(str::trim).filter(|value| !value.is_empty()) {
-        return format!("id:{value}");
-    }
-    if let Some(value) = world_name.map(str::trim).filter(|value| !value.is_empty()) {
-        return format!("name:{value}");
-    }
-    format!("unknown:{photo_path}")
 }
 
 fn resolve_photo_timestamp(path: &Path, filename: &str) -> Result<String, String> {
@@ -644,33 +556,24 @@ fn upsert_photo_batch(conn: &mut Connection, items: &[ScanPhotoData]) -> Result<
                     photo_filename,
                     world_id,
                     world_name,
-                    world_group_id,
                     timestamp,
                     orientation,
                     image_width,
                     image_height,
                     source_slot,
                     match_source,
-                    phash,
-                    phash_version,
                     is_missing
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, 0)
-                 ON CONFLICT(photo_path) DO UPDATE SET
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0)
+                ON CONFLICT(photo_path) DO UPDATE SET
                     photo_filename = excluded.photo_filename,
                     world_id = COALESCE(excluded.world_id, photos.world_id),
                     world_name = COALESCE(excluded.world_name, photos.world_name),
-                    world_group_id = excluded.world_group_id,
                     timestamp = excluded.timestamp,
                     orientation = COALESCE(excluded.orientation, photos.orientation),
                     image_width = COALESCE(excluded.image_width, photos.image_width),
                     image_height = COALESCE(excluded.image_height, photos.image_height),
                     source_slot = excluded.source_slot,
                     match_source = COALESCE(excluded.match_source, photos.match_source),
-                    phash = COALESCE(excluded.phash, photos.phash),
-                    phash_version = CASE
-                        WHEN excluded.phash IS NOT NULL THEN excluded.phash_version
-                        ELSE photos.phash_version
-                    END,
                     is_missing = 0",
             )
             .map_err(|e| format!("写真更新ステートメントを準備できません: {}", e))?;
@@ -681,15 +584,12 @@ fn upsert_photo_batch(conn: &mut Connection, items: &[ScanPhotoData]) -> Result<
                 item.filename,
                 item.world_id,
                 item.world_name,
-                item.world_group_id,
                 item.timestamp,
                 item.orientation,
                 item.image_width,
                 item.image_height,
                 item.source_slot,
                 item.match_source,
-                item.phash,
-                item.phash_version,
             ])
             .map_err(|e| format!("写真を更新できません [{}]: {}", item.filename, e))?;
         }

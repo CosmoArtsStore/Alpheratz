@@ -21,12 +21,12 @@ pub mod utils;
 
 use config::{load_setting, save_setting, AlpheratzSetting};
 use db::init_alpheratz_db;
-use models::{GroupedPhotoPage, PhotoPage, SelectedPhotoRef, SimilarWorldCandidate, WorldFilterOption};
+use models::{PhotoQuery, PhotoRecord};
 
 static WORLD_ID_RE: LazyLock<Regex> =
-    // 正規表現は固定値であり、壊れていたら起動継続は不正なので即時停止する。
+    // Intentional: 正規表現は固定値であり、壊れていたら起動継続は不正なので即時停止する。
     LazyLock::new(|| {
-        Regex::new(r"^wrld_[A-Za-z0-9_-]+$").expect("world id regex must be valid")
+        Regex::new(r"^wrld_[A-Za-z0-9_-]+$").expect("ワールドID用の固定正規表現が壊れています")
     });
 
 #[derive(Deserialize)]
@@ -53,165 +53,52 @@ async fn initialize_scan(
     let app_clone = app.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(e) = scanner::do_scan(app_clone.clone()).await {
-            crate::utils::log_err(&format!("Scanner Error: {}", e));
+            crate::utils::log_err(&format!("スキャンに失敗しました: {}", e));
+        } else {
+            phash::start_phash_worker(app_clone.clone());
         }
     });
     Ok(())
 }
 
 #[tauri::command]
-async fn get_photos(
-    start_date: Option<String>,
-    end_date: Option<String>,
-    world_query: Option<String>,
-    world_exacts: Option<Vec<String>>,
+async fn get_photos(query: PhotoQuery) -> Result<Vec<PhotoRecord>, String> {
+    db::get_photos(query)
+}
+
+#[tauri::command]
+async fn create_display_thumbnail(
+    path: String,
     source_slot: Option<i64>,
-    orientation: Option<String>,
-    favorites_only: Option<bool>,
-    tag_filters: Option<Vec<String>>,
-    include_phash: Option<bool>,
-    limit: Option<usize>,
-    offset: Option<usize>,
-) -> Result<PhotoPage, String> {
-    db::get_photos(
-        start_date,
-        end_date,
-        world_query,
-        world_exacts,
-        source_slot,
-        orientation,
-        favorites_only,
-        tag_filters,
-        include_phash,
-        limit,
-        offset,
-    )
+) -> Result<String, String> {
+    let display_path = path.clone();
+    let resolved_slot = source_slot.unwrap_or(1);
+    tauri::async_runtime::spawn_blocking(move || {
+        utils::create_display_thumbnail_file(&path, resolved_slot)
+    })
+    .await
+    .map_err(|e| {
+        format!(
+            "表示用サムネイル生成タスクの待機に失敗しました ({}): {}",
+            display_path, e
+        )
+    })?
 }
 
 #[tauri::command]
-async fn get_list_photos_minimal_cmd(
-    start_date: Option<String>,
-    end_date: Option<String>,
-    world_query: Option<String>,
-    world_exacts: Option<Vec<String>>,
-    source_slot: Option<i64>,
-    orientation: Option<String>,
-    favorites_only: Option<bool>,
-    tag_filters: Option<Vec<String>>,
-    limit: Option<usize>,
-    offset: Option<usize>,
-) -> Result<PhotoPage, String> {
-    db::get_list_photos_minimal(
-        start_date,
-        end_date,
-        world_query,
-        world_exacts,
-        source_slot,
-        orientation,
-        favorites_only,
-        tag_filters,
-        limit,
-        offset,
-    )
-}
-
-#[tauri::command]
-async fn get_gallery_photos_minimal_cmd(
-    start_date: Option<String>,
-    end_date: Option<String>,
-    world_query: Option<String>,
-    world_exacts: Option<Vec<String>>,
-    source_slot: Option<i64>,
-    favorites_only: Option<bool>,
-    tag_filters: Option<Vec<String>>,
-    limit: Option<usize>,
-    offset: Option<usize>,
-) -> Result<PhotoPage, String> {
-    db::get_gallery_photos_minimal(
-        start_date,
-        end_date,
-        world_query,
-        world_exacts,
-        source_slot,
-        favorites_only,
-        tag_filters,
-        limit,
-        offset,
-    )
-}
-
-#[tauri::command]
-fn get_world_filter_options_cmd() -> Result<Vec<WorldFilterOption>, String> {
-    db::get_world_filter_options()
-}
-
-#[tauri::command]
-fn get_selected_photo_refs_cmd(photo_paths: Vec<String>) -> Result<Vec<SelectedPhotoRef>, String> {
-    db::get_selected_photo_refs(&photo_paths)
-}
-
-#[tauri::command]
-fn find_similar_world_candidates_cmd(
-    target_photo_path: String,
-    limit: Option<usize>,
-) -> Result<Vec<SimilarWorldCandidate>, String> {
-    db::find_similar_world_candidates(&target_photo_path, limit.unwrap_or(24))
-}
-
-#[tauri::command]
-fn apply_world_match_from_photo_cmd(
-    target_photo_path: String,
-    source_photo_path: String,
-) -> Result<(), String> {
-    db::apply_world_match_from_photo(&target_photo_path, &source_photo_path)
-}
-
-#[tauri::command]
-fn get_world_grouped_photos_cmd(
-    start_date: Option<String>,
-    end_date: Option<String>,
-    world_query: Option<String>,
-    world_exacts: Option<Vec<String>>,
-    source_slot: Option<i64>,
-    orientation: Option<String>,
-    favorites_only: Option<bool>,
-    tag_filters: Option<Vec<String>>,
-    limit: Option<usize>,
-    offset: Option<usize>,
-) -> Result<GroupedPhotoPage, String> {
-    db::get_world_grouped_photos(
-        start_date,
-        end_date,
-        world_query,
-        world_exacts,
-        source_slot,
-        orientation,
-        favorites_only,
-        tag_filters,
-        limit,
-        offset,
-    )
-}
-
-#[tauri::command]
-fn get_world_group_photos_cmd(
-    group_key: String,
-    start_date: Option<String>,
-    end_date: Option<String>,
-    source_slot: Option<i64>,
-    orientation: Option<String>,
-    favorites_only: Option<bool>,
-    tag_filters: Option<Vec<String>>,
-) -> Result<Vec<models::PhotoRecord>, String> {
-    db::get_world_group_photos(
-        &group_key,
-        start_date,
-        end_date,
-        source_slot,
-        orientation,
-        favorites_only,
-        tag_filters,
-    )
+async fn create_grid_thumbnail(path: String, source_slot: Option<i64>) -> Result<String, String> {
+    let display_path = path.clone();
+    let resolved_slot = source_slot.unwrap_or(1);
+    tauri::async_runtime::spawn_blocking(move || {
+        utils::create_grid_thumbnail_file(&path, resolved_slot)
+    })
+    .await
+    .map_err(|e| {
+        format!(
+            "一覧用サムネイル生成タスクの待機に失敗しました ({}): {}",
+            display_path, e
+        )
+    })?
 }
 
 #[tauri::command]
@@ -263,10 +150,7 @@ async fn add_photo_tag_cmd(
 }
 
 #[tauri::command]
-async fn bulk_add_photo_tag_cmd(
-    photos: Vec<PhotoBatchEntry>,
-    tag: String,
-) -> Result<(), String> {
+async fn bulk_add_photo_tag_cmd(photos: Vec<PhotoBatchEntry>, tag: String) -> Result<(), String> {
     for photo in photos {
         db::add_photo_tag(photo.source_slot, &photo.photo_path, &tag)?;
     }
@@ -300,22 +184,6 @@ fn delete_tag_master_cmd(tag: String) -> Result<(), String> {
 #[tauri::command]
 async fn reset_photo_cache_cmd() -> Result<(), String> {
     db::reset_photo_cache()
-}
-
-#[tauri::command]
-async fn reset_photo_cache_for_slot_cmd(source_slot: i64) -> Result<(), String> {
-    db::reset_photo_cache_for_slot(source_slot)
-}
-
-#[tauri::command]
-fn read_thumbnail_bytes_cmd(path: String) -> Result<Vec<u8>, String> {
-    utils::read_thumbnail_bytes(&path)
-}
-
-#[tauri::command]
-fn ensure_browse_thumbnail_bytes_cmd(path: String, source_slot: i64) -> Result<Vec<u8>, String> {
-    let thumbnail_path = utils::create_display_thumbnail_file(&path, source_slot)?;
-    utils::read_thumbnail_bytes(&thumbnail_path)
 }
 
 #[tauri::command]
@@ -429,12 +297,6 @@ async fn start_phash_calculation_cmd(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn start_unknown_world_pdq_analysis_cmd(app: AppHandle) -> Result<(), String> {
-    phash::start_unknown_world_pdq_worker(app);
-    Ok(())
-}
-
-#[tauri::command]
 fn get_phash_progress_cmd(app: AppHandle) -> PHashProgressPayload {
     phash::get_phash_progress(&app)
 }
@@ -472,14 +334,19 @@ pub fn run() {
             running: AtomicBool::new(false),
             progress: std::sync::Mutex::new(OrientationProgressPayload::default()),
         })
-        .setup(|_app| {
-            for source_slot in [1_i64, 2_i64] {
-                if let Err(err) = utils::prune_thumbnail_cache_for_slot(source_slot) {
+        .setup(|app| {
+            let has_pending = match phash::has_pending_phash() {
+                Ok(value) => value,
+                Err(err) => {
                     utils::log_warn(&format!(
-                        "thumbnail cache prune failed at startup [slot={}]: {}",
-                        source_slot, err
+                        "未処理の PDQ 状態を確認できませんでした。自動再開をスキップします: {}",
+                        err
                     ));
+                    false
                 }
+            };
+            if has_pending {
+                phash::start_phash_worker(app.handle().clone());
             }
             Ok(())
         })
@@ -489,14 +356,8 @@ pub fn run() {
             initialize_scan,
             cancel_scan,
             get_photos,
-            get_list_photos_minimal_cmd,
-            get_gallery_photos_minimal_cmd,
-            get_world_filter_options_cmd,
-            get_world_grouped_photos_cmd,
-            get_world_group_photos_cmd,
-            get_selected_photo_refs_cmd,
-            find_similar_world_candidates_cmd,
-            apply_world_match_from_photo_cmd,
+            create_display_thumbnail,
+            create_grid_thumbnail,
             save_photo_memo_cmd,
             get_photo_memo_cmd,
             get_photo_tags_cmd,
@@ -509,9 +370,6 @@ pub fn run() {
             create_tag_master_cmd,
             delete_tag_master_cmd,
             reset_photo_cache_cmd,
-            reset_photo_cache_for_slot_cmd,
-            read_thumbnail_bytes_cmd,
-            ensure_browse_thumbnail_bytes_cmd,
             get_backup_candidate_cmd,
             create_cache_backup_cmd,
             restore_cache_backup_cmd,
@@ -522,7 +380,6 @@ pub fn run() {
             get_startup_preference_cmd,
             save_startup_preference_cmd,
             start_phash_calculation_cmd,
-            start_unknown_world_pdq_analysis_cmd,
             get_phash_progress_cmd,
             start_orientation_calculation_cmd,
             get_orientation_progress_cmd,
@@ -530,6 +387,6 @@ pub fn run() {
         .run(tauri::generate_context!());
 
     if let Err(err) = run_result {
-        utils::log_err(&format!("Tauri runtime failed: {}", err));
+        utils::log_err(&format!("Tauri ランタイムの起動に失敗しました: {}", err));
     }
 }
