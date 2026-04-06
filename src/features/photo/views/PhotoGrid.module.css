@@ -1,0 +1,36 @@
+.scroll-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  margin-left: 0;
+}
+
+.gallery-shell {
+  overflow: auto;
+}
+
+.gallery-grid {
+  position: relative;
+  min-width: 0;
+}
+
+.gallery-card-wrapper {
+  min-width: 0;
+}
+
+.photo-grid {
+  scrollbar-width: none;
+  outline: none;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.photo-grid::-webkit-scrollbar {
+  display: none;
+}

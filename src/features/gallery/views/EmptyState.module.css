@@ -1,0 +1,35 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.search {
+  gap: 0.9rem;
+}
+
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 28px;
+  background: var(--a-surface-soft);
+  color: var(--a-text-faint);
+}
+
+.root h3 {
+  margin: 0;
+  font-family: var(--a-font-display);
+  color: var(--a-text);
+}
+
+.message {
+  color: var(--a-text-dim);
+}

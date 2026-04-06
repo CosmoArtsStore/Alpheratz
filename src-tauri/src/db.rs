@@ -500,6 +500,45 @@ pub fn get_photo_tags(source_slot: i64, filename: &str) -> Result<Vec<String>, S
     Ok(tags)
 }
 
+pub fn get_photo_record(
+    source_slot: i64,
+    filename: &str,
+    include_phash: bool,
+) -> Result<PhotoRecord, String> {
+    let conn = open_alpheratz_connection(source_slot)?;
+    let phash_column = if include_phash { "phash" } else { "NULL" };
+    let sql = format!(
+        "SELECT photo_filename, photo_path, world_id, world_name, timestamp, COALESCE(memo, '') AS memo, {} AS phash, orientation, image_width, image_height, source_slot, is_favorite, match_source, is_missing
+         FROM photos
+         WHERE photo_path = ?1",
+        phash_column
+    );
+
+    let mut record = conn
+        .query_row(&sql, rusqlite::params![filename], |row| {
+            Ok(PhotoRecord {
+                photo_filename: row.get(0)?,
+                photo_path: row.get(1)?,
+                world_id: row.get(2)?,
+                world_name: row.get(3)?,
+                timestamp: row.get(4)?,
+                memo: row.get(5)?,
+                phash: row.get(6)?,
+                orientation: row.get(7)?,
+                image_width: row.get(8)?,
+                image_height: row.get(9)?,
+                source_slot: row.get::<_, i64>(10)?,
+                is_favorite: row.get::<_, i64>(11)? != 0,
+                tags: Vec::new(),
+                match_source: row.get(12)?,
+                is_missing: row.get::<_, i64>(13)? != 0,
+            })
+        })
+        .map_err(|err| format!("写真詳細を取得できません [{}]: {}", filename, err))?;
+    record.tags = get_photo_tags(source_slot, filename)?;
+    Ok(record)
+}
+
 pub fn set_photo_favorite(
     source_slot: i64,
     filename: &str,

@@ -24,6 +24,16 @@ pub struct PhotoRecord {
     pub is_missing: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DisplayPhotoItemRecord {
+    pub photo: PhotoRecord,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_photos: Option<Vec<PhotoRecord>>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PhotoQuery {

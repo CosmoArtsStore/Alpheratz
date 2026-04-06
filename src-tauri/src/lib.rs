@@ -21,19 +21,312 @@ pub mod utils;
 
 use config::{load_setting, save_setting, AlpheratzSetting};
 use db::init_alpheratz_db;
-use models::{PhotoQuery, PhotoRecord};
+use models::{DisplayPhotoItemRecord, PhotoQuery, PhotoRecord};
 
-static WORLD_ID_RE: LazyLock<Regex> =
-    // Intentional: 正規表現は固定値であり、壊れていたら起動継続は不正なので即時停止する。
-    LazyLock::new(|| {
-        Regex::new(r"^wrld_[A-Za-z0-9_-]+$").expect("ワールドID用の固定正規表現が壊れています")
-    });
+fn compile_world_id_regex() -> Regex {
+    match Regex::new(r"^wrld_[A-Za-z0-9_-]+$") {
+        Ok(regex) => regex,
+        Err(err) => {
+            utils::log_err(&format!("ワールドID正規表現の初期化に失敗しました: {err}"));
+            std::process::abort();
+        }
+    }
+}
+
+static WORLD_ID_RE: LazyLock<Regex> = LazyLock::new(compile_world_id_regex);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PhotoBatchEntry {
     photo_path: String,
     source_slot: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PhotoGroupingRequest {
+    photos: Vec<PhotoRecord>,
+    grouping_mode: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SimilarGroupRequest {
+    photos: Vec<PhotoRecord>,
+    anchor_photo_path: String,
+    limit: Option<usize>,
+}
+
+fn parse_hash_variants(value: Option<&str>) -> Vec<String> {
+    value
+        .unwrap_or_default()
+        .split('|')
+        .map(|item| item.trim().to_ascii_lowercase())
+        .filter(|item| item.len() == 64 && item.chars().all(|ch| ch.is_ascii_hexdigit()))
+        .collect()
+}
+
+fn get_hamming_distance(left: &str, right: &str) -> Option<u32> {
+    if left.len() != right.len() {
+        return None;
+    }
+
+    let mut distance = 0;
+    for (left_digit, right_digit) in left.chars().zip(right.chars()) {
+        let left_value = left_digit.to_digit(16)?;
+        let right_value = right_digit.to_digit(16)?;
+        distance += (left_value ^ right_value).count_ones();
+    }
+    Some(distance)
+}
+
+fn get_closest_hash_distance(left: &[String], right: &[String]) -> Option<u32> {
+    if left.is_empty() || right.is_empty() {
+        return None;
+    }
+
+    let mut best = u32::MAX;
+    for left_hash in left {
+        for right_hash in right {
+            let Some(distance) = get_hamming_distance(left_hash, right_hash) else {
+                continue;
+            };
+            if distance < best {
+                best = distance;
+            }
+            if best == 0 {
+                return Some(0);
+            }
+        }
+    }
+
+    (best != u32::MAX).then_some(best)
+}
+
+fn normalize_world_name(value: Option<&str>) -> String {
+    value.unwrap_or_default().trim().to_lowercase()
+}
+
+fn can_group_by_photo_meta(left: &PhotoRecord, right: &PhotoRecord) -> bool {
+    let left_world = normalize_world_name(left.world_name.as_deref());
+    let right_world = normalize_world_name(right.world_name.as_deref());
+    if !left_world.is_empty() && !right_world.is_empty() && left_world != right_world {
+        return false;
+    }
+
+    let left_orientation = left.orientation.as_deref().unwrap_or("unknown");
+    let right_orientation = right.orientation.as_deref().unwrap_or("unknown");
+    if left_orientation != "unknown"
+        && right_orientation != "unknown"
+        && left_orientation != right_orientation
+    {
+        return false;
+    }
+
+    left.source_slot == right.source_slot
+}
+
+fn are_adjacent_photos_similar(left: &PhotoRecord, right: &PhotoRecord) -> bool {
+    if !can_group_by_photo_meta(left, right) {
+        return false;
+    }
+
+    let left_hashes = parse_hash_variants(left.phash.as_deref());
+    let right_hashes = parse_hash_variants(right.phash.as_deref());
+    matches!(get_closest_hash_distance(&left_hashes, &right_hashes), Some(distance) if distance <= 124)
+}
+
+fn build_adjacent_similar_photo_groups(photos: &[PhotoRecord]) -> Vec<Vec<PhotoRecord>> {
+    let mut groups = Vec::new();
+    let mut current_group: Vec<PhotoRecord> = Vec::new();
+
+    for current_photo in photos {
+        if current_group.is_empty() {
+            current_group.push(current_photo.clone());
+            continue;
+        }
+
+        let Some(previous_photo) = current_group.last() else {
+            current_group.push(current_photo.clone());
+            continue;
+        };
+        let Some(anchor_photo) = current_group.first() else {
+            current_group.push(current_photo.clone());
+            continue;
+        };
+
+        if are_adjacent_photos_similar(previous_photo, current_photo)
+            && are_adjacent_photos_similar(anchor_photo, current_photo)
+        {
+            current_group.push(current_photo.clone());
+            continue;
+        }
+
+        groups.push(current_group);
+        current_group = vec![current_photo.clone()];
+    }
+
+    if !current_group.is_empty() {
+        groups.push(current_group);
+    }
+
+    groups
+}
+
+fn build_adjacent_similar_photo_group(
+    photos: &[PhotoRecord],
+    anchor_photo_path: &str,
+) -> Vec<PhotoRecord> {
+    let Some(anchor_index) = photos
+        .iter()
+        .position(|photo| photo.photo_path == anchor_photo_path)
+    else {
+        return Vec::new();
+    };
+
+    let anchor_photo = &photos[anchor_index];
+    let mut start = anchor_index;
+    while start > 0 {
+        let previous_photo = &photos[start - 1];
+        let current_photo = &photos[start];
+        if !are_adjacent_photos_similar(previous_photo, current_photo)
+            || !are_adjacent_photos_similar(previous_photo, anchor_photo)
+        {
+            break;
+        }
+        start -= 1;
+    }
+
+    let mut end = anchor_index;
+    while end + 1 < photos.len() {
+        let current_photo = &photos[end];
+        let next_photo = &photos[end + 1];
+        if !are_adjacent_photos_similar(current_photo, next_photo)
+            || !are_adjacent_photos_similar(next_photo, anchor_photo)
+        {
+            break;
+        }
+        end += 1;
+    }
+
+    photos[start..=end].to_vec()
+}
+
+fn build_world_grouped_photo_items(photos: &[PhotoRecord]) -> Vec<DisplayPhotoItemRecord> {
+    let mut groups = std::collections::BTreeMap::<String, Vec<PhotoRecord>>::new();
+    for photo in photos {
+        let key = photo
+            .world_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("ワールド不明")
+            .to_string();
+        groups.entry(key).or_default().push(photo.clone());
+    }
+
+    let mut entries: Vec<_> = groups.into_iter().collect();
+    entries.sort_by(|(left_world, left_group), (right_world, right_group)| {
+        let world_compare = left_world.cmp(right_world);
+        if world_compare != std::cmp::Ordering::Equal {
+            return world_compare;
+        }
+        let left_timestamp = left_group
+            .first()
+            .map(|photo| photo.timestamp.as_str())
+            .unwrap_or_default();
+        let right_timestamp = right_group
+            .first()
+            .map(|photo| photo.timestamp.as_str())
+            .unwrap_or_default();
+        right_timestamp.cmp(left_timestamp)
+    });
+
+    entries
+        .into_iter()
+        .map(|(_, mut group)| {
+            group.sort_by(|left, right| right.timestamp.cmp(&left.timestamp));
+            DisplayPhotoItemRecord {
+                photo: group.first().cloned().unwrap_or_default(),
+                group_count: Some(group.len()),
+                group_photos: Some(group),
+            }
+        })
+        .collect()
+}
+
+fn build_display_photo_items(
+    photos: &[PhotoRecord],
+    grouping_mode: &str,
+) -> Vec<DisplayPhotoItemRecord> {
+    match grouping_mode {
+        "world" => build_world_grouped_photo_items(photos),
+        "similar" => build_adjacent_similar_photo_groups(photos)
+            .into_iter()
+            .map(|group| DisplayPhotoItemRecord {
+                photo: group.first().cloned().unwrap_or_default(),
+                group_count: Some(group.len()),
+                group_photos: Some(group),
+            })
+            .collect(),
+        _ => photos
+            .iter()
+            .cloned()
+            .map(|photo| DisplayPhotoItemRecord {
+                photo,
+                group_count: None,
+                group_photos: None,
+            })
+            .collect(),
+    }
+}
+
+fn build_tweet_text(photo: &PhotoRecord, template: &str) -> String {
+    let world = photo
+        .world_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("ワールド不明");
+    let date = if photo.timestamp.len() >= 16 {
+        photo.timestamp[..16].replace('T', " ")
+    } else {
+        String::new()
+    };
+    let memo = photo.memo.trim().to_string();
+    let tags = photo
+        .tags
+        .iter()
+        .map(|tag| format!("#{}", tag.split_whitespace().collect::<String>()))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    [
+        ("{world}", world.to_string()),
+        ("{world-name}", world.to_string()),
+        ("{date}", date),
+        ("{file}", photo.photo_filename.clone()),
+        ("{memo}", memo),
+        ("{tags}", tags),
+    ]
+    .into_iter()
+    .fold(template.to_string(), |current_text, (token, value)| {
+        current_text.replace(token, &value)
+    })
+    .lines()
+    .enumerate()
+    .filter_map(|(index, line)| {
+        let trimmed = line.trim_end();
+        if !trimmed.is_empty() || index > 0 {
+            Some(trimmed.to_string())
+        } else {
+            None
+        }
+    })
+    .collect::<Vec<_>>()
+    .join("\n")
+    .trim()
+    .to_string()
 }
 
 // --- Commands ---
@@ -52,8 +345,8 @@ async fn initialize_scan(
     cancel_status.0.store(false, Ordering::SeqCst);
     let app_clone = app.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = scanner::do_scan(app_clone.clone()).await {
-            crate::utils::log_err(&format!("スキャンに失敗しました: {}", e));
+        if let Err(err) = scanner::do_scan(app_clone.clone()) {
+            crate::utils::log_err(&format!("スキャンに失敗しました: {err}"));
         } else {
             phash::start_phash_worker(app_clone.clone());
         }
@@ -106,8 +399,9 @@ async fn save_photo_memo_cmd(
     photo_path: String,
     memo: String,
     source_slot: i64,
-) -> Result<(), String> {
-    db::save_photo_memo(source_slot, &photo_path, &memo)
+) -> Result<PhotoRecord, String> {
+    db::save_photo_memo(source_slot, &photo_path, &memo)?;
+    db::get_photo_record(source_slot, &photo_path, true)
 }
 
 #[tauri::command]
@@ -125,19 +419,26 @@ async fn set_photo_favorite_cmd(
     photo_path: String,
     is_favorite: bool,
     source_slot: i64,
-) -> Result<(), String> {
-    db::set_photo_favorite(source_slot, &photo_path, is_favorite)
+) -> Result<PhotoRecord, String> {
+    db::set_photo_favorite(source_slot, &photo_path, is_favorite)?;
+    db::get_photo_record(source_slot, &photo_path, true)
 }
 
 #[tauri::command]
 async fn bulk_set_photo_favorite_cmd(
     photos: Vec<PhotoBatchEntry>,
     is_favorite: bool,
-) -> Result<(), String> {
+) -> Result<Vec<PhotoRecord>, String> {
+    let mut updated_photos = Vec::with_capacity(photos.len());
     for photo in photos {
         db::set_photo_favorite(photo.source_slot, &photo.photo_path, is_favorite)?;
+        updated_photos.push(db::get_photo_record(
+            photo.source_slot,
+            &photo.photo_path,
+            true,
+        )?);
     }
-    Ok(())
+    Ok(updated_photos)
 }
 
 #[tauri::command]
@@ -145,16 +446,26 @@ async fn add_photo_tag_cmd(
     photo_path: String,
     tag: String,
     source_slot: i64,
-) -> Result<(), String> {
-    db::add_photo_tag(source_slot, &photo_path, &tag)
+) -> Result<PhotoRecord, String> {
+    db::add_photo_tag(source_slot, &photo_path, &tag)?;
+    db::get_photo_record(source_slot, &photo_path, true)
 }
 
 #[tauri::command]
-async fn bulk_add_photo_tag_cmd(photos: Vec<PhotoBatchEntry>, tag: String) -> Result<(), String> {
+async fn bulk_add_photo_tag_cmd(
+    photos: Vec<PhotoBatchEntry>,
+    tag: String,
+) -> Result<Vec<PhotoRecord>, String> {
+    let mut updated_photos = Vec::with_capacity(photos.len());
     for photo in photos {
         db::add_photo_tag(photo.source_slot, &photo.photo_path, &tag)?;
+        updated_photos.push(db::get_photo_record(
+            photo.source_slot,
+            &photo.photo_path,
+            true,
+        )?);
     }
-    Ok(())
+    Ok(updated_photos)
 }
 
 #[tauri::command]
@@ -162,8 +473,9 @@ async fn remove_photo_tag_cmd(
     photo_path: String,
     tag: String,
     source_slot: i64,
-) -> Result<(), String> {
-    db::remove_photo_tag(source_slot, &photo_path, &tag)
+) -> Result<PhotoRecord, String> {
+    db::remove_photo_tag(source_slot, &photo_path, &tag)?;
+    db::get_photo_record(source_slot, &photo_path, true)
 }
 
 #[tauri::command]
@@ -208,12 +520,12 @@ fn restore_cache_backup_cmd(photo_folder_path: String) -> Result<bool, String> {
 #[tauri::command]
 async fn open_world_url(app: AppHandle, world_id: String) -> Result<(), String> {
     if !WORLD_ID_RE.is_match(&world_id) {
-        return Err(format!("VRChat ワールドIDの形式が不正です: {}", world_id));
+        return Err(format!("VRChat ワールドIDの形式が不正です: {world_id}"));
     }
-    let url = format!("https://vrchat.com/home/world/{}/info", world_id);
+    let url = format!("https://vrchat.com/home/world/{world_id}/info");
     app.opener()
         .open_url(&url, None::<&str>)
-        .map_err(|e| format!("ワールドURLを開けません [{}]: {}", url, e))?;
+        .map_err(|err| format!("ワールドURLを開けません [{url}]: {err}"))?;
     Ok(())
 }
 
@@ -222,7 +534,7 @@ async fn open_tweet_intent_cmd(app: AppHandle, intent_url: String) -> Result<(),
     if !intent_url.starts_with("https://twitter.com/intent/tweet?text=")
         && !intent_url.starts_with("https://x.com/intent/tweet?text=")
     {
-        return Err(format!("Tweet intent URL の形式が不正です: {}", intent_url));
+        return Err(format!("Tweet intent URL の形式が不正です: {intent_url}"));
     }
 
     app.opener()
@@ -237,13 +549,53 @@ async fn open_tweet_intent_cmd(app: AppHandle, intent_url: String) -> Result<(),
 }
 
 #[tauri::command]
+fn build_display_photo_items_cmd(
+    request: PhotoGroupingRequest,
+) -> Result<Vec<DisplayPhotoItemRecord>, String> {
+    Ok(build_display_photo_items(
+        &request.photos,
+        &request.grouping_mode,
+    ))
+}
+
+#[tauri::command]
+fn get_adjacent_similar_photo_group_cmd(
+    request: SimilarGroupRequest,
+) -> Result<Vec<PhotoRecord>, String> {
+    let mut group = build_adjacent_similar_photo_group(&request.photos, &request.anchor_photo_path);
+    if let Some(limit) = request.limit {
+        group.truncate(limit);
+    }
+    Ok(group)
+}
+
+#[tauri::command]
+async fn tweet_photo_cmd(
+    app: AppHandle,
+    photo: PhotoRecord,
+    template: String,
+) -> Result<(), String> {
+    let tweet_text = build_tweet_text(&photo, &template);
+    if tweet_text.is_empty() {
+        return Err("Tweet 本文を生成できませんでした".to_string());
+    }
+
+    let intent_url = format!(
+        "https://twitter.com/intent/tweet?text={}",
+        urlencoding::encode(&tweet_text)
+    );
+    open_tweet_intent_cmd(app, intent_url).await?;
+    show_in_explorer(photo.photo_path).await
+}
+
+#[tauri::command]
 async fn show_in_explorer(path: String) -> Result<(), String> {
     let path_ref = Path::new(&path);
     if !path_ref.exists() {
-        return Err(format!("対象ファイルが見つかりません: {}", path));
+        return Err(format!("対象ファイルが見つかりません: {path}"));
     }
     opener::reveal(path_ref)
-        .map_err(|e| format!("エクスプローラーで表示できません [{}]: {}", path, e))
+        .map_err(|err| format!("エクスプローラーで表示できません [{path}]: {err}"))
 }
 
 #[tauri::command]
@@ -315,9 +667,9 @@ fn get_orientation_progress_cmd(app: AppHandle) -> OrientationProgressPayload {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if let Err(err) = init_alpheratz_db() {
-        let message = format!("Alpheratz DB の初期化に失敗したため起動できません: {}", err);
+        let message = format!("Alpheratz DB の初期化に失敗したため起動できません: {err}");
         utils::log_err(&message);
-        panic!("{}", message);
+        return;
     }
 
     let run_result = Builder::default()
@@ -375,7 +727,10 @@ pub fn run() {
             restore_cache_backup_cmd,
             open_world_url,
             open_tweet_intent_cmd,
+            tweet_photo_cmd,
             show_in_explorer,
+            build_display_photo_items_cmd,
+            get_adjacent_similar_photo_group_cmd,
             bulk_copy_photos_cmd,
             get_startup_preference_cmd,
             save_startup_preference_cmd,
@@ -387,6 +742,6 @@ pub fn run() {
         .run(tauri::generate_context!());
 
     if let Err(err) = run_result {
-        utils::log_err(&format!("Tauri ランタイムの起動に失敗しました: {}", err));
+        utils::log_err(&format!("Tauri ランタイムの起動に失敗しました: {err}"));
     }
 }

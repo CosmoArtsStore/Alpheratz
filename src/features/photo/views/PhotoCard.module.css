@@ -1,0 +1,227 @@
+.wrapper {
+  padding: 3px;
+}
+
+.card-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--a-border);
+  border-radius: 12px;
+  background: var(--a-surface);
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    transform 0.2s,
+    box-shadow 0.2s;
+
+  &:hover {
+    border-color: var(--a-border-strong);
+    transform: translateY(-1px);
+    box-shadow: var(--a-shadow-sm);
+  }
+
+  &.selected {
+    border-color: var(--a-shared-photo-card-selected-border-color);
+    box-shadow: var(--a-shared-photo-card-selected-box-shadow);
+  }
+}
+
+.thumb-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--a-shared-photo-thumb-container-background);
+}
+
+.select-toggle {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: var(--a-shared-photo-select-toggle-border);
+  border-radius: 999px;
+  background: var(--a-shared-photo-select-toggle-background);
+  color: transparent;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    transform 0.15s;
+
+  &:hover {
+    transform: scale(1.04);
+  }
+
+  &.selected {
+    border-color: var(--a-shared-photo-select-toggle-selected-border-color);
+    background: var(--a-shared-photo-select-toggle-selected-background);
+    color: var(--a-shared-photo-select-toggle-selected-color);
+  }
+}
+
+.thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.card:hover .thumb {
+  transform: scale(1.04);
+}
+
+.thumb-skeleton {
+  width: 100%;
+  height: 100%;
+  background: var(--a-shared-photo-thumb-skeleton-background);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.favorite-corner {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 2.45rem;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--a-shared-photo-favorite-corner-color);
+
+  & svg {
+    width: 18px;
+    height: 18px;
+    fill: currentcolor;
+  }
+}
+
+.group-count-badge {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.55rem;
+  z-index: 3;
+  min-width: 44px;
+  padding: 0.22rem 0.45rem;
+  border-radius: 999px;
+  background: var(--a-shared-gallery-group-count-badge-background);
+  color: var(--a-shared-gallery-group-count-badge-color);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: var(--a-shared-gallery-group-count-badge-box-shadow);
+}
+
+.source-badge {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.55rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 24px;
+  padding: 0.2rem 0.45rem;
+  border: var(--a-shared-photo-source-badge-border);
+  border-radius: 999px;
+  background: var(--a-shared-photo-source-badge-background);
+  color: var(--a-shared-photo-source-badge-color);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(6px);
+
+  &.slot2 {
+    background: var(--a-shared-photo-source-badge-slot-2-background);
+  }
+}
+
+.info {
+  flex: 1;
+  padding: 0.72rem 0.8rem 0.8rem;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.22rem 0.58rem;
+  border: 1px solid var(--a-border-strong);
+  border-radius: 999px;
+  background: var(--a-accent-soft);
+  color: var(--a-primary);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.world {
+  overflow: hidden;
+  color: var(--a-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date {
+  margin-top: 0.2rem;
+  color: var(--a-text-dim);
+  font-size: 0.68rem;
+}
+
+.tags-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.22rem 0.58rem;
+  border: 1px solid var(--a-border-strong);
+  border-radius: 999px;
+  background: var(--a-accent-soft);
+  color: var(--a-primary);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}

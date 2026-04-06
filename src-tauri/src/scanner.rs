@@ -73,7 +73,15 @@ fn compile_regex(pattern: &str, name: &str) -> Regex {
         Err(err) => {
             crate::utils::log_err(&format!("正規表現の初期化に失敗しました [{name}]: {err}"));
             // Intentional: フォールバックは絶対に一致しない固定値で、継続中のスキャンを安全側に倒す。
-            Regex::new(r"^$").expect("フォールバック用の固定正規表現が壊れています")
+            match Regex::new(r"^$") {
+                Ok(fallback) => fallback,
+                Err(fallback_err) => {
+                    crate::utils::log_err(&format!(
+                        "フォールバック用正規表現の初期化に失敗しました: {fallback_err}"
+                    ));
+                    std::process::abort();
+                }
+            }
         }
     }
 }
@@ -88,14 +96,14 @@ fn emit_warn<T: serde::Serialize + Clone>(app: &AppHandle, event: &str, payload:
 }
 
 fn scan_err<E: std::fmt::Display>(context: &str, err: E) -> String {
-    format!("{}: {}", context, err)
+    format!("{context}: {err}")
 }
 
 fn warn_row_error<T, E: std::fmt::Display>(row: Result<T, E>, context: &str) -> Option<T> {
     match row {
         Ok(value) => Some(value),
         Err(err) => {
-            crate::utils::log_warn(&format!("{}: {}", context, err));
+            crate::utils::log_warn(&format!("{context}: {err}"));
             None
         }
     }
@@ -156,7 +164,15 @@ fn resolve_photo_dirs() -> Result<Vec<(i64, PathBuf)>, PhotoDirErrorKind> {
     }
 }
 
-pub async fn do_scan(app: AppHandle) -> Result<(), String> {
+/// Scans configured photo folders and updates the local photo cache.
+///
+/// # Errors
+///
+/// Returns an error when the configured photo directories are missing or
+/// when cache updates fail during scanning.
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::needless_pass_by_value)]
+pub fn do_scan(app: AppHandle) -> Result<(), String> {
     let photo_dirs = match resolve_photo_dirs() {
         Ok(paths) => paths,
         Err(PhotoDirErrorKind::NotConfigured) => {
@@ -240,7 +256,7 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
         ScanProgress {
             processed: 0,
             total,
-            current_world: format!("{} 件の更新対象を確認しました", total),
+            current_world: format!("{total} 件の更新対象を確認しました"),
             phase: "scan".into(),
         },
     );
@@ -259,7 +275,7 @@ pub async fn do_scan(app: AppHandle) -> Result<(), String> {
             &filename,
             source_slot,
             &existing_photos,
-            refresh_kind,
+            &refresh_kind,
         )? {
             let current_world = photo
                 .world_name
@@ -330,7 +346,7 @@ fn analyze_photo(
     filename: &str,
     source_slot: i64,
     existing_photos: &HashMap<String, ExistingPhotoInfo>,
-    refresh_kind: ScanRefreshKind,
+    refresh_kind: &ScanRefreshKind,
 ) -> Result<Option<ScanPhotoData>, String> {
     let timestamp = resolve_photo_timestamp(path, filename)?;
 
@@ -452,7 +468,7 @@ fn resolve_photo_timestamp(path: &Path, filename: &str) -> Result<String, String
         return Ok(format!(
             "{} {}",
             &captures[1],
-            captures[2].replace("-", ":")
+            captures[2].replace('-', ":")
         ));
     }
 
@@ -547,7 +563,7 @@ fn mark_missing_photos(
 fn upsert_photo_batch(conn: &mut Connection, items: &[ScanPhotoData]) -> Result<(), String> {
     let tx = conn
         .transaction()
-        .map_err(|e| format!("写真更新トランザクションを開始できません: {}", e))?;
+        .map_err(|err| format!("写真更新トランザクションを開始できません: {err}"))?;
     {
         let mut stmt = tx
             .prepare(
@@ -576,7 +592,7 @@ fn upsert_photo_batch(conn: &mut Connection, items: &[ScanPhotoData]) -> Result<
                     match_source = COALESCE(excluded.match_source, photos.match_source),
                     is_missing = 0",
             )
-            .map_err(|e| format!("写真更新ステートメントを準備できません: {}", e))?;
+            .map_err(|err| format!("写真更新ステートメントを準備できません: {err}"))?;
 
         for item in items {
             stmt.execute(params![
@@ -595,10 +611,11 @@ fn upsert_photo_batch(conn: &mut Connection, items: &[ScanPhotoData]) -> Result<
         }
     }
     tx.commit()
-        .map_err(|e| format!("写真更新トランザクションを確定できません: {}", e))?;
+        .map_err(|err| format!("写真更新トランザクションを確定できません: {err}"))?;
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 fn extract_vrc_metadata_from_png(path: &Path) -> (Option<String>, Option<String>) {
     let file = match fs::File::open(path) {
         Ok(file) => file,
@@ -634,7 +651,9 @@ fn extract_vrc_metadata_from_png(path: &Path) -> (Option<String>, Option<String>
 
         if &chunk_type == b"iTXt" {
             if chunk_len > MAX_ITXT_SIZE {
-                if let Err(err) = reader.seek(SeekFrom::Current(chunk_len as i64 + 4)) {
+                if let Err(err) = reader.seek(SeekFrom::Current(
+                    i64::try_from(chunk_len).unwrap_or(i64::MAX.saturating_sub(4)) + 4,
+                )) {
                     crate::utils::log_warn(&format!(
                         "大きすぎる iTXt をスキップできませんでした [{}]: {}",
                         path.display(),
@@ -680,7 +699,9 @@ fn extract_vrc_metadata_from_png(path: &Path) -> (Option<String>, Option<String>
             }
         } else if &chunk_type == b"IDAT" || &chunk_type == b"IEND" {
             break;
-        } else if let Err(err) = reader.seek(SeekFrom::Current(chunk_len as i64 + 4)) {
+        } else if let Err(err) = reader.seek(SeekFrom::Current(
+            i64::try_from(chunk_len).unwrap_or(i64::MAX.saturating_sub(4)) + 4,
+        )) {
             crate::utils::log_warn(&format!(
                 "PNG チャンクをスキップできませんでした [{}]: {}",
                 path.display(),
@@ -770,7 +791,7 @@ fn collect_photos_recursive(
         } else if path.is_file() {
             if let Some(filename) = path.file_name().and_then(|value| value.to_str()) {
                 if is_supported_image_extension(filename) {
-                    files.push((source_slot, filename.to_string(), path.to_path_buf()));
+                    files.push((source_slot, filename.to_string(), path.clone()));
                 }
             }
         }
@@ -781,7 +802,7 @@ fn is_supported_image_extension(filename: &str) -> bool {
     let ext = Path::new(filename)
         .extension()
         .and_then(|value| value.to_str())
-        .map(|value| value.to_ascii_lowercase());
+        .map(str::to_ascii_lowercase);
     match ext {
         Some(ext) => SUPPORTED_EXTENSIONS.contains(&ext.as_str()),
         None => false,

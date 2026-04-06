@@ -1,0 +1,51 @@
+.root {
+  position: relative;
+  display: inline-flex;
+}
+
+.bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%) translateY(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+  z-index: 40;
+  white-space: nowrap;
+}
+
+.root:hover .bubble,
+.root:focus-within .bubble {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.inner {
+  position: relative;
+  padding: 0.34rem 0.8rem;
+  border: var(--a-shared-hover-tooltip-inner-border);
+  border-radius: 999px;
+  background: var(--a-shared-hover-tooltip-inner-background);
+  box-shadow: var(--a-shared-hover-tooltip-inner-box-shadow);
+  color: var(--a-shared-hover-tooltip-inner-color);
+  font-family: var(--a-font-mono);
+  font-size: 0.64rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.inner::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: var(--a-shared-hover-tooltip-inner-after-border-top);
+}

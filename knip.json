@@ -1,5 +1,0 @@
-{
-  "entry": ["src/main.tsx"],
-  "project": ["src/**/*.{ts,tsx}"],
-  "ignoreDependencies": ["@tanstack/react-router", "@tanstack/router-plugin", "zod"]
-}

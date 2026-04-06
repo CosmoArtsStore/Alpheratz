@@ -50,9 +50,7 @@
         "installerHooks": "windows/hooks.nsi",
         "installerIcon": "icons/icon.ico",
         "installMode": "currentUser",
-        "languages": [
-          "Japanese"
-        ]
+        "languages": ["Japanese"]
       }
     }
   }

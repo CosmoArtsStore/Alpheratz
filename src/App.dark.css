@@ -1,16 +1,9 @@
 /* Theme: Dark */
 
-
-
-.alpheratz-root.dark-theme .settings-path-input,
 .alpheratz-root.dark-theme .fs-section input,
 .alpheratz-root.dark-theme .memo-section textarea,
 .alpheratz-root.dark-theme .tag-editor input {
   color: var(--a-text);
-}
-
-.alpheratz-root.dark-theme .tag-master-editor input:focus {
-  background: var(--a-surface-hover);
 }
 
 .alpheratz-root.dark-theme .tag-select:focus {
@@ -19,89 +12,22 @@
 
 .alpheratz-root.dark-theme .photo-modal-bottom-action:hover {
   background: var(--a-surface-hover);
-  color: #ffffff;
+  color: #fff;
 }
 
 .alpheratz-root.dark-theme .photo-modal-bottom-action {
   color: var(--a-text);
 }
 
-.alpheratz-root.dark-theme .photo-action-text:hover {
-    background: var(--a-surface-hover);
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-.alpheratz-root.dark-theme .photo-action-text {
-    background: transparent;
-    color: var(--a-text);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.alpheratz-root.dark-theme .world-link-button-subtle {
-    background: transparent;
-    color: var(--a-text-disabled);
-    border-color: var(--a-border);
-}
-
 .alpheratz-root.dark-theme .world-link-button.favorite-active {
-    background: var(--a-warn-soft);
-    border-color: var(--a-warn-border);
-    color: var(--a-warn);
-}
-
-.alpheratz-root.dark-theme .photo-action-ghost:hover {
-    background: color-mix(in srgb, var(--a-primary) 18%, transparent);
-    color: var(--a-accent-light);
-    border-color: color-mix(in srgb, var(--a-primary) 28%, transparent);
-}
-
-.alpheratz-root.dark-theme .photo-action-ghost {
-    background: var(--a-accent-soft);
-    color: var(--a-primary);
-    border-color: var(--a-border-strong);
-    box-shadow: none;
-}
-
-.alpheratz-root.dark-theme .toggle-switch-knob {
-  background: #2a3a50;
-}
-
-.alpheratz-root.dark-theme .toggle-switch.active {
-  background: var(--a-accent-soft);
-  border-color: color-mix(in srgb, var(--a-primary) 40%, transparent);
-  box-shadow: none;
-}
-
-.alpheratz-root.dark-theme .toggle-switch {
-  background: #1a2133;
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-.alpheratz-root.dark-theme .settings-action-button:hover {
-  background: color-mix(in srgb, var(--a-primary) 18%, transparent);
-  color: var(--a-accent-light);
-  box-shadow: none;
-}
-
-.alpheratz-root.dark-theme .settings-action-button {
-  background: var(--a-accent-soft);
-  border-color: var(--a-border-strong);
-  color: var(--a-primary);
-  box-shadow: none;
-}
-
-.alpheratz-root.dark-theme .quick-action-tooltip {
-  border-color: rgba(34, 211, 238, 0.16);
-  background:
-    linear-gradient(135deg, rgba(14, 18, 28, 0.96), rgba(18, 30, 46, 0.96));
-  color: #bfefff;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
+  background: var(--a-warn-soft);
+  border-color: var(--a-warn-border);
+  color: var(--a-warn);
 }
 
 .alpheratz-root.dark-theme .world-link-button {
-    background: var(--a-accent-soft);
-    color: var(--a-primary);
+  background: var(--a-accent-soft);
+  color: var(--a-primary);
 }
 
 .alpheratz-root.dark-theme .quick-tag-input:focus {
@@ -109,38 +35,28 @@
 }
 
 .alpheratz-root.dark-theme .save-button:hover {
-    background: var(--a-accent-light);
-    border-color: rgba(29, 155, 240, 0.52);
-    box-shadow: none;
+  background: var(--a-accent-light);
+  border-color: rgb(29 155 240 / 52%);
+  box-shadow: none;
 }
 
 .alpheratz-root.dark-theme .save-button {
-    background: var(--a-primary);
-    border-color: rgba(29, 155, 240, 0.34);
-    color: #ffffff;
+  background: var(--a-primary);
+  border-color: rgb(29 155 240 / 34%);
+  color: #fff;
 }
 
 .alpheratz-root.dark-theme .overlay-loader {
-  background: rgba(15, 23, 42, 0.72);
-}
-
-.alpheratz-root.dark-theme .photo-source-badge.slot-2 {
-  background: rgba(34, 211, 238, 0.22);
-  border-color: rgba(34, 211, 238, 0.34);
-  color: #67e8f9;
-}
-
-.alpheratz-root.dark-theme .photo-thumb-container {
-  background: linear-gradient(135deg, #232a36, #1e2430);
+  background: rgb(15 23 42 / 72%);
 }
 
 .alpheratz-root.dark-theme .gallery-quick-favorite-star.active {
-  background: rgba(30, 41, 59, 0.92);
+  background: rgb(30 41 59 / 92%);
   color: #fcd34d;
 }
 
 .alpheratz-root.dark-theme .gallery-quick-favorite-star {
-  background: rgba(15, 23, 42, 0.72);
+  background: rgb(15 23 42 / 72%);
 }
 
 .alpheratz-root.dark-theme .gallery-photo-thumb {
@@ -161,22 +77,22 @@
 }
 
 .alpheratz-root.dark-theme .tg-btn.active {
-  color: #ffffff;
+  color: #fff;
 }
 
 .alpheratz-root.dark-theme .tg-btn {
   background: var(--a-accent-soft);
-  border-color: rgba(29, 155, 240, 0.34);
+  border-color: rgb(29 155 240 / 34%);
   color: var(--a-primary);
 }
 
 .alpheratz-root.dark-theme .dd-check-item::after {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgb(255 255 255 / 12%);
   background: #141926;
 }
 
 .alpheratz-root.dark-theme .dd-check-item:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgb(255 255 255 / 3%);
 }
 
 .alpheratz-root.dark-theme .dd-trigger.open,
@@ -204,179 +120,303 @@
 .alpheratz-root.dark-theme {
   --a-accent: #1d9bf0;
   --a-accent-light: #1a8cd8;
-  --a-bg: #000000;
+  --a-bg: #000;
   --a-bg-elevated: #16181c;
   --a-surface: #16181c;
   --a-surface-strong: #1d2026;
   --a-surface-soft: #16181c;
   --a-surface-hover: #1d2026;
-  --a-surface-top: #000000;
+  --a-surface-top: #000;
   --a-surface-side: #16181c;
-  --a-border: rgba(255, 255, 255, 0.1);
-  --a-border-strong: rgba(29, 155, 240, 0.3);
+  --a-border: rgb(255 255 255 / 10%);
+  --a-border-strong: rgb(29 155 240 / 30%);
   --a-text: #e7e9ea;
   --a-text-dim: #71767b;
   --a-text-faint: #3e4144;
   --a-text-disabled: #2f3336;
   --a-primary: #1d9bf0;
-  --a-primary-soft: rgba(29, 155, 240, 0.16);
-  --a-accent-soft: rgba(29, 155, 240, 0.16);
+  --a-primary-soft: rgb(29 155 240 / 16%);
+  --a-accent-soft: rgb(29 155 240 / 16%);
   --a-button-text: #f8fafc;
   --a-warn: #fbbf24;
   --a-danger: #f87171;
-  --a-scrollbar-track: rgba(255, 255, 255, 0.06);
-  --a-scrollbar-thumb: rgba(29, 155, 240, 0.26);
-  --a-scrollbar-thumb-hover: rgba(29, 155, 240, 0.4);
-  --a-glow: rgba(29, 155, 240, 0.18);
-  --a-warn-soft: rgba(251, 191, 36, 0.12);
-  --a-warn-border: rgba(251, 191, 36, 0.3);
-  --a-warn-glow: rgba(251, 191, 36, 0.18);
-  --a-danger-soft: rgba(248, 113, 113, 0.12);
-  --a-danger-border: rgba(248, 113, 113, 0.28);
-  --a-danger-glow: rgba(248, 113, 113, 0.18);
-  --a-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --a-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --a-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.46);
+  --a-scrollbar-track: rgb(255 255 255 / 6%);
+  --a-scrollbar-thumb: rgb(29 155 240 / 26%);
+  --a-scrollbar-thumb-hover: rgb(29 155 240 / 40%);
+  --a-glow: rgb(29 155 240 / 18%);
+  --a-warn-soft: rgb(251 191 36 / 12%);
+  --a-warn-border: rgb(251 191 36 / 30%);
+  --a-warn-glow: rgb(251 191 36 / 18%);
+  --a-danger-soft: rgb(248 113 113 / 12%);
+  --a-danger-border: rgb(248 113 113 / 28%);
+  --a-danger-glow: rgb(248 113 113 / 18%);
+  --a-shadow-sm: 0 1px 3px rgb(0 0 0 / 30%);
+  --a-shadow-md: 0 4px 16px rgb(0 0 0 / 40%);
+  --a-shadow-lg: 0 12px 32px rgb(0 0 0 / 46%);
   --a-shared-header-filter-count-color: #fff;
-  --a-shared-filter-sidebar-box-shadow: 12px 0 28px rgba(15, 23, 42, 0.08);
-  --a-shared-filter-backdrop-background: rgba(15, 23, 42, 0.46);
+  --a-shared-filter-sidebar-box-shadow: 12px 0 28px rgb(15 23 42 / 8%);
+  --a-shared-filter-backdrop-background: rgb(15 23 42 / 46%);
   --a-shared-fs-badge-color: #fff;
-  --a-shared-fs-reset-hover-border-color: rgba(239, 68, 68, 0.24);
-  --a-shared-fs-reset-hover-background: rgba(239, 68, 68, 0.08);
+  --a-shared-fs-reset-hover-border-color: rgb(239 68 68 / 24%);
+  --a-shared-fs-reset-hover-background: rgb(239 68 68 / 8%);
   --a-shared-fs-select-background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-  --a-shared-dd-panel-box-shadow: 0 8px 24px rgba(26, 29, 46, 0.12);
-  --a-shared-dd-check-item-hover-background: rgba(14, 116, 144, 0.04);
-  --a-shared-dd-check-item-after-border: 1px solid rgba(14, 116, 144, 0.18);
+  --a-shared-dd-panel-box-shadow: 0 8px 24px rgb(26 29 46 / 12%);
+  --a-shared-dd-check-item-hover-background: rgb(14 116 144 / 4%);
+  --a-shared-dd-check-item-after-border: 1px solid rgb(14 116 144 / 18%);
   --a-shared-dd-check-item-after-background: #eaf2f8;
   --a-shared-dd-item-dot-background: #cbd5e1;
-  --a-shared-tg-btn-border-color: rgba(29, 155, 240, 0.28);
-  --a-shared-tg-btn-hover-border-color: rgba(29, 155, 240, 0.36);
-  --a-shared-tg-btn-active-border-color: rgba(29, 155, 240, 0.36);
-  --a-shared-dt-clear-hover-background: rgba(239, 68, 68, 0.1);
-  --a-shared-cal-popup-box-shadow: 0 12px 40px rgba(26, 29, 46, 0.14);
+  --a-shared-tg-btn-border-color: rgb(29 155 240 / 28%);
+  --a-shared-tg-btn-hover-border-color: rgb(29 155 240 / 36%);
+  --a-shared-tg-btn-active-border-color: rgb(29 155 240 / 36%);
+  --a-shared-dt-clear-hover-background: rgb(239 68 68 / 10%);
+  --a-shared-cal-popup-box-shadow: 0 12px 40px rgb(26 29 46 / 14%);
   --a-shared-cal-wd-sun-color: #f87171;
   --a-shared-cal-day-range-end-color: #fff;
-  --a-shared-month-nav-scan-line-background: rgba(232, 213, 163, 0.6);
-  --a-shared-month-nav-scan-line-after-background: rgba(232, 213, 163, 0.5);
-  --a-shared-month-nav-item-active-month-nav-tick-background: rgba(232, 213, 163, 0.46);
-  --a-shared-month-nav-tooltip-inner-border: 1px solid rgba(255, 255, 255, 0.08);
-  --a-shared-month-nav-tooltip-inner-background: rgba(255, 255, 255, 0.06);
-  --a-shared-month-nav-tooltip-inner-box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
-  --a-shared-month-nav-tooltip-inner-after-border-left: 5px solid rgba(255, 255, 255, 0.08);
-  --a-shared-month-nav-tooltip-year-color: rgba(255, 255, 255, 0.34);
-  --a-shared-month-nav-tooltip-month-color: rgba(255, 255, 255, 0.86);
-  --a-shared-hover-tooltip-inner-border: 1px solid rgba(255, 255, 255, 0.12);
-  --a-shared-hover-tooltip-inner-background: rgba(75, 85, 99, 0.96);
-  --a-shared-hover-tooltip-inner-box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
-  --a-shared-hover-tooltip-inner-color: rgba(255, 255, 255, 0.96);
-  --a-shared-hover-tooltip-inner-after-border-top: 4px solid rgba(75, 85, 99, 0.96);
-  --a-shared-action-card-cancel-hover-border-color: rgba(255, 127, 149, 0.34);
-  --a-shared-action-card-cancel-action-icon-background: rgba(255, 127, 149, 0.12);
-  --a-shared-photo-card-selected-border-color: rgba(29, 155, 240, 0.72);
-  --a-shared-photo-card-selected-box-shadow: 0 0 0 2px rgba(29, 155, 240, 0.22);
+  --a-shared-month-nav-scan-line-background: rgb(232 213 163 / 60%);
+  --a-shared-month-nav-scan-line-after-background: rgb(232 213 163 / 50%);
+  --a-shared-month-nav-item-active-month-nav-tick-background: rgb(232 213 163 / 46%);
+  --a-shared-month-nav-tooltip-inner-border: 1px solid rgb(255 255 255 / 8%);
+  --a-shared-month-nav-tooltip-inner-background: rgb(255 255 255 / 6%);
+  --a-shared-month-nav-tooltip-inner-box-shadow: 0 12px 30px rgb(0 0 0 / 28%);
+  --a-shared-month-nav-tooltip-inner-after-border-left: 5px solid rgb(255 255 255 / 8%);
+  --a-shared-month-nav-tooltip-year-color: rgb(255 255 255 / 34%);
+  --a-shared-month-nav-tooltip-month-color: rgb(255 255 255 / 86%);
+  --a-shared-hover-tooltip-inner-border: 1px solid rgb(255 255 255 / 12%);
+  --a-shared-hover-tooltip-inner-background: rgb(75 85 99 / 96%);
+  --a-shared-hover-tooltip-inner-box-shadow: 0 12px 28px rgb(0 0 0 / 28%);
+  --a-shared-hover-tooltip-inner-color: rgb(255 255 255 / 96%);
+  --a-shared-hover-tooltip-inner-after-border-top: 4px solid rgb(75 85 99 / 96%);
+  --a-shared-action-card-cancel-hover-border-color: rgb(255 127 149 / 34%);
+  --a-shared-action-card-cancel-action-icon-background: rgb(255 127 149 / 12%);
+  --a-shared-photo-card-selected-border-color: rgb(29 155 240 / 72%);
+  --a-shared-photo-card-selected-box-shadow: 0 0 0 2px rgb(29 155 240 / 22%);
   --a-shared-gallery-photo-thumb-background: linear-gradient(135deg, #dfe9f0, #cfe0ea);
-  --a-shared-gallery-quick-favorite-star-background: rgba(15, 23, 42, 0.5);
-  --a-shared-gallery-quick-favorite-star-color: rgba(255, 255, 255, 0.94);
-  --a-shared-gallery-quick-favorite-star-box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
-  --a-shared-gallery-quick-favorite-star-active-background: rgba(255, 255, 255, 0.94);
+  --a-shared-gallery-quick-favorite-star-background: rgb(15 23 42 / 50%);
+  --a-shared-gallery-quick-favorite-star-color: rgb(255 255 255 / 94%);
+  --a-shared-gallery-quick-favorite-star-box-shadow: 0 8px 18px rgb(0 0 0 / 22%);
+  --a-shared-gallery-quick-favorite-star-active-background: rgb(255 255 255 / 94%);
   --a-shared-gallery-quick-favorite-star-active-color: #facc15;
   --a-shared-gallery-quick-favorite-star-active-svg-stroke: #eab308;
-  --a-shared-gallery-photo-overlay-background: linear-gradient(180deg, rgba(9, 13, 22, 0.12), rgba(9, 13, 22, 0.7));
+  --a-shared-gallery-photo-overlay-background: linear-gradient(
+    180deg,
+    rgb(9 13 22 / 12%),
+    rgb(9 13 22 / 70%)
+  );
   --a-shared-gallery-photo-world-color: #fff;
-  --a-shared-gallery-photo-world-text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
-  --a-shared-gallery-photo-date-color: rgba(255, 255, 255, 0.82);
-  --a-shared-gallery-photo-date-text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+  --a-shared-gallery-photo-world-text-shadow: 0 1px 8px rgb(0 0 0 / 40%);
+  --a-shared-gallery-photo-date-color: rgb(255 255 255 / 82%);
+  --a-shared-gallery-photo-date-text-shadow: 0 1px 6px rgb(0 0 0 / 35%);
   --a-shared-photo-thumb-container-background: linear-gradient(135deg, #eef2ff, #dbe5ff);
-  --a-shared-photo-select-toggle-border: 1px solid rgba(255, 255, 255, 0.32);
-  --a-shared-photo-select-toggle-background: rgba(8, 12, 20, 0.62);
-  --a-shared-photo-select-toggle-selected-border-color: rgba(29, 155, 240, 0.82);
-  --a-shared-photo-select-toggle-selected-background: rgba(29, 155, 240, 0.96);
-  --a-shared-photo-select-toggle-selected-color: #ffffff;
-  --a-shared-photo-source-badge-border: 1px solid rgba(255, 255, 255, 0.18);
-  --a-shared-photo-source-badge-background: rgba(8, 12, 20, 0.72);
+  --a-shared-photo-select-toggle-border: 1px solid rgb(255 255 255 / 32%);
+  --a-shared-photo-select-toggle-background: rgb(8 12 20 / 62%);
+  --a-shared-photo-select-toggle-selected-border-color: rgb(29 155 240 / 82%);
+  --a-shared-photo-select-toggle-selected-background: rgb(29 155 240 / 96%);
+  --a-shared-photo-select-toggle-selected-color: #fff;
+  --a-shared-photo-source-badge-border: 1px solid rgb(255 255 255 / 18%);
+  --a-shared-photo-source-badge-background: rgb(8 12 20 / 72%);
   --a-shared-photo-source-badge-color: #f8fafc;
   --a-shared-photo-favorite-corner-color: #f5b301;
-  --a-shared-gallery-group-count-badge-background: rgba(255, 255, 255, 0.95);
+  --a-shared-gallery-group-count-badge-background: rgb(255 255 255 / 95%);
   --a-shared-gallery-group-count-badge-color: #0f172a;
-  --a-shared-gallery-group-count-badge-box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
-  --a-shared-photo-source-badge-slot-2-background: rgba(14, 116, 144, 0.82);
-  --a-shared-photo-thumb-skeleton-background: linear-gradient(90deg, #eef2fa 25%, #dde6f8 50%, #eef2fa 75%);
-  --a-shared-photo-pill-favorite-border-color: rgba(248, 184, 92, 0.32);
-  --a-shared-photo-pill-favorite-background: rgba(248, 184, 92, 0.14);
+  --a-shared-gallery-group-count-badge-box-shadow: 0 4px 10px rgb(15 23 42 / 12%);
+  --a-shared-photo-source-badge-slot-2-background: rgb(14 116 144 / 82%);
+  --a-shared-photo-thumb-skeleton-background: linear-gradient(
+    90deg,
+    #eef2fa 25%,
+    #dde6f8 50%,
+    #eef2fa 75%
+  );
+  --a-shared-photo-pill-favorite-border-color: rgb(248 184 92 / 32%);
+  --a-shared-photo-pill-favorite-background: rgb(248 184 92 / 14%);
   --a-shared-photo-pill-favorite-color: #ffd9a2;
-  --a-shared-overlay-loader-background: rgba(255, 255, 255, 0.85);
-  --a-shared-modal-overlay-background: rgba(0, 0, 0, 0.5);
-  --a-shared-folder-change-warning-border: 1px solid rgba(239, 68, 68, 0.18);
-  --a-shared-folder-change-warning-background: rgba(239, 68, 68, 0.05);
-  --a-shared-bulk-selection-bar-box-shadow: 0 18px 36px rgba(15, 23, 42, 0.22);
-  --a-shared-bulk-selection-button-primary-border-color: rgba(29, 155, 240, 0.3);
+  --a-shared-overlay-loader-background: rgb(255 255 255 / 85%);
+  --a-shared-modal-overlay-background: rgb(0 0 0 / 50%);
+  --a-shared-folder-change-warning-border: 1px solid rgb(239 68 68 / 18%);
+  --a-shared-folder-change-warning-background: rgb(239 68 68 / 5%);
+  --a-shared-bulk-selection-bar-box-shadow: 0 18px 36px rgb(15 23 42 / 22%);
+  --a-shared-bulk-selection-button-primary-border-color: rgb(29 155 240 / 30%);
   --a-shared-modal-image-container-photo-modal-image-background: #0d0d0d;
-  --a-shared-photo-edge-button-color: rgba(255, 255, 255, 0.92);
-  --a-shared-photo-edge-button-prev-background: linear-gradient(90deg, rgba(0, 0, 0, 0.34), transparent 78%);
-  --a-shared-photo-edge-button-next-background: linear-gradient(270deg, rgba(0, 0, 0, 0.34), transparent 78%);
-  --a-shared-photo-edge-button-svg-filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.42));
-  --a-shared-photo-edge-button-hover-not-disabled-background-color: rgba(0, 0, 0, 0.08);
-  --a-shared-quick-action-tooltip-box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
-  --a-shared-toggle-switch-knob-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  --a-shared-photo-edge-button-color: rgb(255 255 255 / 92%);
+  --a-shared-photo-edge-button-prev-background: linear-gradient(
+    90deg,
+    rgb(0 0 0 / 34%),
+    transparent 78%
+  );
+  --a-shared-photo-edge-button-next-background: linear-gradient(
+    270deg,
+    rgb(0 0 0 / 34%),
+    transparent 78%
+  );
+  --a-shared-photo-edge-button-svg-filter: drop-shadow(0 6px 18px rgb(0 0 0 / 42%));
+  --a-shared-photo-edge-button-hover-not-disabled-background-color: rgb(0 0 0 / 8%);
+  --a-shared-quick-action-tooltip-box-shadow: 0 14px 30px rgb(15 23 42 / 10%);
+  --a-shared-toggle-switch-knob-box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
   --a-shared-modal-image-container-photo-modal-image-background-2: #000;
-  --a-shared-photo-modal-filename-border: 1px solid rgba(255, 255, 255, 0.12);
-  --a-shared-photo-modal-filename-background: rgba(0, 0, 0, 0.52);
-  --a-shared-photo-modal-filename-color: rgba(255, 255, 255, 0.82);
+  --a-shared-photo-modal-filename-border: 1px solid rgb(255 255 255 / 12%);
+  --a-shared-photo-modal-filename-background: rgb(0 0 0 / 52%);
+  --a-shared-photo-modal-filename-color: rgb(255 255 255 / 82%);
   --a-shared-photo-action-primary-border-color: color-mix(in srgb, white 8%, transparent);
-  --a-shared-favorite-star-liked-svg-filter: drop-shadow(0 0 9px rgba(251, 191, 36, 0.55));
-  --a-shared-favorite-star-glow-background: radial-gradient(circle, rgba(251, 191, 36, 0.28) 0%, rgba(253, 230, 138, 0.06) 50%, transparent 70%);
+  --a-shared-favorite-star-liked-svg-filter: drop-shadow(0 0 9px rgb(251 191 36 / 55%));
+  --a-shared-favorite-star-glow-background: radial-gradient(
+    circle,
+    rgb(251 191 36 / 28%) 0%,
+    rgb(253 230 138 / 6%) 50%,
+    transparent 70%
+  );
   --a-shared-photo-modal-bottom-action-favorite-favorite-active-svg-color: #f5b301;
   --a-shared-suggestion-title-success-color: #4ade80;
   --a-shared-suggestion-title-warn-color: #fbbf24;
-  --a-shared-inline-spinner-light-border-color: rgba(255, 255, 255, 0.4);
+  --a-shared-inline-spinner-light-border-color: rgb(255 255 255 / 40%);
   --a-shared-inline-spinner-light-border-top-color: #fff;
-  --a-shared-similar-photos-hover-zone-border: 1px solid rgba(255, 255, 255, 0.14);
-  --a-shared-similar-photos-hover-zone-background: linear-gradient(180deg, rgba(8, 8, 8, 0.12), rgba(8, 8, 8, 0.72));
-  --a-shared-similar-photos-hover-zone-focus-within-border-color: rgba(255, 255, 255, 0.22);
-  --a-shared-similar-photos-hover-zone-focus-within-background: linear-gradient(180deg, rgba(8, 8, 8, 0.22), rgba(8, 8, 8, 0.84));
-  --a-shared-similar-photos-hover-hint-color: rgba(255, 255, 255, 0.88);
-  --a-shared-similar-photo-thumb-border: 1px solid rgba(255, 255, 255, 0.14);
-  --a-shared-similar-photo-thumb-background: rgba(18, 18, 18, 0.82);
-  --a-shared-similar-photo-thumb-active-border-color: rgba(255, 255, 255, 0.96);
-  --a-shared-similar-photo-thumb-active-box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.14);
-  --a-shared-header-icon-button-danger-hover-border-color: color-mix(in srgb, var(--a-danger) 48%, transparent);
-  --a-shared-header-icon-button-danger-hover-background: color-mix(in srgb, var(--a-danger) 16%, transparent);
+  --a-shared-similar-photos-hover-zone-border: 1px solid rgb(255 255 255 / 14%);
+  --a-shared-similar-photos-hover-zone-background: linear-gradient(
+    180deg,
+    rgb(8 8 8 / 12%),
+    rgb(8 8 8 / 72%)
+  );
+  --a-shared-similar-photos-hover-zone-focus-within-border-color: rgb(255 255 255 / 22%);
+  --a-shared-similar-photos-hover-zone-focus-within-background: linear-gradient(
+    180deg,
+    rgb(8 8 8 / 22%),
+    rgb(8 8 8 / 84%)
+  );
+  --a-shared-similar-photos-hover-hint-color: rgb(255 255 255 / 88%);
+  --a-shared-similar-photo-thumb-border: 1px solid rgb(255 255 255 / 14%);
+  --a-shared-similar-photo-thumb-background: rgb(18 18 18 / 82%);
+  --a-shared-similar-photo-thumb-active-border-color: rgb(255 255 255 / 96%);
+  --a-shared-similar-photo-thumb-active-box-shadow: 0 0 0 2px rgb(255 255 255 / 14%);
+  --a-shared-header-icon-button-danger-hover-border-color: color-mix(
+    in srgb,
+    var(--a-danger) 48%,
+    transparent
+  );
+  --a-shared-header-icon-button-danger-hover-background: color-mix(
+    in srgb,
+    var(--a-danger) 16%,
+    transparent
+  );
   --a-shared-fs-header-background: color-mix(in srgb, var(--a-surface) 92%, transparent);
-  --a-shared-dd-check-item-has-input-checked-border-color: color-mix(in srgb, var(--a-primary) 18%, transparent);
+  --a-shared-dd-check-item-has-input-checked-border-color: color-mix(
+    in srgb,
+    var(--a-primary) 18%,
+    transparent
+  );
   --a-shared-fav-toggle-hover-border-color: color-mix(in srgb, var(--a-warn) 28%, var(--a-border));
-  --a-shared-fav-toggle-hover-background: color-mix(in srgb, var(--a-warn-soft) 68%, var(--a-surface-soft));
-  --a-shared-fav-toggle-active-background: color-mix(in srgb, var(--a-warn-soft) 78%, var(--a-surface-soft));
+  --a-shared-fav-toggle-hover-background: color-mix(
+    in srgb,
+    var(--a-warn-soft) 68%,
+    var(--a-surface-soft)
+  );
+  --a-shared-fav-toggle-active-background: color-mix(
+    in srgb,
+    var(--a-warn-soft) 78%,
+    var(--a-surface-soft)
+  );
   --a-shared-fav-toggle-active-border-color: color-mix(in srgb, var(--a-warn) 34%, var(--a-border));
   --a-shared-fav-star-color: color-mix(in srgb, var(--a-warn) 58%, var(--a-text-faint));
   --a-shared-fav-badge-background: color-mix(in srgb, var(--a-surface) 88%, transparent);
-  --a-shared-fav-toggle-active-fav-badge-border-color: color-mix(in srgb, var(--a-warn) 28%, transparent);
-  --a-shared-fav-toggle-active-fav-badge-background: color-mix(in srgb, var(--a-warn-soft) 90%, var(--a-surface));
+  --a-shared-fav-toggle-active-fav-badge-border-color: color-mix(
+    in srgb,
+    var(--a-warn) 28%,
+    transparent
+  );
+  --a-shared-fav-toggle-active-fav-badge-background: color-mix(
+    in srgb,
+    var(--a-warn-soft) 90%,
+    var(--a-surface)
+  );
   --a-shared-btn-clear-hover-background: color-mix(in srgb, var(--a-danger) 16%, transparent);
   --a-shared-btn-clear-hover-border-color: color-mix(in srgb, var(--a-danger) 45%, transparent);
   --a-shared-btn-apply-hover-background: color-mix(in srgb, var(--a-primary) 18%, transparent);
   --a-shared-month-nav-spine-background: color-mix(in srgb, var(--a-border) 70%, transparent);
   --a-shared-month-nav-year-color: color-mix(in srgb, var(--a-text-faint) 52%, transparent);
   --a-shared-month-nav-tick-background: color-mix(in srgb, var(--a-text-faint) 18%, transparent);
-  --a-shared-month-nav-item-year-start-month-nav-tick-background: color-mix(in srgb, var(--a-text-faint) 26%, transparent);
-  --a-shared-month-nav-item-active-month-nav-year-color: color-mix(in srgb, var(--a-text-faint) 78%, transparent);
-  --a-shared-left-rail-button-active-background: color-mix(in srgb, var(--a-primary) 9%, var(--a-surface));
-  --a-shared-action-card-before-background: linear-gradient(135deg, var(--a-accent-soft), transparent 55%);
+  --a-shared-month-nav-item-year-start-month-nav-tick-background: color-mix(
+    in srgb,
+    var(--a-text-faint) 26%,
+    transparent
+  );
+  --a-shared-month-nav-item-active-month-nav-year-color: color-mix(
+    in srgb,
+    var(--a-text-faint) 78%,
+    transparent
+  );
+  --a-shared-left-rail-button-active-background: color-mix(
+    in srgb,
+    var(--a-primary) 9%,
+    var(--a-surface)
+  );
+  --a-shared-action-card-before-background: linear-gradient(
+    135deg,
+    var(--a-accent-soft),
+    transparent 55%
+  );
   --a-shared-progress-fill-background: linear-gradient(90deg, var(--a-primary), var(--a-accent));
-  --a-shared-cancel-button-overlay-hover-background: color-mix(in srgb, var(--a-danger) 18%, transparent);
-  --a-shared-bulk-selection-bar-background: color-mix(in srgb, var(--a-surface) 94%, rgba(15, 23, 42, 0.82));
-  --a-shared-bulk-selection-button-primary-background: color-mix(in srgb, var(--a-primary) 12%, transparent);
-  --a-shared-quick-action-tooltip-border: 1px solid color-mix(in srgb, var(--a-primary) 18%, transparent);
-  --a-shared-quick-action-tooltip-background: linear-gradient(135deg, color-mix(in srgb, var(--a-accent-soft) 96%, white), color-mix(in srgb, var(--a-surface) 84%, transparent));
+  --a-shared-cancel-button-overlay-hover-background: color-mix(
+    in srgb,
+    var(--a-danger) 18%,
+    transparent
+  );
+  --a-shared-bulk-selection-bar-background: color-mix(
+    in srgb,
+    var(--a-surface) 94%,
+    rgb(15 23 42 / 82%)
+  );
+  --a-shared-bulk-selection-button-primary-background: color-mix(
+    in srgb,
+    var(--a-primary) 12%,
+    transparent
+  );
+  --a-shared-quick-action-tooltip-border: 1px solid
+    color-mix(in srgb, var(--a-primary) 18%, transparent);
+  --a-shared-quick-action-tooltip-background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--a-accent-soft) 96%, white),
+    color-mix(in srgb, var(--a-surface) 84%, transparent)
+  );
   --a-shared-quick-action-tooltip-color: color-mix(in srgb, var(--a-primary) 72%, var(--a-text));
-  --a-shared-quick-action-tooltip-before-background: linear-gradient(135deg, var(--a-primary), var(--a-accent-light));
-  --a-shared-quick-action-tooltip-before-box-shadow: 0 0 0 6px color-mix(in srgb, var(--a-accent-soft) 72%, transparent);
-  --a-shared-quick-action-tooltip-after-border-right: 1px solid color-mix(in srgb, var(--a-primary) 18%, transparent);
-  --a-shared-quick-action-tooltip-after-border-bottom: 1px solid color-mix(in srgb, var(--a-primary) 18%, transparent);
-  --a-shared-toggle-switch-active-border-color: color-mix(in srgb, var(--a-primary) 40%, transparent);
-  --a-shared-world-link-button-hover-border-color: color-mix(in srgb, var(--a-primary) 48%, transparent);
-  --a-shared-world-link-button-hover-background: color-mix(in srgb, var(--a-primary) 18%, transparent);
-  --a-shared-photo-action-ghost-hover-background: color-mix(in srgb, var(--a-primary) 18%, transparent);
-  --a-shared-photo-action-text-hover-border-color: color-mix(in srgb, var(--a-primary) 25%, transparent);
-  --a-shared-similar-photo-thumb-skeleton-background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.55) 50%, rgba(255, 255, 255, 0) 100%), var(--a-surface-soft);
+  --a-shared-quick-action-tooltip-before-background: linear-gradient(
+    135deg,
+    var(--a-primary),
+    var(--a-accent-light)
+  );
+  --a-shared-quick-action-tooltip-before-box-shadow: 0 0 0 6px
+    color-mix(in srgb, var(--a-accent-soft) 72%, transparent);
+  --a-shared-quick-action-tooltip-after-border-right: 1px solid
+    color-mix(in srgb, var(--a-primary) 18%, transparent);
+  --a-shared-quick-action-tooltip-after-border-bottom: 1px solid
+    color-mix(in srgb, var(--a-primary) 18%, transparent);
+  --a-shared-toggle-switch-active-border-color: color-mix(
+    in srgb,
+    var(--a-primary) 40%,
+    transparent
+  );
+  --a-shared-world-link-button-hover-border-color: color-mix(
+    in srgb,
+    var(--a-primary) 48%,
+    transparent
+  );
+  --a-shared-world-link-button-hover-background: color-mix(
+    in srgb,
+    var(--a-primary) 18%,
+    transparent
+  );
+  --a-shared-photo-action-ghost-hover-background: color-mix(
+    in srgb,
+    var(--a-primary) 18%,
+    transparent
+  );
+  --a-shared-photo-action-text-hover-border-color: color-mix(
+    in srgb,
+    var(--a-primary) 25%,
+    transparent
+  );
+  --a-shared-similar-photo-thumb-skeleton-background:
+    linear-gradient(
+      90deg,
+      rgb(255 255 255 / 0%) 0%,
+      rgb(255 255 255 / 55%) 50%,
+      rgb(255 255 255 / 0%) 100%
+    ),
+    var(--a-surface-soft);
 }
-

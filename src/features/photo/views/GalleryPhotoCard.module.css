@@ -1,0 +1,189 @@
+.card {
+  width: 100%;
+  height: 100%;
+  display: block;
+  padding: 0;
+  border: 1px solid var(--a-border);
+  border-radius: 16px;
+  background: var(--a-surface);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    border-color 0.2s,
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.selected {
+  border-color: var(--a-shared-photo-card-selected-border-color);
+  box-shadow: var(--a-shared-photo-card-selected-box-shadow);
+}
+
+.card:hover {
+  border-color: var(--a-border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--a-shadow-sm);
+}
+
+.thumb {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--a-shared-gallery-photo-thumb-background);
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  transition: opacity 0.2s ease;
+}
+
+.select-toggle {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 4;
+  width: 26px;
+  height: 26px;
+  border: var(--a-shared-photo-select-toggle-border);
+  border-radius: 999px;
+  background: var(--a-shared-photo-select-toggle-background);
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.select-toggle.selected {
+  border-color: var(--a-shared-photo-select-toggle-selected-border-color);
+  background: var(--a-shared-photo-select-toggle-selected-background);
+  color: var(--a-shared-photo-select-toggle-selected-color);
+}
+
+.favorite {
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.7rem;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--a-shared-gallery-quick-favorite-star-background);
+  color: var(--a-shared-gallery-quick-favorite-star-color);
+  box-shadow: var(--a-shared-gallery-quick-favorite-star-box-shadow);
+}
+
+.favorite.active {
+  background: var(--a-shared-gallery-quick-favorite-star-active-background);
+  color: var(--a-shared-gallery-quick-favorite-star-active-color);
+}
+
+.group-badge {
+  position: absolute;
+  left: 0.7rem;
+  top: 0.7rem;
+  z-index: 3;
+  min-width: 44px;
+  padding: 0.22rem 0.45rem;
+  border-radius: 999px;
+  background: var(--a-shared-gallery-group-count-badge-background);
+  color: var(--a-shared-gallery-group-count-badge-color);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: var(--a-shared-gallery-group-count-badge-box-shadow);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: var(--a-shared-gallery-photo-overlay-background);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.card:hover .overlay,
+.card:focus-visible .overlay {
+  opacity: 1;
+}
+
+.topline,
+.bottomline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.22rem 0.58rem;
+  border-radius: 999px;
+  border: 1px solid var(--a-border-strong);
+  background: var(--a-accent-soft);
+  color: var(--a-primary);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.pill.favorite-pill {
+  border-color: var(--a-shared-photo-pill-favorite-border-color);
+  background: var(--a-shared-photo-pill-favorite-background);
+  color: var(--a-shared-photo-pill-favorite-color);
+}
+
+.world {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--a-shared-gallery-photo-world-color);
+  text-shadow: var(--a-shared-gallery-photo-world-text-shadow);
+  word-break: break-word;
+}
+
+.date {
+  font-size: 0.68rem;
+  color: var(--a-shared-gallery-photo-date-color);
+  text-shadow: var(--a-shared-gallery-photo-date-text-shadow);
+}
+
+.skeleton {
+  width: 100%;
+  height: 100%;
+  background: var(--a-shared-photo-thumb-skeleton-background);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}

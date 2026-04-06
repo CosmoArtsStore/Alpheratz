@@ -1,0 +1,166 @@
+.root {
+  --fav-gold: var(--a-shared-fav-gold-3180);
+  --fav-gold-hi: var(--a-shared-fav-gold-hi-3181);
+  --fav-muted: var(--a-shared-fav-muted-3182);
+
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.display-only {
+  pointer-events: none;
+}
+
+.root svg {
+  width: 22px;
+  height: 22px;
+  position: relative;
+  z-index: 2;
+  transition:
+    filter 0.22s ease,
+    transform 0.22s ease,
+    opacity 0.22s ease;
+}
+
+.path {
+  fill: none;
+  stroke: var(--fav-muted);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  transition:
+    fill 0.15s,
+    stroke 0.15s;
+}
+
+.liked .path {
+  fill: var(--fav-gold);
+  stroke: var(--fav-gold-hi);
+}
+
+.liked svg {
+  filter: var(--a-shared-favorite-star-liked-svg-filter);
+}
+
+.glow {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: var(--a-shared-favorite-star-glow-background);
+  opacity: 0;
+  filter: blur(6px);
+  transform: scale(0.78);
+  z-index: 0;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.liked .glow {
+  opacity: 0.95;
+  transform: scale(1);
+}
+
+.fade-in svg {
+  animation: favorite-soft-in 0.24s ease-out;
+}
+
+.fade-out svg {
+  animation: favorite-soft-out 0.2s ease-out;
+}
+
+.fade-in .glow {
+  animation: favorite-soft-glow-in 0.24s ease-out;
+}
+
+.fade-out .glow {
+  animation: favorite-soft-glow-out 0.2s ease-out;
+}
+
+.modal {
+  width: 52px;
+  height: 52px;
+}
+
+.modal svg {
+  width: 26px;
+  height: 26px;
+}
+
+.corner {
+  width: 24px;
+  height: 24px;
+}
+
+.corner svg {
+  width: 14px;
+  height: 14px;
+}
+
+.gallery {
+  width: 40px;
+  height: 40px;
+}
+
+.gallery svg {
+  width: 20px;
+  height: 20px;
+}
+
+@keyframes favorite-soft-in {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.9);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes favorite-soft-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0.75;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes favorite-soft-glow-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  100% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+}
+
+@keyframes favorite-soft-glow-out {
+  0% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+}

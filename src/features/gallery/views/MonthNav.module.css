@@ -1,0 +1,177 @@
+.root {
+  width: 40px;
+  flex-shrink: 0;
+  align-self: stretch;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  position: relative;
+  box-shadow: none;
+  cursor: ns-resize;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.visible,
+.root:hover {
+  opacity: 1;
+}
+
+.spine {
+  position: absolute;
+  top: 20px;
+  bottom: 20px;
+  left: 50%;
+  width: 1px;
+  background: var(--a-shared-month-nav-spine-background);
+  transform: translateX(-50%);
+}
+
+.scan-line {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 1px;
+  background: var(--a-shared-month-nav-scan-line-background);
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.scan-line::before,
+.scan-line::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 5px;
+  background: var(--a-shared-month-nav-scan-line-after-background);
+}
+
+.scan-line::before {
+  left: 0;
+}
+
+.scan-line::after {
+  right: 0;
+}
+
+.year {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0 3px;
+  background: var(--a-surface);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--a-shared-month-nav-year-color);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+  transition: color 0.15s ease;
+}
+
+.item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 28px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.tick {
+  width: 14px;
+  height: 1px;
+  background: var(--a-shared-month-nav-tick-background);
+  transition:
+    width 0.15s,
+    background 0.15s;
+}
+
+.year-start .tick {
+  width: 26px;
+  background: var(--a-shared-month-nav-item-year-start-month-nav-tick-background);
+}
+
+.active .tick {
+  width: 26px;
+  background: var(--a-shared-month-nav-item-active-month-nav-tick-background);
+}
+
+.root:hover .year,
+.active .year {
+  color: var(--a-shared-month-nav-item-active-month-nav-year-color);
+}
+
+.scrubbing .item {
+  opacity: 0.9;
+}
+
+.tooltip {
+  position: absolute;
+  right: 44px;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.tooltip-visible {
+  opacity: 1;
+}
+
+.tooltip-inner {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.45rem;
+  padding: 0.34rem 0.8rem;
+  border: var(--a-shared-month-nav-tooltip-inner-border);
+  border-radius: 999px;
+  background: var(--a-shared-month-nav-tooltip-inner-background);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: var(--a-shared-month-nav-tooltip-inner-box-shadow);
+  white-space: nowrap;
+  position: relative;
+}
+
+.tooltip-inner::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -5px;
+  transform: translateY(-50%);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: var(--a-shared-month-nav-tooltip-inner-after-border-left);
+}
+
+.tooltip-year {
+  display: inline-block;
+  flex: 0 0 auto;
+  font-family: var(--a-font-mono);
+  font-size: 0.56rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--a-shared-month-nav-tooltip-year-color);
+}
+
+.tooltip-month {
+  display: inline-block;
+  flex: 0 0 auto;
+  font-family: var(--a-font-mono);
+  font-size: 0.84rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--a-shared-month-nav-tooltip-month-color);
+}
