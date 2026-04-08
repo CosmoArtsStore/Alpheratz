@@ -37,16 +37,6 @@ pub struct AlpheratzSetting {
     pub active_tweet_template: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct BackupPathEntry {
-    #[serde(rename = "photoFolderPath")]
-    pub photo_folder_path: String,
-    #[serde(rename = "backupFolderName")]
-    pub backup_folder_name: String,
-    #[serde(rename = "createdAt")]
-    pub created_at: String,
-}
-
 impl Default for AlpheratzSetting {
     fn default() -> Self {
         let tweet_templates = vec![
@@ -70,10 +60,6 @@ impl Default for AlpheratzSetting {
 
 fn get_setting_path() -> Option<PathBuf> {
     Some(utils::get_alpheratz_setting_dir()?.join("setting.json"))
-}
-
-fn get_backup_path_path() -> Option<PathBuf> {
-    Some(utils::get_alpheratz_setting_dir()?.join("backupPath.json"))
 }
 
 fn get_legacy_setting_paths() -> Vec<PathBuf> {
@@ -153,52 +139,5 @@ pub fn save_setting(s: &AlpheratzSetting) -> Result<(), String> {
         .map_err(|e| format!("設定を JSON に変換できません: {}", e))?;
     fs::write(&path, content)
         .map_err(|e| format!("設定ファイルを書き込めません ({}): {}", path.display(), e))?;
-    Ok(())
-}
-
-pub fn load_backup_paths() -> Vec<BackupPathEntry> {
-    let Some(path) = get_backup_path_path() else {
-        return Vec::new();
-    };
-
-    if !path.exists() {
-        return Vec::new();
-    }
-
-    match fs::read_to_string(&path) {
-        Ok(content) => match serde_json::from_str::<Vec<BackupPathEntry>>(&content) {
-            Ok(entries) => entries,
-            Err(err) => {
-                utils::log_warn(&format!(
-                    "バックアップ管理ファイルの JSON を解析できませんでした ({}): {}",
-                    path.display(),
-                    err
-                ));
-                Vec::new()
-            }
-        },
-        Err(err) => {
-            utils::log_warn(&format!(
-                "バックアップ管理ファイルを読み込めませんでした ({}): {}",
-                path.display(),
-                err
-            ));
-            Vec::new()
-        }
-    }
-}
-
-pub fn save_backup_paths(entries: &[BackupPathEntry]) -> Result<(), String> {
-    let path = get_backup_path_path()
-        .ok_or_else(|| "バックアップ管理ファイルの保存先を取得できません".to_string())?;
-    let content = serde_json::to_string_pretty(entries)
-        .map_err(|err| format!("バックアップ管理情報を JSON に変換できません: {}", err))?;
-    fs::write(&path, content).map_err(|err| {
-        format!(
-            "バックアップ管理ファイルを書き込めません ({}): {}",
-            path.display(),
-            err
-        )
-    })?;
     Ok(())
 }

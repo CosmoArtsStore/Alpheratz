@@ -6,7 +6,6 @@ use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
 
 use chrono::{DateTime, Local};
-use path_slash::PathExt;
 use regex::Regex;
 use rusqlite::{params, Connection, OpenFlags};
 use tauri::{AppHandle, Emitter, Manager};
@@ -14,7 +13,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::config::load_setting;
 use crate::db::open_alpheratz_connection;
 use crate::models::ScanProgress;
-use crate::phash;
+use crate::similar_photo_match;
 use crate::utils;
 use crate::ScanCancelStatus;
 
@@ -124,6 +123,10 @@ static RE_NAME: LazyLock<Regex> = LazyLock::new(|| {
     )
 });
 
+fn normalize_path_for_db(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
 fn resolve_photo_dirs() -> Result<Vec<(i64, PathBuf)>, PhotoDirErrorKind> {
     let setting = load_setting();
     if setting.photo_folder_path.is_empty() && setting.secondary_photo_folder_path.is_empty() {
@@ -217,14 +220,14 @@ pub fn do_scan(app: AppHandle) -> Result<(), String> {
 
     let found_path_set: HashSet<String> = found_files
         .iter()
-        .map(|(_, _, path)| path.to_slash_lossy().to_string())
+        .map(|(_, _, path)| normalize_path_for_db(path))
         .collect();
     mark_missing_photos(&conn, &existing_photos, &found_path_set)?;
 
     let candidate_files: Vec<(String, PathBuf, i64, ScanRefreshKind)> = found_files
         .into_iter()
         .filter_map(|(slot, filename, path)| {
-            let normalized_path = path.to_slash_lossy().to_string();
+            let normalized_path = normalize_path_for_db(&path);
             match existing_photos.get(&normalized_path) {
                 None => Some((filename, path, slot, ScanRefreshKind::Full)),
                 Some(existing) => {
@@ -350,7 +353,7 @@ fn analyze_photo(
 ) -> Result<Option<ScanPhotoData>, String> {
     let timestamp = resolve_photo_timestamp(path, filename)?;
 
-    let normalized_path = path.to_slash_lossy().to_string();
+    let normalized_path = normalize_path_for_db(path);
     let existing = existing_photos.get(&normalized_path);
     let (world_name, world_id, match_source) = match refresh_kind {
         ScanRefreshKind::PathOnly => (
@@ -442,7 +445,7 @@ fn resolve_world_info_lightweight(
         return (Some(world_name), None, Some("stella_db".to_string()));
     }
 
-    match phash::infer_world_name_from_unknown_photo(path) {
+    match similar_photo_match::infer_world_name_from_unknown_photo(path) {
         Ok(Some(phash_match)) => {
             return (
                 Some(phash_match.world_name),
@@ -453,7 +456,7 @@ fn resolve_world_info_lightweight(
         Ok(None) => {}
         Err(err) => {
             crate::utils::log_warn(&format!(
-                "pHash 補完に失敗しました [{}]: {}",
+                "類似一致補完に失敗しました [{}]: {}",
                 path.display(),
                 err
             ));
@@ -596,7 +599,7 @@ fn upsert_photo_batch(conn: &mut Connection, items: &[ScanPhotoData]) -> Result<
 
         for item in items {
             stmt.execute(params![
-                item.path.to_slash_lossy().to_string(),
+                normalize_path_for_db(&item.path),
                 item.filename,
                 item.world_id,
                 item.world_name,

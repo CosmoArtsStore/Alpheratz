@@ -185,12 +185,28 @@ pub fn get_alpheratz_setting_dir() -> Option<PathBuf> {
 }
 
 pub fn get_alpheratz_backup_dir() -> Option<PathBuf> {
-    let backup_dir = get_alpheratz_data_dir()?.join("backup");
+    let backup_dir = get_alpheratz_cache_dir()?.join("backup");
     if let Err(err) = fs::create_dir_all(&backup_dir) {
         write_bootstrap_log(
             "WARN",
             &format!(
                 "backup ディレクトリを作成できませんでした [{}]: {}",
+                backup_dir.display(),
+                err
+            ),
+        );
+        return None;
+    }
+    Some(backup_dir)
+}
+
+pub fn get_alpheratz_db_backup_dir() -> Option<PathBuf> {
+    let backup_dir = get_alpheratz_backup_dir()?.join("dbcache");
+    if let Err(err) = fs::create_dir_all(&backup_dir) {
+        write_bootstrap_log(
+            "WARN",
+            &format!(
+                "db backup ディレクトリを作成できませんでした [{}]: {}",
                 backup_dir.display(),
                 err
             ),

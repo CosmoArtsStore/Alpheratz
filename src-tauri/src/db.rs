@@ -1,12 +1,13 @@
 use crate::config::load_setting;
-use crate::config::{load_backup_paths, save_backup_paths, BackupPathEntry};
 use crate::models::{PhotoQuery, PhotoRecord};
 use crate::utils::{
-    clear_directory_contents, get_alpheratz_backup_dir, get_alpheratz_db_cache_dir,
+    clear_directory_contents, get_alpheratz_db_backup_dir, get_alpheratz_db_cache_dir,
     get_alpheratz_img_cache_dir, get_alpheratz_install_dir, get_alpheratz_log_dir,
+    get_alpheratz_setting_dir,
 };
 use chrono::Local;
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
+use serde::Deserialize;
 use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
@@ -15,7 +16,18 @@ use std::path::PathBuf;
 pub struct BackupCandidate {
     pub photo_folder_path: String,
     pub backup_folder_name: String,
+    pub backup_path: String,
     pub created_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct LegacyBackupPathEntry {
+    #[serde(rename = "photoFolderPath")]
+    photo_folder_path: String,
+    #[serde(rename = "backupFolderName")]
+    backup_folder_name: String,
+    #[serde(rename = "createdAt")]
+    created_at: String,
 }
 
 fn resolve_source_slot_by_photo_folder(photo_folder_path: &str) -> i64 {
@@ -28,6 +40,189 @@ fn resolve_source_slot_by_photo_folder(photo_folder_path: &str) -> i64 {
     } else {
         1
     }
+}
+
+fn get_legacy_backup_path_path() -> Option<PathBuf> {
+    Some(get_alpheratz_setting_dir()?.join("backupPath.json"))
+}
+
+fn load_legacy_backup_paths(path: &PathBuf) -> Option<Vec<LegacyBackupPathEntry>> {
+    match fs::read_to_string(path) {
+        Ok(content) => match serde_json::from_str::<Vec<LegacyBackupPathEntry>>(&content) {
+            Ok(entries) => Some(entries),
+            Err(err) => {
+                crate::utils::log_warn(&format!(
+                    "旧バックアップ管理ファイルの JSON を解析できませんでした ({}): {}",
+                    path.display(),
+                    err
+                ));
+                None
+            }
+        },
+        Err(err) => {
+            crate::utils::log_warn(&format!(
+                "旧バックアップ管理ファイルを読み込めませんでした ({}): {}",
+                path.display(),
+                err
+            ));
+            None
+        }
+    }
+}
+
+fn upsert_cache_backup_entry(
+    conn: &Connection,
+    photo_folder_path: &str,
+    backup_folder_name: &str,
+    backup_path: &str,
+    created_at: &str,
+) -> Result<(), String> {
+    conn.execute(
+        "INSERT INTO cache_backups (photo_folder_path, backup_folder_name, backup_path, created_at)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(photo_folder_path) DO UPDATE SET
+             backup_folder_name = excluded.backup_folder_name,
+             backup_path = excluded.backup_path,
+             created_at = excluded.created_at",
+        rusqlite::params![photo_folder_path, backup_folder_name, backup_path, created_at],
+    )
+    .map_err(|err| {
+        format!(
+            "cache_backups を保存できません [{} -> {}]: {}",
+            photo_folder_path, backup_path, err
+        )
+    })?;
+    Ok(())
+}
+
+fn remove_cache_backup_entry(conn: &Connection, photo_folder_path: &str) -> Result<(), String> {
+    conn.execute(
+        "DELETE FROM cache_backups WHERE photo_folder_path = ?1",
+        rusqlite::params![photo_folder_path],
+    )
+    .map_err(|err| {
+        format!(
+            "cache_backups を削除できません [{}]: {}",
+            photo_folder_path, err
+        )
+    })?;
+    Ok(())
+}
+
+fn load_cache_backup_candidate(
+    conn: &Connection,
+    photo_folder_path: &str,
+) -> Result<Option<BackupCandidate>, String> {
+    conn.query_row(
+        "SELECT photo_folder_path, backup_folder_name, backup_path, created_at
+         FROM cache_backups
+         WHERE photo_folder_path = ?1",
+        rusqlite::params![photo_folder_path],
+        |row| {
+            Ok(BackupCandidate {
+                photo_folder_path: row.get(0)?,
+                backup_folder_name: row.get(1)?,
+                backup_path: row.get(2)?,
+                created_at: row.get(3)?,
+            })
+        },
+    )
+    .optional()
+    .map_err(|err| {
+        format!(
+            "cache_backups を取得できません [{}]: {}",
+            photo_folder_path, err
+        )
+    })
+}
+
+fn migrate_legacy_backup_paths_if_needed(conn: &Connection) -> Result<(), String> {
+    let Some(path) = get_legacy_backup_path_path() else {
+        return Ok(());
+    };
+    if !path.exists() {
+        return Ok(());
+    }
+
+    let Some(entries) = load_legacy_backup_paths(&path) else {
+        return Ok(());
+    };
+
+    if !entries.is_empty() {
+        let tx = conn.unchecked_transaction().map_err(|err| {
+            format!(
+                "旧バックアップ管理情報の移行トランザクションを開始できません: {}",
+                err
+            )
+        })?;
+
+        for entry in entries {
+            let photo_folder_path = entry.photo_folder_path.trim();
+            let backup_folder_name = entry.backup_folder_name.trim();
+            let created_at = entry.created_at.trim();
+            if photo_folder_path.is_empty() || backup_folder_name.is_empty() {
+                continue;
+            }
+
+            let source_slot = resolve_source_slot_by_photo_folder(photo_folder_path);
+            let slot_cache_name = if source_slot == 2 {
+                "2nd-cache"
+            } else {
+                "1st-cache"
+            };
+            let backup_path = get_alpheratz_data_legacy_backup_db_path(backup_folder_name, slot_cache_name)
+                .map(|path| path.to_string_lossy().to_string())
+                .unwrap_or_default();
+
+            tx.execute(
+                "INSERT INTO cache_backups (photo_folder_path, backup_folder_name, backup_path, created_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(photo_folder_path) DO UPDATE SET
+                     backup_folder_name = excluded.backup_folder_name,
+                     backup_path = excluded.backup_path,
+                     created_at = excluded.created_at",
+                rusqlite::params![photo_folder_path, backup_folder_name, backup_path, created_at],
+            )
+            .map_err(|err| {
+                format!(
+                    "旧バックアップ管理情報を移行できません [{} -> {}]: {}",
+                    photo_folder_path, backup_folder_name, err
+                )
+            })?;
+        }
+
+        tx.commit()
+            .map_err(|err| format!("旧バックアップ管理情報を確定できません: {}", err))?;
+    }
+
+    if let Err(err) = fs::remove_file(&path) {
+        crate::utils::log_warn(&format!(
+            "移行済みの旧バックアップ管理ファイルを削除できませんでした ({}): {}",
+            path.display(),
+            err
+        ));
+    }
+
+    Ok(())
+}
+
+fn get_alpheratz_data_legacy_backup_db_path(
+    backup_folder_name: &str,
+    slot_cache_name: &str,
+) -> Option<PathBuf> {
+    Some(
+        get_alpheratz_install_dir()?
+            .join("data")
+            .join("backup")
+            .join(backup_folder_name)
+            .join(slot_cache_name)
+            .join("dbCache")
+            .join("Alpheratz.db"),
+    )
+}
+
+fn has_db_cache_snapshot(db_path: &PathBuf) -> bool {
+    db_path.exists()
 }
 
 pub fn configured_source_slots() -> Vec<i64> {
@@ -261,6 +456,13 @@ fn ensure_alpheratz_schema(conn: &Connection) -> Result<(), String> {
              PRIMARY KEY (photo_path, tag_id)
          );
 
+         CREATE TABLE IF NOT EXISTS cache_backups (
+             photo_folder_path  TEXT PRIMARY KEY,
+             backup_folder_name TEXT NOT NULL,
+             backup_path        TEXT NOT NULL DEFAULT '',
+             created_at         TEXT NOT NULL
+         );
+
          CREATE INDEX IF NOT EXISTS idx_photos_timestamp ON photos(timestamp);
          CREATE INDEX IF NOT EXISTS idx_photos_world_name ON photos(world_name);
          CREATE INDEX IF NOT EXISTS idx_photos_is_favorite ON photos(is_favorite);
@@ -321,6 +523,13 @@ fn ensure_alpheratz_schema(conn: &Connection) -> Result<(), String> {
     // Intentional: リリース前整理として現行スキーマだけを残し、未使用テーブルを掃除する。
     conn.execute("DROP TABLE IF EXISTS photo_embeddings", [])
         .map_err(|e| format!("不要テーブル photo_embeddings の削除に失敗しました: {}", e))?;
+    add_column_if_missing(
+        conn,
+        "cache_backups",
+        "ALTER TABLE cache_backups ADD COLUMN backup_path TEXT NOT NULL DEFAULT ''",
+        "backup_path",
+    )?;
+    migrate_legacy_backup_paths_if_needed(conn)?;
     Ok(())
 }
 
@@ -691,31 +900,18 @@ pub fn get_backup_candidate(photo_folder_path: &str) -> Result<Option<BackupCand
     if normalized.is_empty() {
         return Ok(None);
     }
-
-    let backup_root = get_alpheratz_backup_dir()
-        .ok_or_else(|| "バックアップフォルダを取得できません".to_string())?;
-
-    let mut entries = load_backup_paths();
-    let candidate = entries
-        .iter()
-        .find(|entry| entry.photo_folder_path == normalized);
-
-    let Some(entry) = candidate.cloned() else {
+    let conn = open_alpheratz_connection(1)?;
+    let Some(entry) = load_cache_backup_candidate(&conn, normalized)? else {
         return Ok(None);
     };
 
-    let backup_dir = backup_root.join(&entry.backup_folder_name);
-    if !backup_dir.exists() {
-        entries.retain(|item| item.photo_folder_path != normalized);
-        save_backup_paths(&entries)?;
+    let backup_path = PathBuf::from(&entry.backup_path);
+    if !has_db_cache_snapshot(&backup_path) {
+        remove_cache_backup_entry(&conn, normalized)?;
         return Ok(None);
     }
 
-    Ok(Some(BackupCandidate {
-        photo_folder_path: entry.photo_folder_path,
-        backup_folder_name: entry.backup_folder_name,
-        created_at: entry.created_at,
-    }))
+    Ok(Some(entry))
 }
 
 pub fn create_cache_backup(photo_folder_path: &str) -> Result<Option<BackupCandidate>, String> {
@@ -724,111 +920,53 @@ pub fn create_cache_backup(photo_folder_path: &str) -> Result<Option<BackupCandi
         return Ok(None);
     }
 
-    let source_slot = resolve_source_slot_by_photo_folder(normalized);
-    let slot_cache_name = if source_slot == 2 {
-        "2nd-cache"
-    } else {
-        "1st-cache"
-    };
-    let img_cache_dir = get_alpheratz_img_cache_dir(source_slot)
-        .ok_or_else(|| "imgCache の保存先を取得できません".to_string())?;
-    let db_cache_dir = get_alpheratz_db_cache_dir(source_slot)
-        .ok_or_else(|| "dbCache の保存先を取得できません".to_string())?;
-
-    let has_img_cache = img_cache_dir.exists()
-        && fs::read_dir(&img_cache_dir)
-            .map_err(|err| {
-                format!(
-                    "imgCache を確認できません [{}]: {}",
-                    img_cache_dir.display(),
-                    err
-                )
-            })?
-            .next()
-            .is_some();
-    let has_db_cache = db_cache_dir.exists()
-        && fs::read_dir(&db_cache_dir)
-            .map_err(|err| {
-                format!(
-                    "dbCache を確認できません [{}]: {}",
-                    db_cache_dir.display(),
-                    err
-                )
-            })?
-            .next()
-            .is_some();
-
-    if !has_img_cache && !has_db_cache {
+    let active_db_path = get_alpheratz_db_path(1)
+        .ok_or_else(|| "Alpheratz DB の保存先を取得できません".to_string())?;
+    if !has_db_cache_snapshot(&active_db_path) {
         return Ok(None);
     }
 
-    let backup_root = get_alpheratz_backup_dir()
-        .ok_or_else(|| "バックアップフォルダを取得できません".to_string())?;
-    let backup_folder_name = format!("backup{}", Local::now().format("%Y%m%d%H%M%S"));
+    let checkpoint_conn = open_alpheratz_connection(1)?;
+    checkpoint_conn
+        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+        .map_err(|err| format!("DB バックアップ前の checkpoint に失敗しました: {}", err))?;
+    drop(checkpoint_conn);
+
+    let backup_root = get_alpheratz_db_backup_dir()
+        .ok_or_else(|| "dbCache バックアップフォルダを取得できません".to_string())?;
+    let backup_folder_name = Local::now().format("%Y%m%d%H%M%S").to_string();
     let backup_dir = backup_root.join(&backup_folder_name);
     fs::create_dir_all(&backup_dir).map_err(|err| {
         format!(
-            "バックアップフォルダを作成できません ({}): {}",
+            "db バックアップフォルダを作成できません ({}): {}",
             backup_dir.display(),
             err
         )
     })?;
-    let backup_slot_dir = backup_dir.join(slot_cache_name);
-    fs::create_dir_all(&backup_slot_dir).map_err(|err| {
+    let backup_db_path = backup_dir.join("Alpheratz.db");
+    fs::copy(&active_db_path, &backup_db_path).map_err(|err| {
         format!(
-            "バックアップ cache フォルダを作成できません ({}): {}",
-            backup_slot_dir.display(),
+            "Alpheratz DB をバックアップへコピーできません ({} -> {}): {}",
+            active_db_path.display(),
+            backup_db_path.display(),
             err
         )
     })?;
 
-    if has_img_cache {
-        fs::rename(&img_cache_dir, backup_slot_dir.join("imgCache")).map_err(|err| {
-            format!(
-                "imgCache をバックアップへ移動できません ({}): {}",
-                img_cache_dir.display(),
-                err
-            )
-        })?;
-        fs::create_dir_all(&img_cache_dir).map_err(|err| {
-            format!(
-                "移動後の imgCache を再作成できません ({}): {}",
-                img_cache_dir.display(),
-                err
-            )
-        })?;
-    }
-
-    if has_db_cache {
-        fs::rename(&db_cache_dir, backup_slot_dir.join("dbCache")).map_err(|err| {
-            format!(
-                "dbCache をバックアップへ移動できません ({}): {}",
-                db_cache_dir.display(),
-                err
-            )
-        })?;
-        fs::create_dir_all(&db_cache_dir).map_err(|err| {
-            format!(
-                "移動後の dbCache を再作成できません ({}): {}",
-                db_cache_dir.display(),
-                err
-            )
-        })?;
-    }
-
     let created_at = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-    let mut entries = load_backup_paths();
-    entries.retain(|entry| entry.photo_folder_path != normalized);
-    entries.push(BackupPathEntry {
-        photo_folder_path: normalized.to_string(),
-        backup_folder_name: backup_folder_name.clone(),
-        created_at: created_at.clone(),
-    });
-    save_backup_paths(&entries)?;
+    let conn = open_alpheratz_connection(1)?;
+    upsert_cache_backup_entry(
+        &conn,
+        normalized,
+        &backup_folder_name,
+        &backup_db_path.to_string_lossy(),
+        &created_at,
+    )?;
 
     Ok(Some(BackupCandidate {
         photo_folder_path: normalized.to_string(),
         backup_folder_name,
+        backup_path: backup_db_path.to_string_lossy().to_string(),
         created_at,
     }))
 }
@@ -843,30 +981,11 @@ pub fn restore_cache_backup(photo_folder_path: &str) -> Result<bool, String> {
         return Ok(false);
     };
 
-    let source_slot = resolve_source_slot_by_photo_folder(normalized);
-    let slot_cache_name = if source_slot == 2 {
-        "2nd-cache"
-    } else {
-        "1st-cache"
-    };
-    let backup_root = get_alpheratz_backup_dir()
-        .ok_or_else(|| "バックアップフォルダを取得できません".to_string())?;
-    let backup_dir = backup_root.join(&candidate.backup_folder_name);
-    let backup_slot_dir = backup_dir.join(slot_cache_name);
-    let backup_img_dir = backup_slot_dir.join("imgCache");
-    let backup_db_dir = backup_slot_dir.join("dbCache");
-    let active_img_dir = get_alpheratz_img_cache_dir(source_slot)
-        .ok_or_else(|| "imgCache の保存先を取得できません".to_string())?;
-    let active_db_dir = get_alpheratz_db_cache_dir(source_slot)
+    let backup_db_path = PathBuf::from(&candidate.backup_path);
+    let active_db_dir = get_alpheratz_db_cache_dir(1)
         .ok_or_else(|| "dbCache の保存先を取得できません".to_string())?;
-
-    clear_directory_contents(&active_img_dir).map_err(|err| {
-        format!(
-            "復元前の imgCache をクリアできません [{}]: {}",
-            active_img_dir.display(),
-            err
-        )
-    })?;
+    let active_db_path = get_alpheratz_db_path(1)
+        .ok_or_else(|| "Alpheratz DB の保存先を取得できません".to_string())?;
     clear_directory_contents(&active_db_dir).map_err(|err| {
         format!(
             "復元前の dbCache をクリアできません [{}]: {}",
@@ -875,58 +994,35 @@ pub fn restore_cache_backup(photo_folder_path: &str) -> Result<bool, String> {
         )
     })?;
 
-    if backup_img_dir.exists() {
-        fs::remove_dir_all(&active_img_dir).map_err(|err| {
+    if backup_db_path.exists() {
+        fs::copy(&backup_db_path, &active_db_path).map_err(|err| {
             format!(
-                "復元前の imgCache フォルダを削除できません [{}]: {}",
-                active_img_dir.display(),
-                err
-            )
-        })?;
-        fs::rename(&backup_img_dir, &active_img_dir).map_err(|err| {
-            format!(
-                "imgCache を復元できません ({}): {}",
-                backup_img_dir.display(),
+                "dbCache を復元できません ({} -> {}): {}",
+                backup_db_path.display(),
+                active_db_path.display(),
                 err
             )
         })?;
     }
 
-    if backup_db_dir.exists() {
-        fs::remove_dir_all(&active_db_dir).map_err(|err| {
-            format!(
-                "復元前の dbCache フォルダを削除できません [{}]: {}",
-                active_db_dir.display(),
-                err
-            )
-        })?;
-        fs::rename(&backup_db_dir, &active_db_dir).map_err(|err| {
-            format!(
-                "dbCache を復元できません ({}): {}",
-                backup_db_dir.display(),
-                err
-            )
-        })?;
-    }
-
-    if backup_slot_dir.exists() {
-        if let Err(err) = fs::remove_dir_all(&backup_slot_dir) {
-            crate::utils::log_warn(&format!(
-                "復元後の一時バックアップ フォルダを削除できません [{}]: {}",
-                backup_slot_dir.display(),
-                err
-            ));
+    if let Some(backup_dir) = backup_db_path.parent() {
+        if backup_db_path.exists() {
+            if let Err(err) = fs::remove_file(&backup_db_path) {
+                crate::utils::log_warn(&format!(
+                    "復元済みのバックアップ DB を削除できません [{}]: {}",
+                    backup_db_path.display(),
+                    err
+                ));
+            }
         }
-    }
-    if backup_dir.exists() {
-        let slot_entries_remaining = fs::read_dir(&backup_dir)
+        let has_remaining_files = fs::read_dir(backup_dir)
             .ok()
             .and_then(|mut entries| entries.next())
             .is_some();
-        if !slot_entries_remaining {
-            if let Err(err) = fs::remove_dir_all(&backup_dir) {
+        if !has_remaining_files {
+            if let Err(err) = fs::remove_dir_all(backup_dir) {
                 crate::utils::log_warn(&format!(
-                    "空のバックアップ ルートを削除できません [{}]: {}",
+                    "空のバックアップ フォルダを削除できません [{}]: {}",
                     backup_dir.display(),
                     err
                 ));
@@ -934,9 +1030,8 @@ pub fn restore_cache_backup(photo_folder_path: &str) -> Result<bool, String> {
         }
     }
 
-    let mut entries = load_backup_paths();
-    entries.retain(|entry| entry.photo_folder_path != normalized);
-    save_backup_paths(&entries)?;
+    let conn = open_alpheratz_connection(1)?;
+    remove_cache_backup_entry(&conn, normalized)?;
     Ok(true)
 }
 

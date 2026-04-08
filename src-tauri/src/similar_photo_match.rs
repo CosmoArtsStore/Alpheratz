@@ -4,13 +4,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::thread;
 
-use pdqhash::generate_pdq;
-use pdqhash::image::{self, DynamicImage};
 use rusqlite::Connection;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::db::open_alpheratz_connection;
+use crate::pdq_hash::generate_pdq;
+use crate::pdq_hash::image::{self, DynamicImage};
 use crate::utils;
 
 const PHASH_BATCH_SIZE: usize = 100;

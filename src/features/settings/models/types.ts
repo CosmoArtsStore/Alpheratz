@@ -14,5 +14,6 @@ export interface AppSetting {
 export interface BackupCandidate {
   photo_folder_path: string;
   backup_folder_name: string;
+  backup_path?: string;
   created_at: string;
 }

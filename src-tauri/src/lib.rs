@@ -7,7 +7,7 @@ use tauri::{generate_handler, AppHandle, Builder, State};
 use tauri_plugin_opener::OpenerExt;
 
 use orientation::{OrientationProgressPayload, OrientationWorkerState};
-use phash::{PHashProgressPayload, PHashWorkerState};
+use similar_photo_match::{PHashProgressPayload, PHashWorkerState};
 
 pub struct ScanCancelStatus(pub AtomicBool);
 
@@ -15,8 +15,9 @@ pub mod config;
 pub mod db;
 pub mod models;
 pub mod orientation;
-pub mod phash;
+mod pdq_hash;
 pub mod scanner;
+pub mod similar_photo_match;
 pub mod utils;
 
 use config::{load_setting, save_setting, AlpheratzSetting};
@@ -348,7 +349,7 @@ async fn initialize_scan(
         if let Err(err) = scanner::do_scan(app_clone.clone()) {
             crate::utils::log_err(&format!("スキャンに失敗しました: {err}"));
         } else {
-            phash::start_phash_worker(app_clone.clone());
+            similar_photo_match::start_phash_worker(app_clone.clone());
         }
     });
     Ok(())
@@ -644,13 +645,13 @@ fn save_startup_preference_cmd(enabled: bool) -> Result<(), String> {
 
 #[tauri::command]
 async fn start_phash_calculation_cmd(app: AppHandle) -> Result<(), String> {
-    phash::start_phash_worker(app);
+    similar_photo_match::start_phash_worker(app);
     Ok(())
 }
 
 #[tauri::command]
 fn get_phash_progress_cmd(app: AppHandle) -> PHashProgressPayload {
-    phash::get_phash_progress(&app)
+    similar_photo_match::get_phash_progress(&app)
 }
 
 #[tauri::command]
@@ -687,7 +688,7 @@ pub fn run() {
             progress: std::sync::Mutex::new(OrientationProgressPayload::default()),
         })
         .setup(|app| {
-            let has_pending = match phash::has_pending_phash() {
+            let has_pending = match similar_photo_match::has_pending_phash() {
                 Ok(value) => value,
                 Err(err) => {
                     utils::log_warn(&format!(
@@ -698,7 +699,7 @@ pub fn run() {
                 }
             };
             if has_pending {
-                phash::start_phash_worker(app.handle().clone());
+                similar_photo_match::start_phash_worker(app.handle().clone());
             }
             Ok(())
         })
