@@ -9,11 +9,13 @@ use crate::db::open_alpheratz_connection;
 
 const ORIENTATION_BATCH_SIZE: usize = 200;
 
+/// Shared state used by the background orientation worker.
 pub struct OrientationWorkerState {
     pub running: AtomicBool,
     pub progress: Mutex<OrientationProgressPayload>,
 }
 
+/// Progress payload emitted while orientation analysis is running.
 #[derive(Clone, Debug, Serialize, Default)]
 pub struct OrientationProgressPayload {
     pub done: usize,
@@ -21,6 +23,10 @@ pub struct OrientationProgressPayload {
     pub current: Option<String>,
 }
 
+/// Starts the background worker that fills missing orientation metadata.
+///
+/// Repeated calls are ignored while a worker is already running so the UI can safely
+/// trigger this after scans without creating overlapping jobs.
 pub fn start_orientation_worker(app: AppHandle) {
     let state = app.state::<OrientationWorkerState>();
     if state.running.swap(true, Ordering::SeqCst) {
@@ -41,6 +47,7 @@ pub fn start_orientation_worker(app: AppHandle) {
     });
 }
 
+/// Returns the latest in-memory orientation progress snapshot.
 pub fn get_orientation_progress(app: &AppHandle) -> OrientationProgressPayload {
     let state = app.state::<OrientationWorkerState>();
     let progress = match state.progress.lock() {
@@ -53,6 +60,10 @@ pub fn get_orientation_progress(app: &AppHandle) -> OrientationProgressPayload {
     progress
 }
 
+/// Checks whether any photo still needs orientation or dimension analysis.
+///
+/// # Errors
+/// Returns an error if the cache database cannot be queried.
 pub fn has_pending_orientation() -> Result<bool, String> {
     let conn = open_alpheratz_connection(1)?;
     let count = conn

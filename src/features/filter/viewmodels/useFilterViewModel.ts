@@ -46,6 +46,14 @@ const getDateRangeFromPreset = (preset: Exclude<DatePreset, 'none' | 'custom'>) 
   return { from: formatDate(from), to: formatDate(to) };
 };
 
+/**
+ * Manages the global filter state used when querying photos.
+ *
+ * The hook keeps date preset logic near the raw filter state so the rest of the UI can
+ * consume already-normalized strings and counts.
+ *
+ * @returns Filter state, setter helpers, preset actions, and the active filter count.
+ */
 export const useFilterViewModel = () => {
   const [worldFilters, setWorldFilters] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);

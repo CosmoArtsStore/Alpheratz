@@ -9,6 +9,7 @@ use tauri_plugin_opener::OpenerExt;
 use orientation::{OrientationProgressPayload, OrientationWorkerState};
 use similar_photo_match::{PHashProgressPayload, PHashWorkerState};
 
+/// Shared cancel flag used by the folder scan worker.
 pub struct ScanCancelStatus(pub AtomicBool);
 
 pub mod config;
@@ -24,6 +25,7 @@ use config::{load_setting, save_setting, AlpheratzSetting};
 use db::init_alpheratz_db;
 use models::{DisplayPhotoItemRecord, PhotoQuery, PhotoRecord};
 
+/// Builds the regex used to validate `VRChat` world ids before opening URLs.
 fn compile_world_id_regex() -> Regex {
     match Regex::new(r"^wrld_[A-Za-z0-9_-]+$") {
         Ok(regex) => regex,
@@ -58,6 +60,7 @@ struct SimilarGroupRequest {
     limit: Option<usize>,
 }
 
+/// Parses stored pHash variants from the pipe-separated database representation.
 fn parse_hash_variants(value: Option<&str>) -> Vec<String> {
     value
         .unwrap_or_default()
@@ -67,6 +70,7 @@ fn parse_hash_variants(value: Option<&str>) -> Vec<String> {
         .collect()
 }
 
+/// Computes the nibble-wise Hamming distance between two hexadecimal hashes.
 fn get_hamming_distance(left: &str, right: &str) -> Option<u32> {
     if left.len() != right.len() {
         return None;
@@ -81,6 +85,7 @@ fn get_hamming_distance(left: &str, right: &str) -> Option<u32> {
     Some(distance)
 }
 
+/// Returns the closest Hamming distance across all hash-variant combinations.
 fn get_closest_hash_distance(left: &[String], right: &[String]) -> Option<u32> {
     if left.is_empty() || right.is_empty() {
         return None;
@@ -104,10 +109,12 @@ fn get_closest_hash_distance(left: &[String], right: &[String]) -> Option<u32> {
     (best != u32::MAX).then_some(best)
 }
 
+/// Normalizes world names for loose grouping comparisons.
 fn normalize_world_name(value: Option<&str>) -> String {
     value.unwrap_or_default().trim().to_lowercase()
 }
 
+/// Checks whether two photos are compatible enough to compare as similar neighbors.
 fn can_group_by_photo_meta(left: &PhotoRecord, right: &PhotoRecord) -> bool {
     let left_world = normalize_world_name(left.world_name.as_deref());
     let right_world = normalize_world_name(right.world_name.as_deref());
@@ -127,6 +134,7 @@ fn can_group_by_photo_meta(left: &PhotoRecord, right: &PhotoRecord) -> bool {
     left.source_slot == right.source_slot
 }
 
+/// Determines whether two adjacent photos should belong to the same similarity group.
 fn are_adjacent_photos_similar(left: &PhotoRecord, right: &PhotoRecord) -> bool {
     if !can_group_by_photo_meta(left, right) {
         return false;
@@ -137,6 +145,7 @@ fn are_adjacent_photos_similar(left: &PhotoRecord, right: &PhotoRecord) -> bool 
     matches!(get_closest_hash_distance(&left_hashes, &right_hashes), Some(distance) if distance <= 124)
 }
 
+/// Builds adjacent similarity groups from an ordered photo list.
 fn build_adjacent_similar_photo_groups(photos: &[PhotoRecord]) -> Vec<Vec<PhotoRecord>> {
     let mut groups = Vec::new();
     let mut current_group: Vec<PhotoRecord> = Vec::new();
@@ -174,6 +183,7 @@ fn build_adjacent_similar_photo_groups(photos: &[PhotoRecord]) -> Vec<Vec<PhotoR
     groups
 }
 
+/// Builds the similarity group surrounding a chosen anchor photo.
 fn build_adjacent_similar_photo_group(
     photos: &[PhotoRecord],
     anchor_photo_path: &str,
@@ -213,6 +223,7 @@ fn build_adjacent_similar_photo_group(
     photos[start..=end].to_vec()
 }
 
+/// Groups photos by resolved world name for the world-grouping mode.
 fn build_world_grouped_photo_items(photos: &[PhotoRecord]) -> Vec<DisplayPhotoItemRecord> {
     let mut groups = std::collections::BTreeMap::<String, Vec<PhotoRecord>>::new();
     for photo in photos {
@@ -256,6 +267,7 @@ fn build_world_grouped_photo_items(photos: &[PhotoRecord]) -> Vec<DisplayPhotoIt
         .collect()
 }
 
+/// Builds display items for the requested grouping mode.
 fn build_display_photo_items(
     photos: &[PhotoRecord],
     grouping_mode: &str,
@@ -282,6 +294,7 @@ fn build_display_photo_items(
     }
 }
 
+/// Expands a tweet template into the final tweet text for a photo.
 fn build_tweet_text(photo: &PhotoRecord, template: &str) -> String {
     let world = photo
         .world_name
@@ -332,12 +345,14 @@ fn build_tweet_text(photo: &PhotoRecord, template: &str) -> String {
 
 // --- Commands ---
 
+/// Requests cancellation of the running folder scan.
 #[tauri::command]
 async fn cancel_scan(cancel_status: State<'_, ScanCancelStatus>) -> Result<(), String> {
     cancel_status.0.store(true, Ordering::SeqCst);
     Ok(())
 }
 
+/// Starts the folder scan and schedules pHash generation after success.
 #[tauri::command]
 async fn initialize_scan(
     app: AppHandle,
@@ -355,11 +370,13 @@ async fn initialize_scan(
     Ok(())
 }
 
+/// Returns photos that match the provided frontend query.
 #[tauri::command]
 async fn get_photos(query: PhotoQuery) -> Result<Vec<PhotoRecord>, String> {
     db::get_photos(query)
 }
 
+/// Creates a larger display thumbnail on a blocking worker thread.
 #[tauri::command]
 async fn create_display_thumbnail(
     path: String,
@@ -379,6 +396,7 @@ async fn create_display_thumbnail(
     })?
 }
 
+/// Creates a grid thumbnail on a blocking worker thread.
 #[tauri::command]
 async fn create_grid_thumbnail(path: String, source_slot: Option<i64>) -> Result<String, String> {
     let display_path = path.clone();
@@ -395,6 +413,7 @@ async fn create_grid_thumbnail(path: String, source_slot: Option<i64>) -> Result
     })?
 }
 
+/// Saves a photo memo and returns the refreshed record.
 #[tauri::command]
 async fn save_photo_memo_cmd(
     photo_path: String,
@@ -405,16 +424,19 @@ async fn save_photo_memo_cmd(
     db::get_photo_record(source_slot, &photo_path, true)
 }
 
+/// Loads the saved memo text for a photo.
 #[tauri::command]
 async fn get_photo_memo_cmd(photo_path: String, source_slot: i64) -> Result<String, String> {
     db::get_photo_memo(source_slot, &photo_path)
 }
 
+/// Loads the saved tags for a photo.
 #[tauri::command]
 async fn get_photo_tags_cmd(photo_path: String, source_slot: i64) -> Result<Vec<String>, String> {
     db::get_photo_tags(source_slot, &photo_path)
 }
 
+/// Toggles the favorite flag for one photo and returns the refreshed record.
 #[tauri::command]
 async fn set_photo_favorite_cmd(
     photo_path: String,
@@ -425,6 +447,7 @@ async fn set_photo_favorite_cmd(
     db::get_photo_record(source_slot, &photo_path, true)
 }
 
+/// Toggles the favorite flag for a batch of photos.
 #[tauri::command]
 async fn bulk_set_photo_favorite_cmd(
     photos: Vec<PhotoBatchEntry>,
@@ -442,6 +465,7 @@ async fn bulk_set_photo_favorite_cmd(
     Ok(updated_photos)
 }
 
+/// Adds a tag to one photo and returns the refreshed record.
 #[tauri::command]
 async fn add_photo_tag_cmd(
     photo_path: String,
@@ -452,6 +476,7 @@ async fn add_photo_tag_cmd(
     db::get_photo_record(source_slot, &photo_path, true)
 }
 
+/// Adds the same tag to a batch of photos.
 #[tauri::command]
 async fn bulk_add_photo_tag_cmd(
     photos: Vec<PhotoBatchEntry>,
@@ -469,6 +494,7 @@ async fn bulk_add_photo_tag_cmd(
     Ok(updated_photos)
 }
 
+/// Removes a tag from one photo and returns the refreshed record.
 #[tauri::command]
 async fn remove_photo_tag_cmd(
     photo_path: String,
@@ -479,26 +505,31 @@ async fn remove_photo_tag_cmd(
     db::get_photo_record(source_slot, &photo_path, true)
 }
 
+/// Lists all tag masters.
 #[tauri::command]
 fn get_all_tags_cmd() -> Result<Vec<String>, String> {
     db::get_all_tags()
 }
 
+/// Creates a tag master entry.
 #[tauri::command]
 fn create_tag_master_cmd(tag: String) -> Result<(), String> {
     db::create_tag_master(&tag)
 }
 
+/// Deletes a tag master entry.
 #[tauri::command]
 fn delete_tag_master_cmd(tag: String) -> Result<(), String> {
     db::delete_tag_master(&tag)
 }
 
+/// Clears the photo cache database and generated assets.
 #[tauri::command]
 async fn reset_photo_cache_cmd() -> Result<(), String> {
     db::reset_photo_cache()
 }
 
+/// Loads cache-backup metadata for a photo folder.
 #[tauri::command]
 fn get_backup_candidate_cmd(
     photo_folder_path: String,
@@ -506,6 +537,7 @@ fn get_backup_candidate_cmd(
     db::get_backup_candidate(&photo_folder_path)
 }
 
+/// Creates a cache backup for a photo folder.
 #[tauri::command]
 fn create_cache_backup_cmd(
     photo_folder_path: String,
@@ -513,11 +545,13 @@ fn create_cache_backup_cmd(
     db::create_cache_backup(&photo_folder_path)
 }
 
+/// Restores a cache backup for a photo folder.
 #[tauri::command]
 fn restore_cache_backup_cmd(photo_folder_path: String) -> Result<bool, String> {
     db::restore_cache_backup(&photo_folder_path)
 }
 
+/// Opens the `VRChat` world page for a validated world id.
 #[tauri::command]
 async fn open_world_url(app: AppHandle, world_id: String) -> Result<(), String> {
     if !WORLD_ID_RE.is_match(&world_id) {
@@ -530,6 +564,7 @@ async fn open_world_url(app: AppHandle, world_id: String) -> Result<(), String> 
     Ok(())
 }
 
+/// Opens a validated tweet-intent URL in the browser.
 #[tauri::command]
 async fn open_tweet_intent_cmd(app: AppHandle, intent_url: String) -> Result<(), String> {
     if !intent_url.starts_with("https://twitter.com/intent/tweet?text=")
@@ -549,6 +584,7 @@ async fn open_tweet_intent_cmd(app: AppHandle, intent_url: String) -> Result<(),
     Ok(())
 }
 
+/// Builds grouped display items for the frontend without round-tripping grouping logic.
 #[tauri::command]
 fn build_display_photo_items_cmd(
     request: PhotoGroupingRequest,
@@ -559,6 +595,7 @@ fn build_display_photo_items_cmd(
     ))
 }
 
+/// Returns the similarity group surrounding an anchor photo.
 #[tauri::command]
 fn get_adjacent_similar_photo_group_cmd(
     request: SimilarGroupRequest,
@@ -570,6 +607,7 @@ fn get_adjacent_similar_photo_group_cmd(
     Ok(group)
 }
 
+/// Builds a tweet intent for a photo, opens it, and reveals the file in Explorer.
 #[tauri::command]
 async fn tweet_photo_cmd(
     app: AppHandle,
@@ -589,6 +627,7 @@ async fn tweet_photo_cmd(
     show_in_explorer(photo.photo_path).await
 }
 
+/// Reveals a file in the platform file manager.
 #[tauri::command]
 async fn show_in_explorer(path: String) -> Result<(), String> {
     let path_ref = Path::new(&path);
@@ -599,6 +638,7 @@ async fn show_in_explorer(path: String) -> Result<(), String> {
         .map_err(|err| format!("エクスプローラーで表示できません [{path}]: {err}"))
 }
 
+/// Copies multiple photos on a blocking worker thread.
 #[tauri::command]
 async fn bulk_copy_photos_cmd(
     photo_paths: Vec<String>,
@@ -617,22 +657,26 @@ async fn bulk_copy_photos_cmd(
     })?
 }
 
+/// Loads the persisted application settings.
 #[tauri::command]
 fn get_setting_cmd() -> AlpheratzSetting {
     load_setting()
 }
 
+/// Saves the persisted application settings.
 #[tauri::command]
 fn save_setting_cmd(setting: AlpheratzSetting) -> Result<(), String> {
     save_setting(&setting)
 }
 
+/// Returns the saved startup-enabled flag and whether the user has set it before.
 #[tauri::command]
 fn get_startup_preference_cmd() -> (bool, bool) {
     let setting = load_setting();
     (setting.enable_startup, setting.startup_preference_set)
 }
 
+/// Saves the startup preference and updates OS startup registration.
 #[tauri::command]
 fn save_startup_preference_cmd(enabled: bool) -> Result<(), String> {
     let mut setting = load_setting();
@@ -643,28 +687,48 @@ fn save_startup_preference_cmd(enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// Starts the background pHash worker.
 #[tauri::command]
 async fn start_phash_calculation_cmd(app: AppHandle) -> Result<(), String> {
     similar_photo_match::start_phash_worker(app);
     Ok(())
 }
 
+/// Returns the latest pHash progress snapshot.
 #[tauri::command]
 fn get_phash_progress_cmd(app: AppHandle) -> PHashProgressPayload {
     similar_photo_match::get_phash_progress(&app)
 }
 
+/// Starts the background orientation worker.
 #[tauri::command]
 async fn start_orientation_calculation_cmd(app: AppHandle) -> Result<(), String> {
     orientation::start_orientation_worker(app);
     Ok(())
 }
 
+/// Returns the latest orientation progress snapshot.
 #[tauri::command]
 fn get_orientation_progress_cmd(app: AppHandle) -> OrientationProgressPayload {
     orientation::get_orientation_progress(&app)
 }
 
+/// Resolves unknown-world photos from the archived `Polaris` logs.
+#[tauri::command]
+fn resolve_unknown_worlds_from_archive_cmd() -> Result<usize, String> {
+    scanner::resolve_unknown_worlds_from_archive()
+}
+
+/// Resolves unknown-world photos from already known similar photos.
+#[tauri::command]
+fn resolve_unknown_worlds_from_similar_photos_cmd() -> Result<usize, String> {
+    scanner::resolve_unknown_worlds_from_similar_photos()
+}
+
+/// Initializes shared state, registers commands, and runs the Tauri app.
+///
+/// Database initialization happens before the window is built so command handlers can
+/// assume the cache schema already exists.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if let Err(err) = init_alpheratz_db() {
@@ -739,6 +803,8 @@ pub fn run() {
             get_phash_progress_cmd,
             start_orientation_calculation_cmd,
             get_orientation_progress_cmd,
+            resolve_unknown_worlds_from_archive_cmd,
+            resolve_unknown_worlds_from_similar_photos_cmd,
         ])
         .run(tauri::generate_context!());
 

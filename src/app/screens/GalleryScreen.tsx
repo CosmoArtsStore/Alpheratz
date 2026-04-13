@@ -43,6 +43,7 @@ const ROW_HEIGHT = 246;
 type GroupingMode = 'none' | 'similar' | 'world';
 const MAX_SIMILAR_PHOTOS_IN_MODAL = 24;
 
+/** Main gallery screen that composes scanning, filtering, browsing, and editing flows. */
 function GalleryScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -150,6 +151,10 @@ function GalleryScreen() {
     handleChooseFolder,
     handleStartupPreference,
     handleThemeToggle,
+    isArchiveResolutionRunning,
+    isSimilarResolutionRunning,
+    handleResolveUnknownWorldsFromArchive,
+    handleResolveUnknownWorldsFromSimilarPhotos,
     createTagMaster,
     deleteTagMaster,
     handleViewModeChange,
@@ -1000,6 +1005,14 @@ function GalleryScreen() {
           }}
           themeMode={themeMode}
           onToggleTheme={handleThemeToggle}
+          isArchiveResolutionRunning={isArchiveResolutionRunning}
+          isSimilarResolutionRunning={isSimilarResolutionRunning}
+          onResolveUnknownWorldsFromArchive={() => {
+            void handleResolveUnknownWorldsFromArchive();
+          }}
+          onResolveUnknownWorldsFromSimilarPhotos={() => {
+            void handleResolveUnknownWorldsFromSimilarPhotos();
+          }}
           masterTags={masterTags}
           onCreateTagMaster={createTagMaster}
           onDeleteTagMaster={deleteTagMaster}

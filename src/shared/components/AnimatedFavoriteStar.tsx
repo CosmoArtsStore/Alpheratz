@@ -9,6 +9,7 @@ interface AnimatedFavoriteStarProps {
   onClick?: () => void;
 }
 
+/** Animated favorite star that can render as display-only or interactive control. */
 export const AnimatedFavoriteStar = ({
   liked,
   interactive = false,

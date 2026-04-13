@@ -5,6 +5,7 @@ import '../index.css';
 import '../App.light.css';
 import '../App.dark.css';
 
+/** Root DOM node required to mount the React application. */
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {

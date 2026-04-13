@@ -9,6 +9,7 @@ interface ActionCardsProps {
   setIsFilterOpen: (val: boolean) => void;
 }
 
+/** Dashboard-style action buttons for scan, settings, and filters. */
 export const ActionCards = ({
   startScan,
   cancelScan,

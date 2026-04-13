@@ -136,6 +136,12 @@
   background: var(--a-accent-light);
 }
 
+.action-button:disabled,
+.primary-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .toggle-row {
   display: flex;
   align-items: center;
@@ -145,6 +151,18 @@
 
 .toggle-text {
   margin: 0;
+}
+
+.helper-text {
+  margin: 0;
+  color: var(--a-text-faint);
+  font-size: 0.84rem;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
 
 .toggle {

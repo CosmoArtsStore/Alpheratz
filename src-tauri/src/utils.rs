@@ -53,6 +53,13 @@ fn get_monthly_log_path(base_dir: &Path) -> PathBuf {
     base_dir.join(format!("{LOG_FILE_PREFIX}_{month}.log"))
 }
 
+/// Looks up a component install directory from the shared registry layout.
+///
+/// # Arguments
+/// * `component` - Registry component key such as `Alpheratz` or `STELLA_RECORD`.
+///
+/// # Returns
+/// The existing install directory path when the registry entry is present and valid.
 pub fn get_registry_component_install_dir(component: &str) -> Option<PathBuf> {
     let key_path = format!("{}\\{}", REGISTRY_BASE_KEY, component);
     let key = match RegKey::predef(HKEY_CURRENT_USER).open_subkey(&key_path) {
@@ -92,10 +99,12 @@ pub fn get_registry_component_install_dir(component: &str) -> Option<PathBuf> {
     }
 }
 
+/// Resolves the installed `Alpheratz` directory.
 pub fn get_alpheratz_install_dir() -> Option<PathBuf> {
     get_registry_component_install_dir("Alpheratz")
 }
 
+/// Resolves and creates the shared `Alpheratz` data directory.
 pub fn get_alpheratz_data_dir() -> Option<PathBuf> {
     let data_dir = get_alpheratz_install_dir()?.join("data");
     if let Err(err) = fs::create_dir_all(&data_dir) {
@@ -112,6 +121,7 @@ pub fn get_alpheratz_data_dir() -> Option<PathBuf> {
     Some(data_dir)
 }
 
+/// Resolves and creates the `Alpheratz` log directory.
 pub fn get_alpheratz_log_dir() -> Option<PathBuf> {
     let log_dir = get_alpheratz_data_dir()?.join("log");
     if let Err(err) = fs::create_dir_all(&log_dir) {
@@ -128,6 +138,7 @@ pub fn get_alpheratz_log_dir() -> Option<PathBuf> {
     Some(log_dir)
 }
 
+/// Resolves and creates the shared cache root for `Alpheratz`.
 pub fn get_alpheratz_cache_dir() -> Option<PathBuf> {
     let cache_dir = get_alpheratz_data_dir()?.join("cache");
     if let Err(err) = fs::create_dir_all(&cache_dir) {
@@ -152,6 +163,7 @@ fn slot_cache_folder_name(source_slot: i64) -> &'static str {
     }
 }
 
+/// Resolves the cache directory for the given source slot.
 pub fn get_alpheratz_slot_cache_dir(source_slot: i64) -> Option<PathBuf> {
     let slot_cache_dir = get_alpheratz_cache_dir()?.join(slot_cache_folder_name(source_slot));
     if let Err(err) = fs::create_dir_all(&slot_cache_dir) {
@@ -168,6 +180,7 @@ pub fn get_alpheratz_slot_cache_dir(source_slot: i64) -> Option<PathBuf> {
     Some(slot_cache_dir)
 }
 
+/// Resolves and creates the settings directory.
 pub fn get_alpheratz_setting_dir() -> Option<PathBuf> {
     let setting_dir = get_alpheratz_data_dir()?.join("setting");
     if let Err(err) = fs::create_dir_all(&setting_dir) {
@@ -184,6 +197,7 @@ pub fn get_alpheratz_setting_dir() -> Option<PathBuf> {
     Some(setting_dir)
 }
 
+/// Resolves and creates the backup root directory.
 pub fn get_alpheratz_backup_dir() -> Option<PathBuf> {
     let backup_dir = get_alpheratz_cache_dir()?.join("backup");
     if let Err(err) = fs::create_dir_all(&backup_dir) {
@@ -200,6 +214,7 @@ pub fn get_alpheratz_backup_dir() -> Option<PathBuf> {
     Some(backup_dir)
 }
 
+/// Resolves and creates the database-backup directory.
 pub fn get_alpheratz_db_backup_dir() -> Option<PathBuf> {
     let backup_dir = get_alpheratz_backup_dir()?.join("dbcache");
     if let Err(err) = fs::create_dir_all(&backup_dir) {
@@ -216,6 +231,7 @@ pub fn get_alpheratz_db_backup_dir() -> Option<PathBuf> {
     Some(backup_dir)
 }
 
+/// Resolves and creates the shared database cache directory.
 pub fn get_alpheratz_db_cache_dir(_source_slot: i64) -> Option<PathBuf> {
     let db_cache_dir = get_alpheratz_cache_dir()?
         .join("shared-cache")
@@ -234,6 +250,7 @@ pub fn get_alpheratz_db_cache_dir(_source_slot: i64) -> Option<PathBuf> {
     Some(db_cache_dir)
 }
 
+/// Resolves and creates the image-cache directory for a source slot.
 pub fn get_alpheratz_img_cache_dir(source_slot: i64) -> Option<PathBuf> {
     let img_cache_dir = get_alpheratz_slot_cache_dir(source_slot)?.join("imgCache");
     if let Err(err) = fs::create_dir_all(&img_cache_dir) {
@@ -250,6 +267,13 @@ pub fn get_alpheratz_img_cache_dir(source_slot: i64) -> Option<PathBuf> {
     Some(img_cache_dir)
 }
 
+/// Removes every file and directory inside the target directory.
+///
+/// # Arguments
+/// * `dir` - Directory whose contents should be cleared.
+///
+/// # Errors
+/// Returns an error if any contained entry cannot be enumerated or removed.
 pub fn clear_directory_contents(dir: &Path) -> Result<(), String> {
     if !dir.exists() {
         return Ok(());
@@ -294,11 +318,12 @@ pub fn clear_directory_contents(dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-pub fn get_stella_record_install_dir() -> Option<PathBuf> {
-    get_registry_component_install_dir("STELLA_RECORD")
-        .or_else(|| get_registry_component_install_dir("StellaRecord"))
+/// Resolves the installed `Polaris` directory from the registry.
+pub fn get_polaris_install_dir() -> Option<PathBuf> {
+    get_registry_component_install_dir("Polaris")
 }
 
+/// Writes one structured log line to the current monthly log file.
 pub fn log_msg(level: &str, msg: &str) {
     if let Some(log_dir) = get_alpheratz_log_dir() {
         let path = get_monthly_log_path(&log_dir);
@@ -324,14 +349,21 @@ pub fn log_msg(level: &str, msg: &str) {
     }
 }
 
+/// Writes a warning-level log line.
 pub fn log_warn(msg: &str) {
     log_msg("WARN", msg);
 }
 
+/// Writes an error-level log line.
 pub fn log_err(msg: &str) {
     log_msg("ERROR", msg);
 }
 
+/// Resolves the legacy thumbnail cache directory under the install root.
+///
+/// # Errors
+/// Returns an error if the install directory cannot be resolved or the cache directory
+/// cannot be created.
 pub fn get_thumbnail_cache_dir() -> Result<PathBuf, String> {
     let install_dir = get_alpheratz_install_dir()
         .ok_or_else(|| "Alpheratz のインストール先を取得できません".to_string())?;
@@ -379,20 +411,32 @@ fn create_thumbnail_file_with_size(
     Ok(cache_path.to_string_lossy().to_string())
 }
 
+/// Creates or reuses a standard thumbnail file for a photo.
 pub fn create_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
     create_thumbnail_file_with_size(path, source_slot, 192, "pdq.v1")
 }
 
+/// Creates or reuses a larger thumbnail file for detail views.
 pub fn create_display_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    // 大きめ表示向けキャッシュ。小さい一覧には使わない。
     create_thumbnail_file_with_size(path, source_slot, 514, "display.v2")
 }
 
+/// Creates or reuses a medium-size thumbnail file for gallery grids.
 pub fn create_grid_thumbnail_file(path: &str, source_slot: i64) -> Result<String, String> {
-    // WebView2 GPU プロセスの負荷を抑えつつ視認性を保つため、一覧表示は中間サイズにする。
     create_thumbnail_file_with_size(path, source_slot, 384, "grid.v2")
 }
 
+/// Copies multiple photos into a destination directory.
+///
+/// # Arguments
+/// * `photo_paths` - Absolute source photo paths to copy.
+/// * `destination_dir` - Existing destination directory path.
+///
+/// # Returns
+/// The number of copied files.
+///
+/// # Errors
+/// Returns an error if the destination is invalid or any source file cannot be copied.
 pub fn copy_photo_files(photo_paths: &[String], destination_dir: &str) -> Result<usize, String> {
     let destination_path = Path::new(destination_dir);
     if !destination_path.exists() {
@@ -468,6 +512,14 @@ fn unique_copy_target(destination_dir: &Path, file_name: &std::ffi::OsStr) -> Pa
     }
 }
 
+/// Enables or disables Windows login startup for the current executable.
+///
+/// # Arguments
+/// * `value_name` - Registry value name used under the Run key.
+/// * `enabled` - Whether startup registration should exist.
+///
+/// # Errors
+/// Returns an error if the Run key cannot be updated.
 pub fn set_startup_enabled(value_name: &str, enabled: bool) -> Result<(), String> {
     let run_key = RegKey::predef(HKEY_CURRENT_USER)
         .create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Run")

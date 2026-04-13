@@ -2,6 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DisplayPhotoItem } from '../../shared/models/types';
 import type { Photo } from '../../features/photo/models/types';
 
+/**
+ * Tracks photo selection state, including shift-range selection.
+ *
+ * The hook keeps selection logic independent from the rendering mode so both the
+ * standard grid and grouped displays can share the same behavior.
+ *
+ * @param photos Currently visible photo records.
+ * @param displayPhotoItems Rendered display items used to resolve range selection.
+ * @returns Selection state plus helpers for toggling and clearing selections.
+ */
 export const usePhotoSelection = (photos: Photo[], displayPhotoItems: DisplayPhotoItem[]) => {
   const [selectedPhotoPaths, setSelectedPhotoPaths] = useState<string[]>([]);
   const [selectionAnchorPhotoPath, setSelectionAnchorPhotoPath] = useState<string | null>(null);

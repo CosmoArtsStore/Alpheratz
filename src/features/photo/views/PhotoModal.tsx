@@ -74,6 +74,7 @@ const SimilarPhotoThumb = ({
   );
 };
 
+/** Full photo-detail modal with memo, tag, favorite, and navigation controls. */
 export const PhotoModal = ({
   photo,
   allTags,
@@ -104,7 +105,7 @@ export const PhotoModal = ({
 
   const availableTags = allTags.filter((tag) => !photo.tags.includes(tag));
   const hasAvailableTags = availableTags.length > 0;
-  const isDbMatched = photo.match_source === 'stella_db';
+  const isArchiveMatched = photo.match_source === 'polaris_archive';
   const isPhashMatched = photo.match_source === 'phash';
 
   const addExistingTag = () => {
@@ -237,11 +238,11 @@ export const PhotoModal = ({
               <div>
                 <div className={styles['meta-badges']}>
                   <span
-                    className={[styles['meta-badge'], isDbMatched ? styles['active-db'] : '']
+                    className={[styles['meta-badge'], isArchiveMatched ? styles['active-db'] : '']
                       .filter(Boolean)
                       .join(' ')}
                   >
-                    STELLA DB
+                    archive
                   </span>
                   <span
                     className={[styles['meta-badge'], isPhashMatched ? styles['active-phash'] : '']

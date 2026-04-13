@@ -1,5 +1,6 @@
 import styles from './Icons.module.css';
 
+/** Shared inline SVG icon set used across the gallery UI. */
 export const Icons = {
   Menu: () => (
     <svg

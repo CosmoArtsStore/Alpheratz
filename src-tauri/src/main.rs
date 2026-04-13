@@ -3,9 +3,10 @@
 use std::panic;
 use std::process;
 
+/// Application name used in fatal-error UI messages.
 const APP_NAME: &str = "Alpheratz";
 
-/// Windowsネイティブのメッセージボックスを表示する
+/// Shows a native fatal-error dialog on Windows builds.
 #[cfg(target_os = "windows")]
 fn show_fatal_error(msg: &str) {
     use windows::core::PCWSTR;
@@ -27,14 +28,17 @@ fn show_fatal_error(msg: &str) {
     }
 }
 
+/// No-op fallback for unsupported non-Windows builds.
 #[cfg(not(target_os = "windows"))]
 fn show_fatal_error(msg: &str) {
     // Intentional no-op: this app targets Windows-only (VRC users), so non-Windows builds are unsupported.
 }
 
+/// Installs a panic hook and launches the Tauri application.
+///
+/// The custom panic hook exists so release builds still surface fatal errors to users
+/// and write them to the log instead of failing silently.
 fn main() {
-    // 1. パニックフックの設定
-    // リリースビルド（Windowsサブシステム）でのサイレントクラッシュを防止
     panic::set_hook(Box::new(|info| {
         let location = match info.location() {
             Some(l) => format!("at {}:{}", l.file(), l.line()),
@@ -55,17 +59,12 @@ fn main() {
             payload_msg, location
         );
 
-        // クラッシュログの書き出し
         alpheratz_lib::utils::log_err(&error_msg);
 
-        // ユーザーへの通知
         show_fatal_error(&error_msg);
     }));
 
-    // 2. アプリケーションの実行
-    // 戻り値のない run() だが、内部でのパニックは上記のフックで捕捉される
     alpheratz_lib::run();
 
-    // 正常終了
     process::exit(0);
 }

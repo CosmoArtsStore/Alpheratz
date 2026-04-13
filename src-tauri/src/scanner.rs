@@ -1,13 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, NaiveDateTime};
 use regex::Regex;
-use rusqlite::{params, Connection, OpenFlags};
+use rusqlite::{params, Connection, Transaction};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::config::load_setting;
@@ -34,6 +34,7 @@ struct ExistingPhotoInfo {
     photo_path: String,
     world_id: Option<String>,
     world_name: Option<String>,
+    match_source: Option<String>,
     orientation: Option<String>,
     image_width: Option<i64>,
     image_height: Option<i64>,
@@ -55,6 +56,14 @@ struct ScanPhotoData {
     match_source: Option<String>,
 }
 
+#[derive(Clone, Debug)]
+struct ArchiveWorldVisit {
+    source_log_name: String,
+    join_time: NaiveDateTime,
+    leave_time: Option<NaiveDateTime>,
+    world_name: String,
+}
+
 enum ScanRefreshKind {
     Full,
     MetadataOnly,
@@ -66,12 +75,12 @@ enum PhotoDirErrorKind {
     Missing(PathBuf),
 }
 
+/// Compiles a regex and falls back to a never-match pattern on failure.
 fn compile_regex(pattern: &str, name: &str) -> Regex {
     match Regex::new(pattern) {
         Ok(re) => re,
         Err(err) => {
             crate::utils::log_err(&format!("正規表現の初期化に失敗しました [{name}]: {err}"));
-            // Intentional: フォールバックは絶対に一致しない固定値で、継続中のスキャンを安全側に倒す。
             match Regex::new(r"^$") {
                 Ok(fallback) => fallback,
                 Err(fallback_err) => {
@@ -85,6 +94,7 @@ fn compile_regex(pattern: &str, name: &str) -> Regex {
     }
 }
 
+/// Emits a Tauri event while downgrading emission failures to warnings.
 fn emit_warn<T: serde::Serialize + Clone>(app: &AppHandle, event: &str, payload: T) {
     if let Err(err) = app.emit(event, payload) {
         crate::utils::log_warn(&format!(
@@ -94,10 +104,12 @@ fn emit_warn<T: serde::Serialize + Clone>(app: &AppHandle, event: &str, payload:
     }
 }
 
+/// Builds a consistent scan error string.
 fn scan_err<E: std::fmt::Display>(context: &str, err: E) -> String {
     format!("{context}: {err}")
 }
 
+/// Converts row-level decode failures into warnings and skips the row.
 fn warn_row_error<T, E: std::fmt::Display>(row: Result<T, E>, context: &str) -> Option<T> {
     match row {
         Ok(value) => Some(value),
@@ -122,11 +134,19 @@ static RE_NAME: LazyLock<Regex> = LazyLock::new(|| {
         "RE_NAME",
     )
 });
+static RE_LOG_TIME: LazyLock<Regex> =
+    LazyLock::new(|| compile_regex(r"^(\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2})", "RE_LOG_TIME"));
+static RE_LOG_ENTERING: LazyLock<Regex> =
+    LazyLock::new(|| compile_regex(r"\[Behaviour\] Entering Room: (.*)", "RE_LOG_ENTERING"));
+static RE_LOG_LEFT_ROOM: LazyLock<Regex> =
+    LazyLock::new(|| compile_regex(r"\[Behaviour\] OnLeftRoom", "RE_LOG_LEFT_ROOM"));
 
+/// Normalizes a filesystem path into the database storage format.
 fn normalize_path_for_db(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
+/// Resolves the configured photo directories and their source slots.
 fn resolve_photo_dirs() -> Result<Vec<(i64, PathBuf)>, PhotoDirErrorKind> {
     let setting = load_setting();
     if setting.photo_folder_path.is_empty() && setting.secondary_photo_folder_path.is_empty() {
@@ -222,7 +242,6 @@ pub fn do_scan(app: AppHandle) -> Result<(), String> {
         .iter()
         .map(|(_, _, path)| normalize_path_for_db(path))
         .collect();
-    mark_missing_photos(&conn, &existing_photos, &found_path_set)?;
 
     let candidate_files: Vec<(String, PathBuf, i64, ScanRefreshKind)> = found_files
         .into_iter()
@@ -233,8 +252,9 @@ pub fn do_scan(app: AppHandle) -> Result<(), String> {
                 Some(existing) => {
                     let filename_changed = existing.photo_filename != filename;
                     let missing_features = false;
-                    let missing_world =
-                        existing.world_name.is_none() && existing.world_id.is_none();
+                    let missing_world = existing.world_name.is_none()
+                        && existing.world_id.is_none()
+                        && existing.match_source.is_none();
                     let reappeared = existing.is_missing;
                     let source_changed = existing.source_slot != slot;
 
@@ -264,10 +284,17 @@ pub fn do_scan(app: AppHandle) -> Result<(), String> {
         },
     );
 
+    let tx = conn
+        .transaction()
+        .map_err(|err| scan_err("スキャン反映トランザクションを開始できません", err))?;
+    mark_missing_photos(&tx, &existing_photos, &found_path_set)?;
+
     for (index, (filename, path, source_slot, refresh_kind)) in
         candidate_files.into_iter().enumerate()
     {
         if cancel_status.0.load(Ordering::SeqCst) {
+            tx.rollback()
+                .map_err(|err| scan_err("スキャン中断時にロールバックできません", err))?;
             crate::utils::log_warn("ユーザー操作でスキャンが中断されました。");
             emit_warn(&app, "scan:error", "スキャンを中断しました");
             return Ok(());
@@ -280,11 +307,19 @@ pub fn do_scan(app: AppHandle) -> Result<(), String> {
             &existing_photos,
             &refresh_kind,
         )? {
+            if cancel_status.0.load(Ordering::SeqCst) {
+                tx.rollback()
+                    .map_err(|err| scan_err("スキャン中断時にロールバックできません", err))?;
+                crate::utils::log_warn("ユーザー操作でスキャンが中断されました。");
+                emit_warn(&app, "scan:error", "スキャンを中断しました");
+                return Ok(());
+            }
+
             let current_world = photo
                 .world_name
                 .clone()
                 .unwrap_or_else(|| "ワールド不明".to_string());
-            upsert_photo_batch(&mut conn, &[photo])?;
+            upsert_photo_batch(&tx, &[photo])?;
 
             if index % 10 == 0 || index == total.saturating_sub(1) {
                 emit_warn(
@@ -301,19 +336,23 @@ pub fn do_scan(app: AppHandle) -> Result<(), String> {
         }
     }
 
+    tx.commit()
+        .map_err(|err| scan_err("スキャン結果を確定できません", err))?;
     emit_warn(&app, "scan:completed", ());
     Ok(())
 }
 
+/// Resolves the default `VRChat` photo directory used when settings are empty.
 fn default_photo_dir() -> Option<PathBuf> {
     let user_dirs = directories::UserDirs::new()?;
     Some(user_dirs.picture_dir()?.join("VRChat"))
 }
 
+/// Loads existing photo rows keyed by normalized photo path.
 fn get_existing_photos(conn: &Connection) -> Result<HashMap<String, ExistingPhotoInfo>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT photo_filename, photo_path, world_id, world_name, timestamp, orientation, image_width, image_height, source_slot, is_missing
+            "SELECT photo_filename, photo_path, world_id, world_name, timestamp, match_source, orientation, image_width, image_height, source_slot, is_missing
              FROM photos",
         )
         .map_err(|e| scan_err("既存写真一覧クエリを準備できません", e))?;
@@ -324,11 +363,12 @@ fn get_existing_photos(conn: &Connection) -> Result<HashMap<String, ExistingPhot
                 photo_path: row.get(1)?,
                 world_id: row.get(2)?,
                 world_name: row.get(3)?,
-                orientation: row.get(5)?,
-                image_width: row.get(6)?,
-                image_height: row.get(7)?,
-                source_slot: row.get(8)?,
-                is_missing: row.get::<_, i64>(9)? != 0,
+                match_source: row.get(5)?,
+                orientation: row.get(6)?,
+                image_width: row.get(7)?,
+                image_height: row.get(8)?,
+                source_slot: row.get(9)?,
+                is_missing: row.get::<_, i64>(10)? != 0,
             })
         })
         .map_err(|e| scan_err("既存写真一覧クエリを実行できません", e))?;
@@ -344,6 +384,7 @@ fn get_existing_photos(conn: &Connection) -> Result<HashMap<String, ExistingPhot
     Ok(map)
 }
 
+/// Analyzes one candidate photo and decides how much metadata needs refreshing.
 fn analyze_photo(
     path: &Path,
     filename: &str,
@@ -359,7 +400,7 @@ fn analyze_photo(
         ScanRefreshKind::PathOnly => (
             existing.and_then(|photo| photo.world_name.clone()),
             existing.and_then(|photo| photo.world_id.clone()),
-            None,
+            existing.and_then(|photo| photo.match_source.clone()),
         ),
         ScanRefreshKind::Full | ScanRefreshKind::MetadataOnly => resolve_world_info_lightweight(
             &normalized_path,
@@ -417,11 +458,12 @@ fn analyze_photo(
     }))
 }
 
+/// Resolves world information from embedded metadata and lightweight fallbacks.
 fn resolve_world_info_lightweight(
     photo_path: &str,
     filename: &str,
     path: &Path,
-    timestamp: &str,
+    _timestamp: &str,
     existing_photos: &HashMap<String, ExistingPhotoInfo>,
 ) -> (Option<String>, Option<String>, Option<String>) {
     if filename.to_ascii_lowercase().ends_with(".png") {
@@ -441,31 +483,10 @@ fn resolve_world_info_lightweight(
         }
     }
 
-    if let Some(world_name) = lookup_world_name_from_stella_record(timestamp) {
-        return (Some(world_name), None, Some("stella_db".to_string()));
-    }
-
-    match similar_photo_match::infer_world_name_from_unknown_photo(path) {
-        Ok(Some(phash_match)) => {
-            return (
-                Some(phash_match.world_name),
-                None,
-                Some("phash".to_string()),
-            );
-        }
-        Ok(None) => {}
-        Err(err) => {
-            crate::utils::log_warn(&format!(
-                "類似一致補完に失敗しました [{}]: {}",
-                path.display(),
-                err
-            ));
-        }
-    }
-
-    (None, None, None)
+    (None, None, Some("unresolved".to_string()))
 }
 
+/// Resolves the canonical photo timestamp used for ordering and filtering.
 fn resolve_photo_timestamp(path: &Path, filename: &str) -> Result<String, String> {
     if let Some(captures) = RE_PARSE.captures(filename) {
         return Ok(format!(
@@ -491,46 +512,347 @@ fn resolve_photo_timestamp(path: &Path, filename: &str) -> Result<String, String
     Ok(local_time.format("%Y-%m-%d %H:%M:%S").to_string())
 }
 
-fn lookup_world_name_from_stella_record(timestamp: &str) -> Option<String> {
-    let db_path = utils::get_stella_record_install_dir()?.join("stellarecord.db");
-    if !db_path.exists() {
-        return None;
-    }
-
-    let conn = match Connection::open_with_flags(&db_path, OpenFlags::SQLITE_OPEN_READ_ONLY) {
-        Ok(conn) => conn,
-        Err(err) => {
-            crate::utils::log_warn(&format!(
-                "STELLA RECORD DB を開けないためワールド補完をスキップします ({}): {}",
-                db_path.display(),
-                err
-            ));
-            return None;
-        }
-    };
-
-    let sql = "SELECT world_name
-        FROM world_visits
-        WHERE join_time <= ?1
-          AND (leave_time IS NULL OR leave_time >= ?1)
-        ORDER BY join_time DESC
-        LIMIT 1";
-
-    match conn.query_row(sql, params![timestamp], |row| row.get::<_, String>(0)) {
-        Ok(world_name) => Some(world_name),
-        Err(rusqlite::Error::QueryReturnedNoRows) => None,
-        Err(err) => {
-            crate::utils::log_warn(&format!(
-                "STELLA RECORD のワールド名参照に失敗しました [{}]: {}",
-                timestamp, err
-            ));
-            None
-        }
+/// Looks up a world name from the archived `Polaris` logs around the given timestamp.
+fn lookup_world_name_from_archive_db(
+    conn: &Connection,
+    timestamp: &str,
+) -> Result<Option<String>, String> {
+    match conn.query_row(
+        "SELECT world_name
+         FROM archive_world_visits
+         WHERE join_time <= ?1
+           AND (leave_time IS NULL OR leave_time >= ?1)
+         ORDER BY join_time DESC
+         LIMIT 1",
+        params![timestamp],
+        |row| row.get::<_, String>(0),
+    ) {
+        Ok(world_name) => Ok(Some(world_name)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(err) => Err(scan_err(
+            &format!(
+                "archive ワールド時刻テーブルを参照できません [{}]",
+                timestamp
+            ),
+            err,
+        )),
     }
 }
 
+/// Loads world-visit ranges from the archived `Polaris` logs.
+fn load_polaris_world_visits() -> Vec<ArchiveWorldVisit> {
+    let Some(archive_dir) = get_polaris_archive_dir() else {
+        return Vec::new();
+    };
+
+    let entries = match fs::read_dir(&archive_dir) {
+        Ok(entries) => entries,
+        Err(err) => {
+            crate::utils::log_warn(&format!(
+                "Polaris archive フォルダを読み取れないためワールド補完をスキップします [{}]: {}",
+                archive_dir.display(),
+                err
+            ));
+            return Vec::new();
+        }
+    };
+
+    let mut log_paths = Vec::new();
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(err) => {
+                crate::utils::log_warn(&format!(
+                    "Polaris archive エントリを読み取れないため対象ログをスキップします [{}]: {}",
+                    archive_dir.display(),
+                    err
+                ));
+                continue;
+            }
+        };
+
+        let log_path = entry.path();
+        let Some(file_name) = log_path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+
+        if file_name.starts_with("output_log_")
+            && log_path
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("txt"))
+        {
+            log_paths.push(log_path);
+        }
+    }
+
+    log_paths.sort();
+
+    let mut world_visits = Vec::new();
+    for log_path in log_paths {
+        load_polaris_world_visits_from_log(&log_path, &mut world_visits);
+    }
+
+    world_visits
+}
+
+/// Loads one archive log and appends its world-visit ranges.
+fn load_polaris_world_visits_from_log(log_path: &Path, world_visits: &mut Vec<ArchiveWorldVisit>) {
+    let file = match fs::File::open(log_path) {
+        Ok(file) => file,
+        Err(err) => {
+            crate::utils::log_warn(&format!(
+                "Polaris archive ログを開けないためワールド補完をスキップします [{}]: {}",
+                log_path.display(),
+                err
+            ));
+            return;
+        }
+    };
+
+    let reader = BufReader::new(file);
+    let mut current_world_name = None;
+    let mut current_join_time = None;
+
+    for line in reader.lines() {
+        let line = match line {
+            Ok(line) => line,
+            Err(err) => {
+                crate::utils::log_warn(&format!(
+                    "Polaris archive ログ行を読み取れないためワールド補完をスキップします [{}]: {}",
+                    log_path.display(),
+                    err
+                ));
+                return;
+            }
+        };
+
+        let line_time = extract_archive_log_time(&line);
+
+        if let Some(captures) = RE_LOG_ENTERING.captures(&line) {
+            if let (Some(world_name), Some(join_time)) =
+                (current_world_name.take(), current_join_time.take())
+            {
+                world_visits.push(ArchiveWorldVisit {
+                    source_log_name: log_path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or_default()
+                        .to_string(),
+                    join_time,
+                    leave_time: line_time,
+                    world_name,
+                });
+            }
+
+            if let Some(line_time) = line_time {
+                current_world_name = Some(captures[1].to_string());
+                current_join_time = Some(line_time);
+            }
+
+            continue;
+        }
+
+        if RE_LOG_LEFT_ROOM.is_match(&line) {
+            if let (Some(world_name), Some(join_time), Some(leave_time)) = (
+                current_world_name.take(),
+                current_join_time.take(),
+                line_time,
+            ) {
+                world_visits.push(ArchiveWorldVisit {
+                    source_log_name: log_path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or_default()
+                        .to_string(),
+                    join_time,
+                    leave_time: Some(leave_time),
+                    world_name,
+                });
+            }
+        }
+    }
+
+    if let (Some(world_name), Some(join_time)) = (current_world_name, current_join_time) {
+        world_visits.push(ArchiveWorldVisit {
+            source_log_name: log_path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or_default()
+                .to_string(),
+            join_time,
+            leave_time: None,
+            world_name,
+        });
+    }
+}
+
+/// Extracts the leading timestamp from one archived `VRChat` log line.
+fn extract_archive_log_time(line: &str) -> Option<NaiveDateTime> {
+    let captures = RE_LOG_TIME.captures(line)?;
+    NaiveDateTime::parse_from_str(&captures[1], "%Y.%m.%d %H:%M:%S").ok()
+}
+
+/// Resolves the archive directory used by the installed `Polaris`.
+fn get_polaris_archive_dir() -> Option<PathBuf> {
+    utils::get_polaris_install_dir().map(|install_dir| install_dir.join("archive"))
+}
+
+/// Rebuilds the archive-derived world-visit table from the current `Polaris` logs.
+fn sync_archive_world_visits(conn: &mut Connection) -> Result<usize, String> {
+    let Some(archive_dir) = get_polaris_archive_dir() else {
+        return Err("ログが確認できないため保管できません。".to_string());
+    };
+    if !archive_dir.exists() {
+        return Err("ログが確認できないため保管できません。".to_string());
+    }
+
+    let world_visits = load_polaris_world_visits();
+    let tx = conn
+        .transaction()
+        .map_err(|err| scan_err("archive ワールド時刻テーブル更新を開始できません", err))?;
+
+    tx.execute("DELETE FROM archive_world_visits", [])
+        .map_err(|err| scan_err("archive ワールド時刻テーブルを初期化できません", err))?;
+
+    {
+        let mut stmt = tx
+            .prepare(
+                "INSERT INTO archive_world_visits (
+                    source_log_name,
+                    world_name,
+                    join_time,
+                    leave_time
+                ) VALUES (?1, ?2, ?3, ?4)",
+            )
+            .map_err(|err| scan_err("archive ワールド時刻挿入を準備できません", err))?;
+
+        for visit in &world_visits {
+            stmt.execute(params![
+                visit.source_log_name,
+                visit.world_name,
+                visit.join_time.format("%Y-%m-%d %H:%M:%S").to_string(),
+                visit
+                    .leave_time
+                    .map(|leave_time| leave_time.format("%Y-%m-%d %H:%M:%S").to_string()),
+            ])
+            .map_err(|err| scan_err("archive ワールド時刻を保存できません", err))?;
+        }
+    }
+
+    tx.commit()
+        .map_err(|err| scan_err("archive ワールド時刻テーブル更新を確定できません", err))?;
+    Ok(world_visits.len())
+}
+
+/// Resolves unknown-world photos by reading matching ranges from the `Polaris` archive logs.
+pub fn resolve_unknown_worlds_from_archive() -> Result<usize, String> {
+    let mut conn = open_alpheratz_connection(1)?;
+    sync_archive_world_visits(&mut conn)?;
+    let unknown_photos = load_unknown_world_photos(&conn)?;
+    let tx = conn
+        .transaction()
+        .map_err(|err| scan_err("archive 補完トランザクションを開始できません", err))?;
+
+    let mut resolved_count = 0usize;
+    for (photo_path, timestamp) in unknown_photos {
+        let Some(world_name) = lookup_world_name_from_archive_db(&tx, &timestamp)? else {
+            continue;
+        };
+
+        update_photo_world_name(&tx, &photo_path, &world_name, "polaris_archive")?;
+        resolved_count += 1;
+    }
+
+    tx.commit()
+        .map_err(|err| scan_err("archive 補完結果を確定できません", err))?;
+    Ok(resolved_count)
+}
+
+/// Resolves unknown-world photos by inferring from already known similar photos.
+pub fn resolve_unknown_worlds_from_similar_photos() -> Result<usize, String> {
+    let mut conn = open_alpheratz_connection(1)?;
+    let unknown_photos = load_unknown_world_photos(&conn)?;
+    let tx = conn
+        .transaction()
+        .map_err(|err| scan_err("類似写真補完トランザクションを開始できません", err))?;
+
+    let mut resolved_count = 0usize;
+    for (photo_path, _) in unknown_photos {
+        match similar_photo_match::infer_world_name_from_unknown_photo(Path::new(&photo_path)) {
+            Ok(Some(phash_match)) => {
+                update_photo_world_name(&tx, &photo_path, &phash_match.world_name, "phash")?;
+                resolved_count += 1;
+            }
+            Ok(None) => {}
+            Err(err) => {
+                crate::utils::log_warn(&format!(
+                    "類似写真からのワールド推測に失敗しました [{}]: {}",
+                    photo_path, err
+                ));
+            }
+        }
+    }
+
+    tx.commit()
+        .map_err(|err| scan_err("類似写真補完結果を確定できません", err))?;
+    Ok(resolved_count)
+}
+
+/// Loads unresolved photo records that still need manual world-name resolution.
+fn load_unknown_world_photos(conn: &Connection) -> Result<Vec<(String, String)>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT photo_path, timestamp
+             FROM photos
+             WHERE is_missing = 0
+               AND world_name IS NULL
+               AND world_id IS NULL",
+        )
+        .map_err(|err| scan_err("不明ワールド写真クエリを準備できません", err))?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|err| scan_err("不明ワールド写真クエリを実行できません", err))?;
+
+    let mut photos = Vec::new();
+    for row in rows {
+        if let Some(photo) = warn_row_error(row, "不明ワールド写真行の読み取りに失敗しました")
+        {
+            photos.push(photo);
+        }
+    }
+
+    Ok(photos)
+}
+
+/// Updates one photo row with the resolved world name and source marker.
+fn update_photo_world_name(
+    tx: &Transaction<'_>,
+    photo_path: &str,
+    world_name: &str,
+    match_source: &str,
+) -> Result<(), String> {
+    tx.execute(
+        "UPDATE photos
+         SET world_name = ?1,
+             match_source = ?2
+         WHERE photo_path = ?3",
+        params![world_name, match_source, photo_path],
+    )
+    .map_err(|err| {
+        format!(
+            "ワールド名を更新できません [{} -> {}]: {}",
+            photo_path, world_name, err
+        )
+    })?;
+    Ok(())
+}
+
+/// Marks cached photos as missing when they were not found during the scan.
 fn mark_missing_photos(
-    conn: &Connection,
+    tx: &Transaction<'_>,
     existing_photos: &HashMap<String, ExistingPhotoInfo>,
     found_paths: &HashSet<String>,
 ) -> Result<(), String> {
@@ -544,9 +866,6 @@ fn mark_missing_photos(
         return Ok(());
     }
 
-    let tx = conn
-        .unchecked_transaction()
-        .map_err(|e| scan_err("欠損写真の反映トランザクションを開始できません", e))?;
     {
         let mut mark_missing = tx
             .prepare("UPDATE photos SET is_missing = 1 WHERE photo_path = ?1")
@@ -558,15 +877,11 @@ fn mark_missing_photos(
                 .map_err(|e| scan_err("欠損写真を更新できません", e))?;
         }
     }
-    tx.commit()
-        .map_err(|e| scan_err("欠損写真の反映を確定できません", e))?;
     Ok(())
 }
 
-fn upsert_photo_batch(conn: &mut Connection, items: &[ScanPhotoData]) -> Result<(), String> {
-    let tx = conn
-        .transaction()
-        .map_err(|err| format!("写真更新トランザクションを開始できません: {err}"))?;
+/// Upserts one batch of scanned photo rows into the cache database.
+fn upsert_photo_batch(tx: &Transaction<'_>, items: &[ScanPhotoData]) -> Result<(), String> {
     {
         let mut stmt = tx
             .prepare(
@@ -613,12 +928,11 @@ fn upsert_photo_batch(conn: &mut Connection, items: &[ScanPhotoData]) -> Result<
             .map_err(|e| format!("写真を更新できません [{}]: {}", item.filename, e))?;
         }
     }
-    tx.commit()
-        .map_err(|err| format!("写真更新トランザクションを確定できません: {err}"))?;
     Ok(())
 }
 
 #[allow(clippy::too_many_lines)]
+/// Extracts `VRChat` world metadata embedded in PNG iTXt/XMP blocks.
 fn extract_vrc_metadata_from_png(path: &Path) -> (Option<String>, Option<String>) {
     let file = match fs::File::open(path) {
         Ok(file) => file,
@@ -717,6 +1031,7 @@ fn extract_vrc_metadata_from_png(path: &Path) -> (Option<String>, Option<String>
     (None, None)
 }
 
+/// Parses `VRChat` world metadata from an XMP XML fragment.
 fn parse_vrc_from_xmp(xmp: &str) -> (Option<String>, Option<String>) {
     let world_id = RE_ID
         .captures(xmp)
@@ -729,6 +1044,7 @@ fn parse_vrc_from_xmp(xmp: &str) -> (Option<String>, Option<String>) {
     (world_name, world_id)
 }
 
+/// Recursively collects supported photo files from a directory tree.
 fn collect_photos_recursive(
     source_slot: i64,
     dir: &Path,
@@ -801,6 +1117,7 @@ fn collect_photos_recursive(
     }
 }
 
+/// Checks whether a filename extension is supported by the scan pipeline.
 fn is_supported_image_extension(filename: &str) -> bool {
     let ext = Path::new(filename)
         .extension()

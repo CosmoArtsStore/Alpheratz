@@ -9,6 +9,7 @@ interface HoverTooltipProps {
   className?: string;
 }
 
+/** Simple hover-only tooltip wrapper used around icon buttons and controls. */
 export const HoverTooltip = ({
   label,
   children,

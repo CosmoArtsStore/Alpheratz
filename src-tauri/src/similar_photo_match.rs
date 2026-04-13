@@ -19,11 +19,13 @@ const PHASH_WORKER_LIMIT: usize = 4;
 const PHASH_UPDATE_BATCH_SIZE: usize = 32;
 const PHASH_PROGRESS_EMIT_INTERVAL: usize = 16;
 
+/// Shared state used by the background perceptual-hash worker.
 pub struct PHashWorkerState {
     pub running: AtomicBool,
     pub progress: Mutex<PHashProgressPayload>,
 }
 
+/// Progress payload emitted while perceptual hashes are being generated.
 #[derive(Clone, Debug, Serialize, Default)]
 pub struct PHashProgressPayload {
     pub done: usize,
@@ -31,6 +33,7 @@ pub struct PHashProgressPayload {
     pub current: Option<String>,
 }
 
+/// Candidate world match inferred from visually similar photos.
 #[derive(Clone, Debug)]
 pub struct PHashWorldMatch {
     pub world_name: String,
@@ -46,6 +49,10 @@ struct PdqComputeResult {
     error: Option<String>,
 }
 
+/// Starts the background worker that computes missing `PDQ` hashes.
+///
+/// The worker is serialized through shared state so repeated UI requests do not launch
+/// duplicate hashing jobs.
 pub fn start_phash_worker(app: AppHandle) {
     let state = app.state::<PHashWorkerState>();
     if state.running.swap(true, Ordering::SeqCst) {
@@ -66,6 +73,7 @@ pub fn start_phash_worker(app: AppHandle) {
     });
 }
 
+/// Returns the latest in-memory pHash progress snapshot.
 pub fn get_phash_progress(app: &AppHandle) -> PHashProgressPayload {
     let state = app.state::<PHashWorkerState>();
     let progress = match state.progress.lock() {
@@ -78,6 +86,10 @@ pub fn get_phash_progress(app: &AppHandle) -> PHashProgressPayload {
     progress
 }
 
+/// Checks whether any photo still needs pHash generation.
+///
+/// # Errors
+/// Returns an error if the cache database cannot be queried.
 pub fn has_pending_phash() -> Result<bool, String> {
     let conn = open_alpheratz_connection(1)?;
     let count = conn
@@ -96,10 +108,12 @@ pub fn has_pending_phash() -> Result<bool, String> {
     Ok(count > 0)
 }
 
+/// Placeholder hook for future unknown-world inference based on pHash data.
 pub fn has_unknown_worlds() -> Result<bool, String> {
     Ok(false)
 }
 
+/// Placeholder hook for future world-name inference from an unmatched photo.
 pub fn infer_world_name_from_unknown_photo(
     _path: &Path,
 ) -> Result<Option<PHashWorldMatch>, String> {

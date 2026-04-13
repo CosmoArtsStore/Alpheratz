@@ -5,6 +5,14 @@ interface GalleryPhotosOptions {
   reloadToken?: number;
 }
 
+/**
+ * Loads and stores a photo collection with shared loading state.
+ *
+ * @param loadPhotosFn Async loader for the current photo set.
+ * @param addToast Optional toast reporter for load failures.
+ * @param options Optional reload token that forces a reload when it changes.
+ * @returns Loaded photos, a setter, the reload function, and a loading flag.
+ */
 export const useGalleryPhotosViewModel = <TPhoto>(
   loadPhotosFn: () => Promise<TPhoto[]>,
   addToast?: (msg: string, type?: ToastType) => void,

@@ -17,6 +17,7 @@ interface PhotoCardProps {
   style: CSSProperties;
 }
 
+/** Standard-grid photo card with lazy thumbnail loading and selection UI. */
 export const PhotoCard = ({
   data,
   onSelect,
@@ -106,7 +107,9 @@ export const PhotoCard = ({
         </div>
         <div className={styles.info}>
           <div className={styles['meta-row']}>
-            {photo.match_source === 'stella_db' && <span className={styles.pill}>DB</span>}
+            {photo.match_source === 'polaris_archive' && (
+              <span className={styles.pill}>archive</span>
+            )}
             {photo.match_source === 'phash' && <span className={styles.pill}>類似一致</span>}
             {photo.orientation && <span className={styles.pill}>{photo.orientation}</span>}
           </div>

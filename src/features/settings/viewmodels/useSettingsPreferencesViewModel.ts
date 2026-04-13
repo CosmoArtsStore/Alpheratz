@@ -6,6 +6,8 @@ import {
   deleteTagMaster as deleteTagMasterCommand,
   loadAllTags,
   loadAppSetting as loadAppSettingCommand,
+  resolveUnknownWorldsFromArchive,
+  resolveUnknownWorldsFromSimilarPhotos,
   saveAppSetting,
   saveStartupPreference,
 } from '../services/settingsCommandsService';
@@ -14,14 +16,22 @@ import type { ToastType } from '../../../shared/hooks/useToasts';
 interface UseSettingsPreferencesViewModelOptions {
   photoFolderPath: string;
   secondaryPhotoFolderPath: string;
+  loadPhotos: () => Promise<void>;
   addToast?: (msg: string, type?: ToastType) => void;
   defaultTweetTemplates: string[];
   defaultActiveTweetTemplate: string;
 }
 
+/**
+ * Manages persisted preferences shown in the settings modal.
+ *
+ * @param options Folder paths, default tweet templates, and an optional toast helper.
+ * @returns Settings state plus handlers for saving preferences and managing tag masters.
+ */
 export const useSettingsPreferencesViewModel = ({
   photoFolderPath,
   secondaryPhotoFolderPath,
+  loadPhotos,
   addToast,
   defaultTweetTemplates,
   defaultActiveTweetTemplate,
@@ -31,6 +41,8 @@ export const useSettingsPreferencesViewModel = ({
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
   const [viewMode, setViewMode] = useState<ViewMode>('standard');
   const [masterTags, setMasterTags] = useState<string[]>([]);
+  const [isArchiveResolutionRunning, setIsArchiveResolutionRunning] = useState(false);
+  const [isSimilarResolutionRunning, setIsSimilarResolutionRunning] = useState(false);
   const [tweetTemplates, setTweetTemplates] = useState([defaultActiveTweetTemplate]);
   const [activeTweetTemplate, setActiveTweetTemplate] = useState(defaultActiveTweetTemplate);
 
@@ -169,6 +181,40 @@ export const useSettingsPreferencesViewModel = ({
     [addToast, saveSetting],
   );
 
+  const handleResolveUnknownWorldsFromArchive = useCallback(async () => {
+    setIsArchiveResolutionRunning(true);
+    try {
+      const resolvedCount = await resolveUnknownWorldsFromArchive();
+      await loadPhotos();
+      addToast?.(
+        resolvedCount > 0
+          ? `archive から ${resolvedCount} 件のワールド名を補完しました。`
+          : 'archive から補完できるワールド名はありませんでした。',
+      );
+    } catch (err) {
+      addToast?.(`archive 補完に失敗しました: ${String(err)}`, 'error');
+    } finally {
+      setIsArchiveResolutionRunning(false);
+    }
+  }, [addToast, loadPhotos]);
+
+  const handleResolveUnknownWorldsFromSimilarPhotos = useCallback(async () => {
+    setIsSimilarResolutionRunning(true);
+    try {
+      const resolvedCount = await resolveUnknownWorldsFromSimilarPhotos();
+      await loadPhotos();
+      addToast?.(
+        resolvedCount > 0
+          ? `類似写真から ${resolvedCount} 件のワールド名を推測しました。`
+          : '類似写真から推測できるワールド名はありませんでした。',
+      );
+    } catch (err) {
+      addToast?.(`類似写真からの推測に失敗しました: ${String(err)}`, 'error');
+    } finally {
+      setIsSimilarResolutionRunning(false);
+    }
+  }, [addToast, loadPhotos]);
+
   return {
     isSettingsOpen,
     setIsSettingsOpen,
@@ -183,6 +229,10 @@ export const useSettingsPreferencesViewModel = ({
     saveSetting,
     handleStartupPreference,
     handleThemeToggle,
+    isArchiveResolutionRunning,
+    isSimilarResolutionRunning,
+    handleResolveUnknownWorldsFromArchive,
+    handleResolveUnknownWorldsFromSimilarPhotos,
     createTagMaster,
     deleteTagMaster,
     handleViewModeChange,

@@ -69,6 +69,7 @@ const isWithinRange = (date: Date, start: Date | null, end: Date | null) => {
 const toggleSelection = (values: string[], target: string) =>
   values.includes(target) ? values.filter((value) => value !== target) : [...values, target];
 
+/** Sidebar UI for composing world, date, orientation, favorite, and tag filters. */
 export const FilterSidebar = ({
   isOpen,
   activeFilterCount,

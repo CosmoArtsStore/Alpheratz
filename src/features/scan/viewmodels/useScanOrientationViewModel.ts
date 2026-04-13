@@ -10,6 +10,11 @@ const EMPTY_PROGRESS: OrientationProgress = {
   current: null,
 };
 
+/**
+ * Tracks orientation-analysis progress from the Rust worker.
+ *
+ * @returns The current orientation progress payload and whether the task is still running.
+ */
 export function useScanOrientationViewModel() {
   const [progress, setProgress] = useState(EMPTY_PROGRESS);
   const [isRunning, setIsRunning] = useState(false);

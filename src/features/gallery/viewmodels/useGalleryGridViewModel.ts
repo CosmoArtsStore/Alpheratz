@@ -1,5 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 
+/**
+ * Tracks gallery container size and derives grid dimensions from it.
+ *
+ * @param CARD_WIDTH Target card width used to estimate the number of visible columns.
+ * @returns Refs and derived dimensions needed by the gallery layout.
+ */
 export const useGalleryGridViewModel = (CARD_WIDTH: number) => {
   const rightPanelRef = useRef<HTMLDivElement>(null);
   const gridWrapperRef = useRef<HTMLDivElement>(null);

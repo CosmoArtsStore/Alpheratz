@@ -9,6 +9,7 @@ interface CustomScrollbarProps {
   handleScrollbarMouseDown: (e: MouseEvent) => void;
 }
 
+/** Decorative scrollbar used for the custom gallery navigator. */
 export const CustomScrollbar = ({
   isDragging,
   thumbTop,

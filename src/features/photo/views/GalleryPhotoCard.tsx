@@ -12,6 +12,7 @@ interface GalleryPhotoCardProps {
   selected: boolean;
 }
 
+/** Gallery-mode photo card optimized for masonry layout presentation. */
 export const GalleryPhotoCard = ({
   item,
   onSelect,
@@ -87,7 +88,9 @@ export const GalleryPhotoCard = ({
               {photo.is_favorite && (
                 <span className={[styles.pill, styles['favorite-pill']].join(' ')}>★ Favorite</span>
               )}
-              {photo.match_source === 'stella_db' && <span className={styles.pill}>DB</span>}
+              {photo.match_source === 'polaris_archive' && (
+                <span className={styles.pill}>archive</span>
+              )}
               {photo.match_source === 'phash' && <span className={styles.pill}>類似一致</span>}
             </div>
           </div>

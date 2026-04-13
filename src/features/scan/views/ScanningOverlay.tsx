@@ -9,6 +9,7 @@ interface ScanningOverlayProps {
   canCancel?: boolean;
 }
 
+/** Blocking overlay that visualizes scan progress and exposes cancellation. */
 export const ScanningOverlay = ({
   progress,
   title = 'スキャン中...',

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::utils;
 
-/// 仕様書 §8.4 AlpheratzSetting.json
+/// Persisted application settings mirrored to the frontend.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AlpheratzSetting {
     #[serde(default, rename = "photoFolderPath")]
@@ -38,6 +38,7 @@ pub struct AlpheratzSetting {
 }
 
 impl Default for AlpheratzSetting {
+    /// Builds the first-run settings set used when no file exists yet.
     fn default() -> Self {
         let tweet_templates = vec![
             "おは{world-name}\n\n#{タグを追加}".to_string(),
@@ -58,10 +59,12 @@ impl Default for AlpheratzSetting {
     }
 }
 
+/// Resolves the canonical settings file path.
 fn get_setting_path() -> Option<PathBuf> {
     Some(utils::get_alpheratz_setting_dir()?.join("setting.json"))
 }
 
+/// Lists legacy settings file locations kept for migration.
 fn get_legacy_setting_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
     if let Some(install_dir) = utils::get_alpheratz_install_dir() {
@@ -74,6 +77,10 @@ fn get_legacy_setting_paths() -> Vec<PathBuf> {
     paths
 }
 
+/// Loads the current settings, migrating legacy files when possible.
+///
+/// The loader falls back to defaults instead of failing so the app can still start and
+/// let the user repair settings from the UI.
 pub fn load_setting() -> AlpheratzSetting {
     if let Some(path) = get_setting_path() {
         if path.exists() {
@@ -132,6 +139,13 @@ pub fn load_setting() -> AlpheratzSetting {
     AlpheratzSetting::default()
 }
 
+/// Saves the current settings to the canonical JSON file.
+///
+/// # Arguments
+/// * `s` - Fully populated settings object to persist.
+///
+/// # Errors
+/// Returns an error if the destination path cannot be resolved or the JSON cannot be written.
 pub fn save_setting(s: &AlpheratzSetting) -> Result<(), String> {
     let path =
         get_setting_path().ok_or_else(|| "設定ファイルの保存先を取得できません".to_string())?;

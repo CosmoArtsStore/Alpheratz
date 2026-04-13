@@ -23,6 +23,12 @@ interface UseFolderMigrationFlowViewModelOptions {
   addToast?: (msg: string, type?: ToastType) => void;
 }
 
+/**
+ * Coordinates photo-folder replacement, backup restore, and rescan flow.
+ *
+ * @param options Current paths plus callbacks for persistence, reload, and scan restart.
+ * @returns Folder-migration state and handlers used by the settings modal.
+ */
 export const useFolderMigrationFlowViewModel = ({
   photoFolderPath,
   secondaryPhotoFolderPath,

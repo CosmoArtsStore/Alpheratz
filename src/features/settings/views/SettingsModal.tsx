@@ -11,11 +11,16 @@ interface SettingsModalProps {
   onToggleStartup: () => void;
   themeMode: ThemeMode;
   onToggleTheme: () => void;
+  isArchiveResolutionRunning: boolean;
+  isSimilarResolutionRunning: boolean;
+  onResolveUnknownWorldsFromArchive: () => void;
+  onResolveUnknownWorldsFromSimilarPhotos: () => void;
   masterTags: string[];
   onCreateTagMaster: (tag: string) => void;
   onDeleteTagMaster: (tag: string) => void;
 }
 
+/** Settings modal for folder paths, startup behavior, theme, and tag masters. */
 export const SettingsModal = ({
   onClose,
   photoFolderPath,
@@ -25,6 +30,10 @@ export const SettingsModal = ({
   onToggleStartup,
   themeMode,
   onToggleTheme,
+  isArchiveResolutionRunning,
+  isSimilarResolutionRunning,
+  onResolveUnknownWorldsFromArchive,
+  onResolveUnknownWorldsFromSimilarPhotos,
   masterTags,
   onCreateTagMaster,
   onDeleteTagMaster,
@@ -151,6 +160,31 @@ export const SettingsModal = ({
                 </div>
               </section>
             </div>
+
+            <section className={styles.section} aria-labelledby="settings-world-resolution">
+              <h3 id="settings-world-resolution">ワールド不明の手動補完</h3>
+              <p className={styles['helper-text']}>
+                通常スキャンではワールド不明のまま保持し、必要なときだけここから補完します。
+              </p>
+              <div className={styles['action-row']}>
+                <button
+                  className={styles['primary-button']}
+                  onClick={onResolveUnknownWorldsFromArchive}
+                  disabled={isArchiveResolutionRunning}
+                  type="button"
+                >
+                  {isArchiveResolutionRunning ? 'archive 補完中...' : 'ログから補完'}
+                </button>
+                <button
+                  className={styles['action-button']}
+                  onClick={onResolveUnknownWorldsFromSimilarPhotos}
+                  disabled={isSimilarResolutionRunning}
+                  type="button"
+                >
+                  {isSimilarResolutionRunning ? '類似推測中...' : '類似写真から推測'}
+                </button>
+              </div>
+            </section>
 
             <section className={styles.section} aria-labelledby="settings-tag-master">
               <h3 id="settings-tag-master">タグマスタ</h3>

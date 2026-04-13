@@ -5,6 +5,15 @@ interface TimestampedPhotoLike {
   timestamp: string;
 }
 
+/**
+ * Groups the current photo list into month sections for gallery navigation.
+ *
+ * @param photos Ordered photos whose timestamps define month buckets.
+ * @param columnCount Active gallery column count used to translate indexes into rows.
+ * @param scrollTop Current gallery scroll position.
+ * @param ROW_HEIGHT Virtual row height used by the standard gallery grid.
+ * @returns Month groups, groups keyed by year, and the currently active month index.
+ */
 export const useGalleryMonthsViewModel = (
   photos: TimestampedPhotoLike[],
   columnCount: number,

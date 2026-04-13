@@ -11,6 +11,7 @@ interface HeaderProps {
   activeFilterCount?: number;
 }
 
+/** Top toolbar for search, refresh, filter, and settings actions. */
 export const Header = ({
   onRefresh,
   onOpenSettings,

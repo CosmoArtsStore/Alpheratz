@@ -48,6 +48,7 @@ interface PhotoGridProps {
 const FixedSizeGridComponent =
   FixedSizeGrid as unknown as React.ComponentType<FixedSizeGridComponentProps>;
 
+/** Switches between the standard virtual grid and gallery masonry rendering. */
 export const PhotoGrid = ({
   photos,
   viewMode,
