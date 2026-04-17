@@ -1,123 +1,123 @@
 /* Theme: Dark */
 
-.alpheratz-root.dark-theme .fs-section input,
-.alpheratz-root.dark-theme .memo-section textarea,
-.alpheratz-root.dark-theme .tag-editor input {
+.alpheratz-root[data-theme='dark'] .fs-section input,
+.alpheratz-root[data-theme='dark'] .memo-section textarea,
+.alpheratz-root[data-theme='dark'] .tag-editor input {
   color: var(--a-text);
 }
 
-.alpheratz-root.dark-theme .tag-select:focus {
+.alpheratz-root[data-theme='dark'] .tag-select:focus {
   background: var(--a-surface-hover);
 }
 
-.alpheratz-root.dark-theme .photo-modal-bottom-action:hover {
+.alpheratz-root[data-theme='dark'] .photo-modal-bottom-action:hover {
   background: var(--a-surface-hover);
   color: #fff;
 }
 
-.alpheratz-root.dark-theme .photo-modal-bottom-action {
+.alpheratz-root[data-theme='dark'] .photo-modal-bottom-action {
   color: var(--a-text);
 }
 
-.alpheratz-root.dark-theme .world-link-button.favorite-active {
+.alpheratz-root[data-theme='dark'] .world-link-button.favorite-active {
   background: var(--a-warn-soft);
   border-color: var(--a-warn-border);
   color: var(--a-warn);
 }
 
-.alpheratz-root.dark-theme .world-link-button {
+.alpheratz-root[data-theme='dark'] .world-link-button {
   background: var(--a-accent-soft);
   color: var(--a-primary);
 }
 
-.alpheratz-root.dark-theme .quick-tag-input:focus {
+.alpheratz-root[data-theme='dark'] .quick-tag-input:focus {
   background: var(--a-surface-hover);
 }
 
-.alpheratz-root.dark-theme .save-button:hover {
+.alpheratz-root[data-theme='dark'] .save-button:hover {
   background: var(--a-accent-light);
   border-color: rgb(29 155 240 / 52%);
   box-shadow: none;
 }
 
-.alpheratz-root.dark-theme .save-button {
+.alpheratz-root[data-theme='dark'] .save-button {
   background: var(--a-primary);
   border-color: rgb(29 155 240 / 34%);
   color: #fff;
 }
 
-.alpheratz-root.dark-theme .overlay-loader {
+.alpheratz-root[data-theme='dark'] .overlay-loader {
   background: rgb(15 23 42 / 72%);
 }
 
-.alpheratz-root.dark-theme .gallery-quick-favorite-star.active {
+.alpheratz-root[data-theme='dark'] .gallery-quick-favorite-star.active {
   background: rgb(30 41 59 / 92%);
   color: #fcd34d;
 }
 
-.alpheratz-root.dark-theme .gallery-quick-favorite-star {
+.alpheratz-root[data-theme='dark'] .gallery-quick-favorite-star {
   background: rgb(15 23 42 / 72%);
 }
 
-.alpheratz-root.dark-theme .gallery-photo-thumb {
+.alpheratz-root[data-theme='dark'] .gallery-photo-thumb {
   background: linear-gradient(135deg, #101620, #18202e);
 }
 
-.alpheratz-root.dark-theme .fav-toggle.active .fav-text {
+.alpheratz-root[data-theme='dark'] .fav-toggle.active .fav-text {
   color: #fde68a;
 }
 
-.alpheratz-root.dark-theme .fav-star,
-.alpheratz-root.dark-theme .fav-text {
+.alpheratz-root[data-theme='dark'] .fav-star,
+.alpheratz-root[data-theme='dark'] .fav-text {
   color: var(--a-text);
 }
 
-.alpheratz-root.dark-theme .fav-toggle {
+.alpheratz-root[data-theme='dark'] .fav-toggle {
   border-color: var(--a-border);
 }
 
-.alpheratz-root.dark-theme .tg-btn.active {
+.alpheratz-root[data-theme='dark'] .tg-btn.active {
   color: #fff;
 }
 
-.alpheratz-root.dark-theme .tg-btn {
+.alpheratz-root[data-theme='dark'] .tg-btn {
   background: var(--a-accent-soft);
   border-color: rgb(29 155 240 / 34%);
   color: var(--a-primary);
 }
 
-.alpheratz-root.dark-theme .dd-check-item::after {
+.alpheratz-root[data-theme='dark'] .dd-check-item::after {
   border: 1px solid rgb(255 255 255 / 12%);
   background: #141926;
 }
 
-.alpheratz-root.dark-theme .dd-check-item:hover {
+.alpheratz-root[data-theme='dark'] .dd-check-item:hover {
   background: rgb(255 255 255 / 3%);
 }
 
-.alpheratz-root.dark-theme .dd-trigger.open,
-.alpheratz-root.dark-theme .date-trigger.open,
-.alpheratz-root.dark-theme .date-trigger.has-value.open {
+.alpheratz-root[data-theme='dark'] .dd-trigger.open,
+.alpheratz-root[data-theme='dark'] .date-trigger.open,
+.alpheratz-root[data-theme='dark'] .date-trigger.has-value.open {
   background: var(--a-surface-hover);
 }
 
-.alpheratz-root.dark-theme .dd-trigger:hover,
-.alpheratz-root.dark-theme .date-trigger:hover {
+.alpheratz-root[data-theme='dark'] .dd-trigger:hover,
+.alpheratz-root[data-theme='dark'] .date-trigger:hover {
   background: var(--a-surface-hover);
 }
 
-.alpheratz-root.dark-theme .fs-section input:focus,
-.alpheratz-root.dark-theme .fs-section select:focus,
-.alpheratz-root.dark-theme .memo-section textarea:focus,
-.alpheratz-root.dark-theme .tag-editor input:focus {
+.alpheratz-root[data-theme='dark'] .fs-section input:focus,
+.alpheratz-root[data-theme='dark'] .fs-section select:focus,
+.alpheratz-root[data-theme='dark'] .memo-section textarea:focus,
+.alpheratz-root[data-theme='dark'] .tag-editor input:focus {
   background: var(--a-surface-hover);
 }
 
-.alpheratz-root.dark-theme .input-group:focus-within {
+.alpheratz-root[data-theme='dark'] .input-group:focus-within {
   background: var(--a-surface-hover);
 }
 
-.alpheratz-root.dark-theme {
+.alpheratz-root[data-theme='dark'] {
   --a-accent: #1d9bf0;
   --a-accent-light: #1a8cd8;
   --a-bg: #000;

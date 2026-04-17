@@ -1,0 +1,344 @@
+{
+  "format": 1,
+  "restore": {
+    "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\tests\\Alpheratz.Infrastructure.Tests\\Alpheratz.Infrastructure.Tests.csproj": {}
+  },
+  "projects": {
+    "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Contracts\\Alpheratz.Contracts.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Contracts\\Alpheratz.Contracts.csproj",
+        "projectName": "Alpheratz.Contracts",
+        "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Contracts\\Alpheratz.Contracts.csproj",
+        "packagesPath": "C:\\Users\\kaimu\\.nuget\\packages\\",
+        "outputPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Contracts\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\kaimu\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
+                "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.420/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Diagnostics\\Alpheratz.Diagnostics.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Diagnostics\\Alpheratz.Diagnostics.csproj",
+        "projectName": "Alpheratz.Diagnostics",
+        "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Diagnostics\\Alpheratz.Diagnostics.csproj",
+        "packagesPath": "C:\\Users\\kaimu\\.nuget\\packages\\",
+        "outputPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Diagnostics\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\kaimu\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.420/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj",
+        "projectName": "Alpheratz.Domain",
+        "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj",
+        "packagesPath": "C:\\Users\\kaimu\\.nuget\\packages\\",
+        "outputPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\kaimu\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.420/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Infrastructure\\Alpheratz.Infrastructure.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Infrastructure\\Alpheratz.Infrastructure.csproj",
+        "projectName": "Alpheratz.Infrastructure",
+        "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Infrastructure\\Alpheratz.Infrastructure.csproj",
+        "packagesPath": "C:\\Users\\kaimu\\.nuget\\packages\\",
+        "outputPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Infrastructure\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\kaimu\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Contracts\\Alpheratz.Contracts.csproj": {
+                "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Contracts\\Alpheratz.Contracts.csproj"
+              },
+              "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Diagnostics\\Alpheratz.Diagnostics.csproj": {
+                "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Diagnostics\\Alpheratz.Diagnostics.csproj"
+              },
+              "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
+                "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Dapper": {
+              "target": "Package",
+              "version": "[2.1.72, )"
+            },
+            "Microsoft.Data.Sqlite": {
+              "target": "Package",
+              "version": "[10.0.6, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.420/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\tests\\Alpheratz.Infrastructure.Tests\\Alpheratz.Infrastructure.Tests.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\tests\\Alpheratz.Infrastructure.Tests\\Alpheratz.Infrastructure.Tests.csproj",
+        "projectName": "Alpheratz.Infrastructure.Tests",
+        "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\tests\\Alpheratz.Infrastructure.Tests\\Alpheratz.Infrastructure.Tests.csproj",
+        "packagesPath": "C:\\Users\\kaimu\\.nuget\\packages\\",
+        "outputPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\tests\\Alpheratz.Infrastructure.Tests\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\kaimu\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Infrastructure\\Alpheratz.Infrastructure.csproj": {
+                "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Infrastructure\\Alpheratz.Infrastructure.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.NET.Test.Sdk": {
+              "target": "Package",
+              "version": "[17.8.0, )"
+            },
+            "coverlet.collector": {
+              "target": "Package",
+              "version": "[6.0.0, )"
+            },
+            "xunit": {
+              "target": "Package",
+              "version": "[2.5.3, )"
+            },
+            "xunit.runner.visualstudio": {
+              "target": "Package",
+              "version": "[2.5.3, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.420/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

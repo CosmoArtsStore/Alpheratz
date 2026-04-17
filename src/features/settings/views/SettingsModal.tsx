@@ -6,7 +6,7 @@ interface SettingsModalProps {
   onClose: () => void;
   photoFolderPath: string;
   secondaryPhotoFolderPath: string;
-  handleChooseFolder: (slot: 1 | 2) => void;
+  onChooseFolder: (slot: 1 | 2) => void;
   startupEnabled: boolean;
   onToggleStartup: () => void;
   themeMode: ThemeMode;
@@ -20,12 +20,12 @@ interface SettingsModalProps {
   onDeleteTagMaster: (tag: string) => void;
 }
 
-/** Settings modal for folder paths, startup behavior, theme, and tag masters. */
+// 設定モーダルでフォルダや表示系設定をまとめて編集する。
 export const SettingsModal = ({
   onClose,
   photoFolderPath,
   secondaryPhotoFolderPath,
-  handleChooseFolder,
+  onChooseFolder,
   startupEnabled,
   onToggleStartup,
   themeMode,
@@ -71,7 +71,12 @@ export const SettingsModal = ({
         aria-label="設定モーダルを閉じる"
         type="button"
       />
-      <div className={styles.panel}>
+      <div
+        className={styles.panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-modal-title"
+      >
         <button className={styles.close} onClick={onClose} aria-label="閉じる" type="button">
           ×
         </button>
@@ -94,7 +99,7 @@ export const SettingsModal = ({
                   <button
                     className={styles['action-button']}
                     onClick={() => {
-                      handleChooseFolder(1);
+                      onChooseFolder(1);
                     }}
                     type="button"
                   >
@@ -115,7 +120,7 @@ export const SettingsModal = ({
                   <button
                     className={styles['action-button']}
                     onClick={() => {
-                      handleChooseFolder(2);
+                      onChooseFolder(2);
                     }}
                     type="button"
                   >

@@ -6,17 +6,7 @@ interface UseViewportPresenceOptions {
   releaseDelayMs?: number;
 }
 
-/**
- * Tracks whether a target element is near the viewport.
- *
- * The release delay keeps thumbnails mounted briefly after leaving view, which reduces
- * flicker during fast scrolling.
- *
- * @param targetRef Ref pointing at the observed element.
- * @param targetKey Stable key that resets observation when the rendered item changes.
- * @param options Intersection observer settings and delayed release behavior.
- * @returns `true` while the element should be considered present for rendering.
- */
+// Tracks whether a target element is near the viewport.
 export const useViewportPresence = <T extends Element>(
   targetRef: RefObject<T | null>,
   targetKey: string | undefined,

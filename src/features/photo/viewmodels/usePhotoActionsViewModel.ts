@@ -7,13 +7,7 @@ import {
   savePhotoMemo,
 } from '../services/photoCommandsService';
 
-/**
- * Manages modal-level actions and state for the currently selected photo.
- *
- * @param syncPhoto Callback that updates the shared photo collection after edits.
- * @param addToast Local toast helper used for memo and world-link feedback.
- * @returns Selected photo state, memo state, history, and action handlers.
- */
+// Manages modal-level actions and state for the currently selected photo.
 export const usePhotoActionsViewModel = (
   syncPhoto: (photo: Photo) => void,
   addToast: (msg: string) => void,

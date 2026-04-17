@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-/** Toast variants supported by the lightweight in-app notifier. */
+// Toast variants supported by the lightweight in-app notifier.
 export type ToastType = 'success' | 'error' | 'info';
 
 interface Toast {
@@ -9,14 +9,7 @@ interface Toast {
   type: ToastType;
 }
 
-/**
- * Manages transient toast state for local UI feedback.
- *
- * The hook keeps notification logic in React so view models can report success and
- * failure without coupling themselves to any specific visual component.
- *
- * @returns The current toast list and an `addToast` helper that auto-removes entries.
- */
+// Manages transient toast state for local UI feedback.
 export const useToasts = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 

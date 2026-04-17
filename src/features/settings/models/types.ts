@@ -1,6 +1,6 @@
 import type { ThemeMode, ViewMode } from '../../../shared/models/types';
 
-/** Persisted frontend settings mirrored to the Rust configuration layer. */
+// Persisted frontend settings mirrored to the Rust configuration layer.
 export interface AppSetting {
   photoFolderPath?: string;
   secondaryPhotoFolderPath?: string;
@@ -12,7 +12,7 @@ export interface AppSetting {
   activeTweetTemplate?: string;
 }
 
-/** Existing cache backup metadata shown before a restore operation. */
+// Existing cache backup metadata shown before a restore operation.
 export interface BackupCandidate {
   photo_folder_path: string;
   backup_folder_name: string;

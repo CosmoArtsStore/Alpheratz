@@ -9,13 +9,13 @@ use crate::db::open_alpheratz_connection;
 
 const ORIENTATION_BATCH_SIZE: usize = 200;
 
-/// Shared state used by the background orientation worker.
+// 背景 orientation worker の状態を共有する。
 pub struct OrientationWorkerState {
     pub running: AtomicBool,
     pub progress: Mutex<OrientationProgressPayload>,
 }
 
-/// Progress payload emitted while orientation analysis is running.
+// orientation 解析中に流す進捗 payload をまとめる。
 #[derive(Clone, Debug, Serialize, Default)]
 pub struct OrientationProgressPayload {
     pub done: usize,
@@ -23,10 +23,7 @@ pub struct OrientationProgressPayload {
     pub current: Option<String>,
 }
 
-/// Starts the background worker that fills missing orientation metadata.
-///
-/// Repeated calls are ignored while a worker is already running so the UI can safely
-/// trigger this after scans without creating overlapping jobs.
+// 未解析の orientation 情報を埋める背景 worker を起動する。
 pub fn start_orientation_worker(app: AppHandle) {
     let state = app.state::<OrientationWorkerState>();
     if state.running.swap(true, Ordering::SeqCst) {
@@ -47,7 +44,7 @@ pub fn start_orientation_worker(app: AppHandle) {
     });
 }
 
-/// Returns the latest in-memory orientation progress snapshot.
+// 最新の orientation 進捗スナップショットを返す。
 pub fn get_orientation_progress(app: &AppHandle) -> OrientationProgressPayload {
     let state = app.state::<OrientationWorkerState>();
     let progress = match state.progress.lock() {
@@ -60,10 +57,7 @@ pub fn get_orientation_progress(app: &AppHandle) -> OrientationProgressPayload {
     progress
 }
 
-/// Checks whether any photo still needs orientation or dimension analysis.
-///
-/// # Errors
-/// Returns an error if the cache database cannot be queried.
+// orientation またはサイズ未解析の写真が残っているか確認する。
 pub fn has_pending_orientation() -> Result<bool, String> {
     let conn = open_alpheratz_connection(1)?;
     let count = conn

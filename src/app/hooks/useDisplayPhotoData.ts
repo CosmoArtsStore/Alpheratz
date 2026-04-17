@@ -16,15 +16,7 @@ interface UseDisplayPhotoDataOptions {
   similarPhotoLimit: number;
 }
 
-/**
- * Builds derived display data for the active grouping mode and modal context.
- *
- * Grouping and similar-photo lookup stay on the Rust side because the app wants one
- * authoritative matching implementation shared across screens and commands.
- *
- * @param options Inputs needed to derive grouped items and selected-photo context.
- * @returns Display items, the selected photo view, its index, and nearby similar photos.
- */
+// Builds derived display data for the active grouping mode and modal context.
 export const useDisplayPhotoData = ({
   photos,
   groupingMode,

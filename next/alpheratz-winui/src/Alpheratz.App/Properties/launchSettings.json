@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Alpheratz.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Alpheratz.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import type { DisplayPhoto, GalleryLayoutResult } from '../../../shared/models/types';
 
-/** Metadata for one month section in the gallery timeline. */
+// Metadata for one month section in the gallery timeline.
 export interface MonthGroup {
   key: string;
   year: number;
@@ -10,7 +10,7 @@ export interface MonthGroup {
   count: number;
 }
 
-/** Display photo shape required by the gallery layout algorithm. */
+// Display photo shape required by the gallery layout algorithm.
 export interface GalleryLayoutPhotoLike extends DisplayPhoto {
   image_width?: number | null;
   image_height?: number | null;
@@ -47,7 +47,7 @@ const getCardHeight = (photo: GalleryLayoutPhotoLike, columnWidth: number) => {
   );
 };
 
-/** Calculates a virtual masonry-style layout for gallery mode. */
+// Calculates a virtual masonry-style layout for gallery mode.
 export const buildVirtualGalleryLayout = (
   photos: GalleryLayoutPhotoLike[],
   panelWidth: number,

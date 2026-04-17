@@ -14,12 +14,7 @@ interface UseSettingsViewModelOptions {
   defaultActiveTweetTemplate: string;
 }
 
-/**
- * Combines settings preferences and folder-migration flows for the settings modal.
- *
- * @param options Shared dependencies needed by both settings sub-view-models.
- * @returns A merged object exposing preference and folder-migration state and handlers.
- */
+// Combines settings preferences and folder-migration flows for the settings modal.
 export const useSettingsViewModel = ({
   photoFolderPath,
   secondaryPhotoFolderPath,

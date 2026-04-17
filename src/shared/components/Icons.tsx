@@ -1,6 +1,6 @@
 import styles from './Icons.module.css';
 
-/** Shared inline SVG icon set used across the gallery UI. */
+// Shared inline SVG icon set used across the gallery UI.
 export const Icons = {
   Menu: () => (
     <svg
@@ -50,7 +50,7 @@ export const Icons = {
     </svg>
   ),
   Moon: () => (
-    <svg viewBox="0 0 24 24" className="icon-svg">
+    <svg viewBox="0 0 24 24" className={styles['icon-svg']}>
       <path d="M14.77 4.09C15.8 4.24 16.78 4.61 17.64 5.17A8 8 0 0 1 10.17 19A8.14 8.14 0 0 1 6.36 18.09A9 9 0 0 0 14.77 4.09Z" />
     </svg>
   ),

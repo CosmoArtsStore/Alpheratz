@@ -13,15 +13,7 @@ interface UseTweetTemplatesOptions {
   addToast?: (msg: string, type?: ToastType) => void;
 }
 
-/**
- * Manages editable tweet templates and the active template selection.
- *
- * Templates are persisted through settings so tweet composition can stay customizable
- * without spreading template CRUD logic throughout the gallery screen.
- *
- * @param options Current template state, persistence callback, and optional toast helper.
- * @returns Panel state and handlers for adding, editing, selecting, deleting, and using templates.
- */
+// Manages editable tweet templates and the active template selection.
 export const useTweetTemplates = ({
   tweetTemplates,
   setTweetTemplates,

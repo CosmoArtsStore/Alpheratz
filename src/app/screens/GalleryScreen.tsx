@@ -43,7 +43,7 @@ const ROW_HEIGHT = 246;
 type GroupingMode = 'none' | 'similar' | 'world';
 const MAX_SIMILAR_PHOTOS_IN_MODAL = 24;
 
-/** Main gallery screen that composes scanning, filtering, browsing, and editing flows. */
+// スキャンから閲覧・編集までを束ねるメイン画面を構成する。
 function GalleryScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -148,7 +148,7 @@ function GalleryScreen() {
     activeTweetTemplate,
     setActiveTweetTemplate,
     saveSetting,
-    handleChooseFolder,
+    onChooseFolder,
     handleStartupPreference,
     handleThemeToggle,
     isArchiveResolutionRunning,
@@ -412,9 +412,7 @@ function GalleryScreen() {
   const displayTotalRows = Math.ceil(displayPhotoItems.length / columnCount);
 
   return (
-    <section
-      className={[styles.root, themeMode === 'dark' ? 'dark-theme' : 'light-theme'].join(' ')}
-    >
+    <section className={styles.root} data-theme={themeMode}>
       <Header
         onRefresh={() => {
           if (scanStatus === 'scanning') {
@@ -747,6 +745,8 @@ function GalleryScreen() {
           <section
             className={[styles.modal, styles['quick-tag-modal']].join(' ')}
             aria-modal="true"
+            role="dialog"
+            aria-labelledby="bulk-tag-title"
           >
             <button
               className={styles.close}
@@ -787,7 +787,7 @@ function GalleryScreen() {
                       ))}
                     </select>
                   </div>
-                  <label className="quick-tag-modal-label" htmlFor="bulk-tag-draft">
+                  <label className={styles['quick-tag-label']} htmlFor="bulk-tag-draft">
                     新規タグ
                   </label>
                   <input
@@ -881,6 +881,8 @@ function GalleryScreen() {
           <section
             className={[styles.modal, styles['tweet-template-panel']].join(' ')}
             aria-modal="true"
+            role="dialog"
+            aria-labelledby="tweet-template-edit-title"
           >
             <button
               className={styles.close}
@@ -899,7 +901,7 @@ function GalleryScreen() {
                   <h2 id="tweet-template-edit-title">投稿テンプレート</h2>
                 </header>
                 <section className={styles['memo-section']} aria-label="テンプレート編集">
-                  <label>{editingTweetTemplate ? 'テンプレート編集' : '新規テンプレート'}</label>
+                  <p>{editingTweetTemplate ? 'テンプレート編集' : '新規テンプレート'}</p>
                   <textarea
                     className={styles.textarea}
                     value={tweetTemplateDraft}
@@ -937,7 +939,7 @@ function GalleryScreen() {
                   <h2 id="tweet-template-list-title">テンプレート一覧</h2>
                 </header>
                 <section className={styles['memo-section']} aria-label="登録済みテンプレート">
-                  <label>登録済みテンプレート</label>
+                  <p>登録済みテンプレート</p>
                   <ul className={styles['tweet-template-list']}>
                     {tweetTemplates.map((template) => (
                       <li
@@ -998,7 +1000,7 @@ function GalleryScreen() {
           }}
           photoFolderPath={photoFolderPath}
           secondaryPhotoFolderPath={secondaryPhotoFolderPath}
-          handleChooseFolder={handleChooseFolder}
+          onChooseFolder={onChooseFolder}
           startupEnabled={isStartupEnabled}
           onToggleStartup={() => {
             void handleStartupPreference(!isStartupEnabled);
@@ -1033,6 +1035,8 @@ function GalleryScreen() {
           <section
             className={[styles.modal, styles['folder-change-modal']].join(' ')}
             aria-modal="true"
+            role="dialog"
+            aria-labelledby="folder-change-title"
           >
             <button
               className={styles.close}
@@ -1096,6 +1100,8 @@ function GalleryScreen() {
           <section
             className={[styles.modal, styles['folder-change-modal']].join(' ')}
             aria-modal="true"
+            role="dialog"
+            aria-labelledby="backup-restore-title"
           >
             <button
               className={styles.close}

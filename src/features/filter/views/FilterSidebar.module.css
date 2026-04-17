@@ -103,6 +103,12 @@
   position: relative;
 }
 
+.date-trigger-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
 .trigger,
 .date-trigger {
   width: 100%;
@@ -115,6 +121,10 @@
   background: var(--a-surface-soft);
   cursor: pointer;
   text-align: left;
+}
+
+.date-trigger {
+  flex: 1;
 }
 
 .trigger.open,
@@ -176,6 +186,18 @@
   font-family: var(--a-font-sans);
   color: var(--a-text-faint);
   font-weight: 600;
+}
+
+.separator {
+  height: 1px;
+  margin: 0.35rem 0;
+  list-style: none;
+  background: var(--a-border);
+}
+
+.date-trigger-row .reset {
+  flex-shrink: 0;
+  min-width: 42px;
 }
 
 .panel,
@@ -433,6 +455,13 @@
 .toggle-group {
   display: flex;
   gap: 0.45rem;
+}
+
+.orientation-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.2rem;
 }
 
 .orientation-button {

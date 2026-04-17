@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Photo record exchanged between the cache database and the frontend.
+// cache DB とフロントエンド間で受け渡す写真レコード。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PhotoRecord {
     /// File name used as the logical identifier inside a source slot.
@@ -40,7 +40,7 @@ pub struct PhotoRecord {
     pub is_missing: bool,
 }
 
-/// Grouped photo item returned to the frontend display builder.
+// フロントエンド表示用に束ねた写真アイテム。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DisplayPhotoItemRecord {
@@ -54,7 +54,7 @@ pub struct DisplayPhotoItemRecord {
     pub group_photos: Option<Vec<PhotoRecord>>,
 }
 
-/// Query filters accepted by the photo listing command.
+// 写真一覧 command が受け取る検索条件。
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PhotoQuery {
@@ -91,7 +91,7 @@ impl Default for PhotoRecord {
     }
 }
 
-/// Progress payload emitted while the folder scan is running.
+// フォルダスキャン中に流す進捗 payload。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ScanProgress {
     pub processed: usize,

@@ -10,9 +10,9 @@ use rusqlite::{Connection, OptionalExtension};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-/// Cache-backup metadata returned to the settings workflow.
+// 設定画面へ返す cache backup 情報をまとめる。
 #[derive(Debug, Clone, Serialize)]
 pub struct BackupCandidate {
     pub photo_folder_path: String,
@@ -228,16 +228,16 @@ fn get_alpheratz_data_legacy_backup_db_path(
     )
 }
 
-fn has_db_cache_snapshot(db_path: &PathBuf) -> bool {
+fn has_db_cache_snapshot(db_path: &Path) -> bool {
     db_path.exists()
 }
 
-/// Returns the configured source slots that `Alpheratz` currently supports.
+// Alpheratz が扱う source slot 一覧を返す。
 pub fn configured_source_slots() -> Vec<i64> {
     vec![1, 2]
 }
 
-/// Resolves the cache database path for a source slot.
+// source slot に対応する cache DB パスを返す。
 pub fn get_alpheratz_db_path(source_slot: i64) -> Option<PathBuf> {
     Some(get_alpheratz_db_cache_dir(source_slot)?.join("Alpheratz.db"))
 }
@@ -251,10 +251,7 @@ fn get_legacy_alpheratz_db_paths() -> Vec<PathBuf> {
     paths
 }
 
-/// Opens the cache database connection for a source slot.
-///
-/// This helper also ensures the schema is present before the caller uses the
-/// connection, so higher layers can rely on a ready-to-use database.
+// schema を確認したうえで source slot の cache DB を開く。
 pub fn open_alpheratz_connection(source_slot: i64) -> Result<Connection, String> {
     let db_path = get_alpheratz_db_path(source_slot)
         .ok_or_else(|| "Alpheratz DB の保存先を取得できません".to_string())?;
@@ -556,19 +553,13 @@ fn ensure_alpheratz_schema(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-/// Initializes every configured cache database.
+// すべての source slot 用 cache DB を初期化する。
 pub fn init_alpheratz_db() -> Result<(), String> {
     let conn = open_alpheratz_connection(1)?;
     ensure_alpheratz_schema(&conn)
 }
 
-/// Queries photos using the sidebar filter set.
-///
-/// # Arguments
-/// * `query` - Filter values supplied by the frontend.
-///
-/// # Returns
-/// Matching photo records ordered for display.
+// フィルタ条件に一致する写真一覧を読み込む。
 pub fn get_photos(query: PhotoQuery) -> Result<Vec<PhotoRecord>, String> {
     let conn = open_alpheratz_connection(1)?;
     let PhotoQuery {
@@ -688,7 +679,7 @@ pub fn get_photos(query: PhotoQuery) -> Result<Vec<PhotoRecord>, String> {
     Ok(results)
 }
 
-/// Saves the memo text for a photo record.
+// 写真メモを保存する。
 pub fn save_photo_memo(source_slot: i64, filename: &str, memo: &str) -> Result<(), String> {
     let conn = open_alpheratz_connection(source_slot)?;
     let changed = conn
@@ -703,7 +694,7 @@ pub fn save_photo_memo(source_slot: i64, filename: &str, memo: &str) -> Result<(
     Ok(())
 }
 
-/// Loads the memo text stored for a photo record.
+// 写真メモを読み込む。
 pub fn get_photo_memo(source_slot: i64, filename: &str) -> Result<String, String> {
     let conn = open_alpheratz_connection(source_slot)?;
     conn.query_row(
@@ -714,7 +705,7 @@ pub fn get_photo_memo(source_slot: i64, filename: &str) -> Result<String, String
     .map_err(|err| format!("写真メモを取得できません [{}]: {}", filename, err))
 }
 
-/// Loads every tag attached to a photo record.
+// 写真に紐づくタグ一覧を読み込む。
 pub fn get_photo_tags(source_slot: i64, filename: &str) -> Result<Vec<String>, String> {
     let conn = open_alpheratz_connection(source_slot)?;
     let mut stmt = conn
@@ -743,7 +734,7 @@ pub fn get_photo_tags(source_slot: i64, filename: &str) -> Result<Vec<String>, S
     Ok(tags)
 }
 
-/// Loads one photo record by source slot and filename.
+// source slot とファイル名から写真 1 件を読み込む。
 pub fn get_photo_record(
     source_slot: i64,
     filename: &str,
@@ -783,7 +774,7 @@ pub fn get_photo_record(
     Ok(record)
 }
 
-/// Updates the favorite flag for a photo record.
+// お気に入り状態を更新する。
 pub fn set_photo_favorite(
     source_slot: i64,
     filename: &str,
@@ -802,7 +793,7 @@ pub fn set_photo_favorite(
     Ok(())
 }
 
-/// Adds a tag to a photo record, creating the tag master when needed.
+// 必要ならタグマスタを作りつつ写真へタグを追加する。
 pub fn add_photo_tag(source_slot: i64, filename: &str, tag: &str) -> Result<(), String> {
     let conn = open_alpheratz_connection(source_slot)?;
     let tx = conn.unchecked_transaction().map_err(|e| {
@@ -840,7 +831,7 @@ pub fn add_photo_tag(source_slot: i64, filename: &str, tag: &str) -> Result<(), 
     Ok(())
 }
 
-/// Removes a tag from a photo record.
+// 写真からタグを外す。
 pub fn remove_photo_tag(source_slot: i64, filename: &str, tag: &str) -> Result<(), String> {
     let conn = open_alpheratz_connection(source_slot)?;
     conn.execute(
@@ -858,7 +849,7 @@ pub fn remove_photo_tag(source_slot: i64, filename: &str, tag: &str) -> Result<(
     Ok(())
 }
 
-/// Lists all registered tag masters.
+// 登録済みタグマスタを一覧で返す。
 pub fn get_all_tags() -> Result<Vec<String>, String> {
     let mut tags = Vec::new();
     let mut seen = std::collections::HashSet::new();
@@ -888,7 +879,7 @@ pub fn get_all_tags() -> Result<Vec<String>, String> {
     Ok(tags)
 }
 
-/// Creates a tag master entry.
+// タグマスタを 1 件追加する。
 pub fn create_tag_master(tag: &str) -> Result<(), String> {
     let normalized = tag.trim();
     if normalized.is_empty() {
@@ -904,7 +895,7 @@ pub fn create_tag_master(tag: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Deletes a tag master entry and related assignments.
+// タグマスタと関連付けをまとめて削除する。
 pub fn delete_tag_master(tag: &str) -> Result<(), String> {
     let normalized = tag.trim();
     if normalized.is_empty() {
@@ -936,7 +927,7 @@ pub fn delete_tag_master(tag: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Loads backup metadata for a photo folder when it exists.
+// 写真フォルダに対応する backup 情報を読み込む。
 pub fn get_backup_candidate(photo_folder_path: &str) -> Result<Option<BackupCandidate>, String> {
     let normalized = photo_folder_path.trim();
     if normalized.is_empty() {
@@ -956,7 +947,7 @@ pub fn get_backup_candidate(photo_folder_path: &str) -> Result<Option<BackupCand
     Ok(Some(entry))
 }
 
-/// Creates a cache backup for the given photo folder and records its metadata.
+// 写真フォルダに対応する cache backup を作成する。
 pub fn create_cache_backup(photo_folder_path: &str) -> Result<Option<BackupCandidate>, String> {
     let normalized = photo_folder_path.trim();
     if normalized.is_empty() {
@@ -1014,7 +1005,7 @@ pub fn create_cache_backup(photo_folder_path: &str) -> Result<Option<BackupCandi
     }))
 }
 
-/// Restores the cache backup associated with the given photo folder.
+// 写真フォルダに対応する cache backup を復元する。
 pub fn restore_cache_backup(photo_folder_path: &str) -> Result<bool, String> {
     let normalized = photo_folder_path.trim();
     if normalized.is_empty() {
@@ -1079,7 +1070,7 @@ pub fn restore_cache_backup(photo_folder_path: &str) -> Result<bool, String> {
     Ok(true)
 }
 
-/// Clears the current photo cache and related generated data.
+// 写真 cache と生成物をまとめて削除する。
 pub fn reset_photo_cache() -> Result<(), String> {
     let conn = open_alpheratz_connection(1)?;
     let tx = conn.unchecked_transaction().map_err(|err| {

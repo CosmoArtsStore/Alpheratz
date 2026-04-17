@@ -14,13 +14,7 @@ interface ScanSettings {
   secondaryPhotoFolderPath?: string;
 }
 
-/**
- * Coordinates the lifecycle of the Rust-side photo scan.
- *
- * @param loadSettings Async loader for the current photo-folder settings.
- * @param addToast Optional toast reporter for startup, event, and cancel errors.
- * @returns Scan status, progress, configured paths, and actions for refresh and cancel.
- */
+// Coordinates the lifecycle of the Rust-side photo scan.
 export const useScanViewModel = (
   loadSettings: () => Promise<ScanSettings>,
   addToast?: (msg: string, type?: ToastType) => void,

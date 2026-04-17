@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createGridThumbnailSrc } from '../services/photoCommandsService';
 
-/**
- * Lazily resolves a generated grid-thumbnail URL for a photo.
- *
- * @param photoPath Absolute source photo path.
- * @param sourceSlot Source library slot used by the thumbnail command.
- * @param shouldLoad Whether the thumbnail should be generated right now.
- * @returns The generated thumbnail URL, or `null` while unavailable.
- */
+// Lazily resolves a generated grid-thumbnail URL for a photo.
 export const useGridThumbnailViewModel = (
   photoPath: string | null | undefined,
   sourceSlot: number | null | undefined,

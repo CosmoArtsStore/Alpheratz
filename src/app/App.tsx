@@ -1,6 +1,6 @@
 import GalleryScreen from './screens/GalleryScreen';
 
-/** Root React application component for the Alpheratz desktop UI. */
+// ルート画面としてギャラリー画面を表示する。
 export default function App() {
   return <GalleryScreen />;
 }

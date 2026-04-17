@@ -8,12 +8,7 @@ interface UseScrollArgs {
   totalHeightOverride?: number;
 }
 
-/**
- * Manages virtual gallery scroll position and jump helpers.
- *
- * @param args Geometry inputs required to clamp scrolling and derive total height.
- * @returns Scroll state, refs, and handlers used by the gallery viewport and navigator.
- */
+// Manages virtual gallery scroll position and jump helpers.
 export const useGalleryScrollViewModel = ({
   photosLength,
   columnCount,

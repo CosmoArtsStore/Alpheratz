@@ -78,12 +78,7 @@ const getSelectionLabel = (items: string[], emptyLabel: string, suffix: string) 
   return `${items.length}${suffix}`;
 };
 
-/**
- * Builds derived sidebar state for world, tag, and date filter controls.
- *
- * @param options Current filter state and the option lists needed to render dropdowns.
- * @returns Derived labels, filtered options, draft date state, and dropdown visibility.
- */
+// Builds derived sidebar state for world, tag, and date filter controls.
 export const useFilterSidebarViewModel = ({
   isOpen,
   dateFrom,

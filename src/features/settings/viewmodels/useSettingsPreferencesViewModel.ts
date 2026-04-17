@@ -22,12 +22,7 @@ interface UseSettingsPreferencesViewModelOptions {
   defaultActiveTweetTemplate: string;
 }
 
-/**
- * Manages persisted preferences shown in the settings modal.
- *
- * @param options Folder paths, default tweet templates, and an optional toast helper.
- * @returns Settings state plus handlers for saving preferences and managing tag masters.
- */
+// 設定モーダルで使う永続設定と補完操作を管理する。
 export const useSettingsPreferencesViewModel = ({
   photoFolderPath,
   secondaryPhotoFolderPath,

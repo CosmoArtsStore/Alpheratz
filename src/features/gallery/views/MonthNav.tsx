@@ -11,7 +11,7 @@ interface MonthNavProps {
   handleJumpToRatio: (ratio: number, smooth?: boolean) => void;
 }
 
-/** Vertical month navigator used in gallery mode for quick timeline jumps. */
+// Vertical month navigator used in gallery mode for quick timeline jumps.
 export const MonthNav = ({
   monthGroups,
   activeMonthIndex,

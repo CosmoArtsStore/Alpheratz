@@ -10,11 +10,7 @@ const EMPTY_PROGRESS: PhashProgress = {
   current: null,
 };
 
-/**
- * Tracks perceptual-hash progress by combining the latest snapshot and live events.
- *
- * @returns The current pHash progress payload and whether the task is still running.
- */
+// Tracks perceptual-hash progress by combining the latest snapshot and live events.
 export function useScanPhashViewModel() {
   const [progress, setProgress] = useState(EMPTY_PROGRESS);
   const [isRunning, setIsRunning] = useState(false);

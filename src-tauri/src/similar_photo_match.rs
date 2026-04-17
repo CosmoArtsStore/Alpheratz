@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::thread;
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -18,14 +18,15 @@ const PHASH_VERSION: i64 = 2;
 const PHASH_WORKER_LIMIT: usize = 4;
 const PHASH_UPDATE_BATCH_SIZE: usize = 32;
 const PHASH_PROGRESS_EMIT_INTERVAL: usize = 16;
+const WORLD_MATCH_DISTANCE_THRESHOLD: u32 = 124;
 
-/// Shared state used by the background perceptual-hash worker.
+// 背景 pHash worker の状態を共有する。
 pub struct PHashWorkerState {
     pub running: AtomicBool,
     pub progress: Mutex<PHashProgressPayload>,
 }
 
-/// Progress payload emitted while perceptual hashes are being generated.
+// pHash 生成中に流す進捗 payload をまとめる。
 #[derive(Clone, Debug, Serialize, Default)]
 pub struct PHashProgressPayload {
     pub done: usize,
@@ -33,7 +34,7 @@ pub struct PHashProgressPayload {
     pub current: Option<String>,
 }
 
-/// Candidate world match inferred from visually similar photos.
+// 類似写真から推定したワールド候補を表す。
 #[derive(Clone, Debug)]
 pub struct PHashWorldMatch {
     pub world_name: String,
@@ -49,10 +50,7 @@ struct PdqComputeResult {
     error: Option<String>,
 }
 
-/// Starts the background worker that computes missing `PDQ` hashes.
-///
-/// The worker is serialized through shared state so repeated UI requests do not launch
-/// duplicate hashing jobs.
+// 未生成の PDQ hash を埋める背景 worker を起動する。
 pub fn start_phash_worker(app: AppHandle) {
     let state = app.state::<PHashWorkerState>();
     if state.running.swap(true, Ordering::SeqCst) {
@@ -73,7 +71,7 @@ pub fn start_phash_worker(app: AppHandle) {
     });
 }
 
-/// Returns the latest in-memory pHash progress snapshot.
+// 最新の pHash 進捗スナップショットを返す。
 pub fn get_phash_progress(app: &AppHandle) -> PHashProgressPayload {
     let state = app.state::<PHashWorkerState>();
     let progress = match state.progress.lock() {
@@ -86,10 +84,7 @@ pub fn get_phash_progress(app: &AppHandle) -> PHashProgressPayload {
     progress
 }
 
-/// Checks whether any photo still needs pHash generation.
-///
-/// # Errors
-/// Returns an error if the cache database cannot be queried.
+// pHash 未生成の写真が残っているか確認する。
 pub fn has_pending_phash() -> Result<bool, String> {
     let conn = open_alpheratz_connection(1)?;
     let count = conn
@@ -108,16 +103,136 @@ pub fn has_pending_phash() -> Result<bool, String> {
     Ok(count > 0)
 }
 
-/// Placeholder hook for future unknown-world inference based on pHash data.
 pub fn has_unknown_worlds() -> Result<bool, String> {
-    Ok(false)
+    let conn = open_alpheratz_connection(1)?;
+    let count = conn
+        .query_row(
+            "SELECT COUNT(*) FROM photos
+             WHERE is_missing = 0
+               AND world_name IS NULL
+               AND world_id IS NULL
+               AND phash IS NOT NULL
+               AND phash != ''",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|err| format!("不明ワールド件数を取得できません: {}", err))?;
+    Ok(count > 0)
 }
 
-/// Placeholder hook for future world-name inference from an unmatched photo.
-pub fn infer_world_name_from_unknown_photo(
-    _path: &Path,
-) -> Result<Option<PHashWorldMatch>, String> {
-    Ok(None)
+pub fn infer_world_name_from_unknown_photo(path: &Path) -> Result<Option<PHashWorldMatch>, String> {
+    let conn = open_alpheratz_connection(1)?;
+    let target_path = path.to_string_lossy().to_string();
+    let Some((source_slot, target_hash)) = conn
+        .query_row(
+            "SELECT source_slot, phash
+             FROM photos
+             WHERE photo_path = ?1
+               AND is_missing = 0",
+            [&target_path],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<String>>(1)?)),
+        )
+        .optional()
+        .map_err(|err| format!("補完対象写真を取得できません [{}]: {}", target_path, err))?
+    else {
+        return Ok(None);
+    };
+
+    let target_hashes = parse_hash_variants(target_hash.as_deref());
+    if target_hashes.is_empty() {
+        return Ok(None);
+    }
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT world_name, phash
+             FROM photos
+             WHERE is_missing = 0
+               AND source_slot = ?1
+               AND photo_path != ?2
+               AND world_name IS NOT NULL
+               AND TRIM(world_name) != ''
+               AND phash IS NOT NULL
+               AND phash != ''",
+        )
+        .map_err(|err| format!("類似候補クエリを準備できません [{}]: {}", target_path, err))?;
+    let rows = stmt
+        .query_map(rusqlite::params![source_slot, target_path], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|err| format!("類似候補を取得できません [{}]: {}", path.display(), err))?;
+
+    let mut best_match: Option<PHashWorldMatch> = None;
+    let mut best_distance = u32::MAX;
+    for row in rows {
+        let (world_name, candidate_hash) =
+            row.map_err(|err| format!("類似候補行を読み取れません [{}]: {}", path.display(), err))?;
+        let candidate_hashes = parse_hash_variants(Some(candidate_hash.as_str()));
+        let Some(distance) = get_closest_hash_distance(&target_hashes, &candidate_hashes) else {
+            continue;
+        };
+        if distance > WORLD_MATCH_DISTANCE_THRESHOLD || distance >= best_distance {
+            continue;
+        }
+
+        best_distance = distance;
+        let similarity_distance = u16::try_from(distance).unwrap_or(u16::MAX);
+        best_match = Some(PHashWorldMatch {
+            world_name,
+            similarity: 1.0 - (f32::from(similarity_distance) / 256.0),
+        });
+    }
+
+    Ok(best_match)
+}
+
+// DB の区切り文字列から pHash バリエーションを取り出す。
+fn parse_hash_variants(value: Option<&str>) -> Vec<String> {
+    value
+        .unwrap_or_default()
+        .split('|')
+        .map(|item| item.trim().to_ascii_lowercase())
+        .filter(|item| item.len() == 64 && item.chars().all(|ch| ch.is_ascii_hexdigit()))
+        .collect()
+}
+
+// 16 進ハッシュ同士の Hamming 距離を計算する。
+fn get_hamming_distance(left: &str, right: &str) -> Option<u32> {
+    if left.len() != right.len() {
+        return None;
+    }
+
+    let mut distance = 0;
+    for (left_digit, right_digit) in left.chars().zip(right.chars()) {
+        let left_value = left_digit.to_digit(16)?;
+        let right_value = right_digit.to_digit(16)?;
+        distance += (left_value ^ right_value).count_ones();
+    }
+    Some(distance)
+}
+
+// すべての hash 組み合わせから最小距離を返す。
+fn get_closest_hash_distance(left: &[String], right: &[String]) -> Option<u32> {
+    if left.is_empty() || right.is_empty() {
+        return None;
+    }
+
+    let mut best = u32::MAX;
+    for left_hash in left {
+        for right_hash in right {
+            let Some(distance) = get_hamming_distance(left_hash, right_hash) else {
+                continue;
+            };
+            if distance < best {
+                best = distance;
+            }
+            if best == 0 {
+                return Some(0);
+            }
+        }
+    }
+
+    (best != u32::MAX).then_some(best)
 }
 
 async fn run_phash_worker(app: AppHandle) -> Result<(), String> {

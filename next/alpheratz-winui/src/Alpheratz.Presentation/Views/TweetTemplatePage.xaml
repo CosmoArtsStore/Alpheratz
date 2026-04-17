@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Alpheratz.Presentation.Views.TweetTemplatePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:Alpheratz.Presentation.ViewModels"
+    mc:Ignorable="d">
+
+    <ScrollViewer Padding="40" MaxWidth="800" HorizontalAlignment="Left">
+        <StackPanel Spacing="32">
+            <TextBlock Text="Tweet Templates" FontSize="32" FontWeight="Bold" />
+
+            <Border Padding="24" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Create New Template" FontSize="18" FontWeight="SemiBold" />
+                    <TextBox 
+                        PlaceholderText="Enter your template (use {world-name} for world name)..." 
+                        Text="{x:Bind ViewModel.NewTemplateContent, Mode=TwoWay}" 
+                        Height="100" 
+                        AcceptsReturn="True" 
+                        TextWrapping="Wrap" />
+                    <Button Content="Add Template" Command="{x:Bind ViewModel.AddTemplateCommand}" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Right" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Your Templates" FontSize="20" FontWeight="SemiBold" />
+            
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Templates}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Border Margin="0,0,0,12" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8">
+                            <Grid RowDefinitions="Auto,Auto">
+                                <TextBlock Text="{Binding}" TextWrapping="Wrap" Opacity="0.8" Margin="0,0,0,12" />
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                                    <Button Content="Set as Active" 
+                                            Style="{ThemeResource SubtleButtonStyle}" 
+                                            Command="{Binding ElementName=ViewModel, Path=SetActiveTemplateCommand}" 
+                                            CommandParameter="{Binding}" />
+                                    <Button Style="{ThemeResource SubtleButtonStyle}" Command="{Binding ElementName=ViewModel, Path=DeleteTemplateCommand}" CommandParameter="{Binding}">
+                                        <SymbolIcon Symbol="Delete" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

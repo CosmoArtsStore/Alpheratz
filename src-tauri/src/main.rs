@@ -3,10 +3,10 @@
 use std::panic;
 use std::process;
 
-/// Application name used in fatal-error UI messages.
+// 致命的エラーのダイアログ題名に使うアプリ名を固定する。
 const APP_NAME: &str = "Alpheratz";
 
-/// Shows a native fatal-error dialog on Windows builds.
+// Windows では致命的エラーをネイティブダイアログで通知する。
 #[cfg(target_os = "windows")]
 fn show_fatal_error(msg: &str) {
     use windows::core::PCWSTR;
@@ -28,16 +28,13 @@ fn show_fatal_error(msg: &str) {
     }
 }
 
-/// No-op fallback for unsupported non-Windows builds.
+// Windows 以外では致命的エラー表示を行わない。
 #[cfg(not(target_os = "windows"))]
 fn show_fatal_error(msg: &str) {
     // Intentional no-op: this app targets Windows-only (VRC users), so non-Windows builds are unsupported.
 }
 
-/// Installs a panic hook and launches the Tauri application.
-///
-/// The custom panic hook exists so release builds still surface fatal errors to users
-/// and write them to the log instead of failing silently.
+// panic をログとダイアログへ流してから Tauri アプリを起動する。
 fn main() {
     panic::set_hook(Box::new(|info| {
         let location = match info.location() {

@@ -69,7 +69,7 @@ const isWithinRange = (date: Date, start: Date | null, end: Date | null) => {
 const toggleSelection = (values: string[], target: string) =>
   values.includes(target) ? values.filter((value) => value !== target) : [...values, target];
 
-/** Sidebar UI for composing world, date, orientation, favorite, and tag filters. */
+// Sidebar UI for composing world, date, orientation, favorite, and tag filters.
 export const FilterSidebar = ({
   isOpen,
   activeFilterCount,
@@ -326,7 +326,7 @@ export const FilterSidebar = ({
 
                 {visitedWorldOptions.length > 0 && (
                   <>
-                    <div className={styles.separator} />
+                    <li className={styles.separator} aria-hidden="true" />
                     <li className={styles['group-label']}>訪問済みワールド</li>
                     {visitedWorldOptions.map((option) => (
                       <li key={option.value}>
@@ -349,7 +349,7 @@ export const FilterSidebar = ({
 
                 {otherWorldOptions.length > 0 && (
                   <>
-                    <div className={styles.separator} />
+                    <li className={styles.separator} aria-hidden="true" />
                     <li className={styles['group-label']}>その他</li>
                     {otherWorldOptions.map((option) => (
                       <li key={option.value}>
@@ -383,47 +383,46 @@ export const FilterSidebar = ({
           撮影日
         </h4>
         <div ref={datePickerRef} className={styles.wrap}>
-          <button
-            type="button"
-            className={[
-              styles['date-trigger'],
-              isDatePickerOpen ? styles.open : '',
-              dateFrom || dateTo ? styles['has-value'] : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            onClick={() => {
-              setDraftFrom(dateFrom);
-              setDraftTo(dateTo);
-              setDraftPreset(datePreset);
-              setIsDatePickerOpen((prev) => !prev);
-            }}
-          >
-            <span className={styles.icon}>📅</span>
-            <span className={styles['date-body']}>
-              <span className={styles['date-label']}>撮影日</span>
-              <span
-                className={[styles['date-value'], !(dateFrom || dateTo) ? styles.placeholder : '']
-                  .filter(Boolean)
-                  .join(' ')}
-              >
-                {rangeLabel}
+          <div className={styles['date-trigger-row']}>
+            <button
+              type="button"
+              className={[
+                styles['date-trigger'],
+                isDatePickerOpen ? styles.open : '',
+                dateFrom || dateTo ? styles['has-value'] : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => {
+                setDraftFrom(dateFrom);
+                setDraftTo(dateTo);
+                setDraftPreset(datePreset);
+                setIsDatePickerOpen((prev) => !prev);
+              }}
+            >
+              <span className={styles.icon}>📅</span>
+              <span className={styles['date-body']}>
+                <span className={styles['date-label']}>撮影日</span>
+                <span
+                  className={[styles['date-value'], !(dateFrom || dateTo) ? styles.placeholder : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  {rangeLabel}
+                </span>
               </span>
-            </span>
+            </button>
             {(dateFrom || dateTo) && (
               <button
                 className={styles.reset}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleDateClear();
-                }}
+                onClick={handleDateClear}
                 type="button"
                 aria-label="撮影日条件をクリア"
               >
                 ×
               </button>
             )}
-          </button>
+          </div>
 
           {isDatePickerOpen && (
             <section className={styles.calendar} aria-label="撮影日カレンダー">
@@ -631,7 +630,7 @@ export const FilterSidebar = ({
               setOrientationFilter('all');
             }}
           >
-            <span className="tg-icon">⊞</span>すべて
+            <span className={styles['orientation-icon']}>⊞</span>すべて
           </button>
           <button
             type="button"
@@ -646,7 +645,7 @@ export const FilterSidebar = ({
               setOrientationFilter('landscape');
             }}
           >
-            <span className="tg-icon">⊟</span>横長
+            <span className={styles['orientation-icon']}>⊟</span>横長
           </button>
           <button
             type="button"
@@ -661,7 +660,7 @@ export const FilterSidebar = ({
               setOrientationFilter('portrait');
             }}
           >
-            <span className="tg-icon">▯</span>縦長
+            <span className={styles['orientation-icon']}>▯</span>縦長
           </button>
         </div>
         {orientationFilterDisabled && (

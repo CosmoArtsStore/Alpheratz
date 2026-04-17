@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+next/alpheratz-winui/artifacts/
+next/alpheratz-winui/src/**/bin/
+next/alpheratz-winui/src/**/obj/
+next/alpheratz-winui/build/

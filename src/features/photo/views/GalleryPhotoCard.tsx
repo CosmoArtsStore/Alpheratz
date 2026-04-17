@@ -12,7 +12,7 @@ interface GalleryPhotoCardProps {
   selected: boolean;
 }
 
-/** Gallery-mode photo card optimized for masonry layout presentation. */
+// Gallery-mode photo card optimized for masonry layout presentation.
 export const GalleryPhotoCard = ({
   item,
   onSelect,
@@ -28,78 +28,74 @@ export const GalleryPhotoCard = ({
   const thumbUrl = useGridThumbnailViewModel(photo.photo_path, photo.source_slot, shouldLoadThumb);
 
   return (
-    <div
-      ref={cardRef}
-      className={[styles.card, selected ? styles.selected : ''].filter(Boolean).join(' ')}
-      onClick={() => {
-        onSelect(item);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
+    <div ref={cardRef} className={styles.wrapper}>
+      <button
+        className={[styles.card, selected ? styles.selected : ''].filter(Boolean).join(' ')}
+        onClick={() => {
           onSelect(item);
-        }
-      }}
-      role="button"
-      tabIndex={0}
-    >
-      <div className={styles.thumb}>
-        <button
-          className={[styles['select-toggle'], selected ? styles.selected : '']
-            .filter(Boolean)
-            .join(' ')}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleSelect(item, event.shiftKey);
-          }}
-          aria-label={selected ? '選択解除' : '選択'}
-          type="button"
-        >
-          {selected ? '✓' : ''}
-        </button>
-        {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt={photo.photo_filename}
-            className={styles.image}
-            loading="lazy"
-            decoding="async"
-            draggable={false}
-          />
-        ) : (
-          <div className={styles.skeleton} />
-        )}
-        <div
-          className={[styles.favorite, photo.is_favorite ? styles.active : '']
-            .filter(Boolean)
-            .join(' ')}
-          aria-hidden="true"
-        >
-          <AnimatedFavoriteStar liked={photo.is_favorite} className="favorite-star-gallery" />
-        </div>
-        {!!item.groupCount && item.groupCount > 1 && (
-          <div className={styles['group-badge']} aria-hidden="true">
-            {item.groupCount}枚
+        }}
+        type="button"
+      >
+        <div className={styles.thumb}>
+          {thumbUrl ? (
+            <img
+              src={thumbUrl}
+              alt={photo.photo_filename}
+              className={styles.image}
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+            />
+          ) : (
+            <div className={styles.skeleton} />
+          )}
+          <div
+            className={[styles.favorite, photo.is_favorite ? styles.active : '']
+              .filter(Boolean)
+              .join(' ')}
+            aria-hidden="true"
+          >
+            <AnimatedFavoriteStar liked={photo.is_favorite} className="favorite-star-gallery" />
           </div>
-        )}
-        <div className={styles.overlay}>
-          <div className={styles.topline}>
-            <div className={styles['meta-row']}>
-              {photo.is_favorite && (
-                <span className={[styles.pill, styles['favorite-pill']].join(' ')}>★ Favorite</span>
-              )}
-              {photo.match_source === 'polaris_archive' && (
-                <span className={styles.pill}>archive</span>
-              )}
-              {photo.match_source === 'phash' && <span className={styles.pill}>類似一致</span>}
+          {!!item.groupCount && item.groupCount > 1 && (
+            <div className={styles['group-badge']} aria-hidden="true">
+              {item.groupCount}枚
+            </div>
+          )}
+          <div className={styles.overlay}>
+            <div className={styles.topline}>
+              <div className={styles['meta-row']}>
+                {photo.is_favorite && (
+                  <span className={[styles.pill, styles['favorite-pill']].join(' ')}>
+                    ★ Favorite
+                  </span>
+                )}
+                {photo.match_source === 'polaris_archive' && (
+                  <span className={styles.pill}>archive</span>
+                )}
+                {photo.match_source === 'phash' && <span className={styles.pill}>類似一致</span>}
+              </div>
+            </div>
+            <div className={styles.bottomline}>
+              <div className={styles.world}>{photo.world_name || 'ワールド不明'}</div>
+              <div className={styles.date}>{photo.timestamp}</div>
             </div>
           </div>
-          <div className={styles.bottomline}>
-            <div className={styles.world}>{photo.world_name || 'ワールド不明'}</div>
-            <div className={styles.date}>{photo.timestamp}</div>
-          </div>
         </div>
-      </div>
+      </button>
+      <button
+        className={[styles['select-toggle'], selected ? styles.selected : '']
+          .filter(Boolean)
+          .join(' ')}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggleSelect(item, event.shiftKey);
+        }}
+        aria-label={selected ? '選択解除' : '選択'}
+        type="button"
+      >
+        {selected ? '✓' : ''}
+      </button>
     </div>
   );
 };

@@ -10,7 +10,9 @@
 }
 
 .panel {
-  position: relative;
+  position: fixed;
+  inset: 50% auto auto 50%;
+  z-index: 201;
   width: 100%;
   max-width: 980px;
   max-height: 88vh;
@@ -19,6 +21,7 @@
   border-radius: 28px;
   background: var(--a-surface);
   box-shadow: var(--a-shadow-lg);
+  transform: translate(-50%, -50%);
   animation: modal-content-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
@@ -280,16 +283,20 @@
 @keyframes modal-content-in {
   from {
     opacity: 0;
-    transform: scale(0.88) translateY(20px);
+    transform: translate(-50%, -50%) scale(0.88) translateY(20px);
   }
 
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translate(-50%, -50%) scale(1) translateY(0);
   }
 }
 
 @media (width <= 960px) {
+  .panel {
+    width: calc(100vw - 2rem);
+  }
+
   .section-grid {
     grid-template-columns: 1fr;
   }

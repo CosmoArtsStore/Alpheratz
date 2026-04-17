@@ -1,6 +1,7 @@
 use super::{BUFFER_W_H, DCT_OUTPUT_W_H};
 
-/// Precomputed `DCT` coefficients used by the internal `PDQ` implementation.
+// PDQ 計算で使う DCT 係数テーブル。
+#[allow(clippy::unreadable_literal)]
 pub const DCT_MATRIX: [[u32; BUFFER_W_H]; DCT_OUTPUT_W_H] = [
     [
         0x3e34f6fe, 0x3e348763, 0x3e33a872, 0x3e325ab4, 0x3e309ef6, 0x3e2e764c, 0x3e2be209,

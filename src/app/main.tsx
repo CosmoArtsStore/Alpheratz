@@ -5,7 +5,7 @@ import '../index.css';
 import '../App.light.css';
 import '../App.dark.css';
 
-/** Root DOM node required to mount the React application. */
+// React アプリをマウントする root 要素を取得する。
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {

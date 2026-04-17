@@ -75,7 +75,7 @@ enum PhotoDirErrorKind {
     Missing(PathBuf),
 }
 
-/// Compiles a regex and falls back to a never-match pattern on failure.
+// 正規表現を初期化し、失敗時は不一致専用パターンへ退避する。
 fn compile_regex(pattern: &str, name: &str) -> Regex {
     match Regex::new(pattern) {
         Ok(re) => re,
@@ -94,7 +94,7 @@ fn compile_regex(pattern: &str, name: &str) -> Regex {
     }
 }
 
-/// Emits a Tauri event while downgrading emission failures to warnings.
+// Tauri event を投げ、失敗時は warn として握る。
 fn emit_warn<T: serde::Serialize + Clone>(app: &AppHandle, event: &str, payload: T) {
     if let Err(err) = app.emit(event, payload) {
         crate::utils::log_warn(&format!(
@@ -104,12 +104,12 @@ fn emit_warn<T: serde::Serialize + Clone>(app: &AppHandle, event: &str, payload:
     }
 }
 
-/// Builds a consistent scan error string.
+// スキャン系エラー文言を統一フォーマットで組み立てる。
 fn scan_err<E: std::fmt::Display>(context: &str, err: E) -> String {
     format!("{context}: {err}")
 }
 
-/// Converts row-level decode failures into warnings and skips the row.
+// 行単位の読込失敗を warn に落としてスキップする。
 fn warn_row_error<T, E: std::fmt::Display>(row: Result<T, E>, context: &str) -> Option<T> {
     match row {
         Ok(value) => Some(value),
@@ -141,12 +141,12 @@ static RE_LOG_ENTERING: LazyLock<Regex> =
 static RE_LOG_LEFT_ROOM: LazyLock<Regex> =
     LazyLock::new(|| compile_regex(r"\[Behaviour\] OnLeftRoom", "RE_LOG_LEFT_ROOM"));
 
-/// Normalizes a filesystem path into the database storage format.
+// DB 保存用にファイルパス表記を正規化する。
 fn normalize_path_for_db(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
-/// Resolves the configured photo directories and their source slots.
+// 設定済み写真フォルダと source slot の組み合わせを返す。
 fn resolve_photo_dirs() -> Result<Vec<(i64, PathBuf)>, PhotoDirErrorKind> {
     let setting = load_setting();
     if setting.photo_folder_path.is_empty() && setting.secondary_photo_folder_path.is_empty() {
@@ -187,12 +187,7 @@ fn resolve_photo_dirs() -> Result<Vec<(i64, PathBuf)>, PhotoDirErrorKind> {
     }
 }
 
-/// Scans configured photo folders and updates the local photo cache.
-///
-/// # Errors
-///
-/// Returns an error when the configured photo directories are missing or
-/// when cache updates fail during scanning.
+// 写真フォルダを走査して local cache を更新する。
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::needless_pass_by_value)]
 pub fn do_scan(app: AppHandle) -> Result<(), String> {
@@ -342,13 +337,13 @@ pub fn do_scan(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Resolves the default `VRChat` photo directory used when settings are empty.
+// 設定未指定時に使う既定の VRChat 写真フォルダを返す。
 fn default_photo_dir() -> Option<PathBuf> {
     let user_dirs = directories::UserDirs::new()?;
     Some(user_dirs.picture_dir()?.join("VRChat"))
 }
 
-/// Loads existing photo rows keyed by normalized photo path.
+// 既存写真行を正規化パス基準の map として読み込む。
 fn get_existing_photos(conn: &Connection) -> Result<HashMap<String, ExistingPhotoInfo>, String> {
     let mut stmt = conn
         .prepare(
@@ -384,7 +379,7 @@ fn get_existing_photos(conn: &Connection) -> Result<HashMap<String, ExistingPhot
     Ok(map)
 }
 
-/// Analyzes one candidate photo and decides how much metadata needs refreshing.
+// 写真 1 件を解析し、どこまで更新が必要か判定する。
 fn analyze_photo(
     path: &Path,
     filename: &str,
@@ -458,7 +453,7 @@ fn analyze_photo(
     }))
 }
 
-/// Resolves world information from embedded metadata and lightweight fallbacks.
+// 埋め込み情報と軽量 fallback からワールド情報を決める。
 fn resolve_world_info_lightweight(
     photo_path: &str,
     filename: &str,
@@ -486,7 +481,7 @@ fn resolve_world_info_lightweight(
     (None, None, Some("unresolved".to_string()))
 }
 
-/// Resolves the canonical photo timestamp used for ordering and filtering.
+// 並び順と絞り込みに使う代表時刻を決める。
 fn resolve_photo_timestamp(path: &Path, filename: &str) -> Result<String, String> {
     if let Some(captures) = RE_PARSE.captures(filename) {
         return Ok(format!(
@@ -512,7 +507,7 @@ fn resolve_photo_timestamp(path: &Path, filename: &str) -> Result<String, String
     Ok(local_time.format("%Y-%m-%d %H:%M:%S").to_string())
 }
 
-/// Looks up a world name from the archived `Polaris` logs around the given timestamp.
+// 指定時刻付近の Polaris archive からワールド名を探す。
 fn lookup_world_name_from_archive_db(
     conn: &Connection,
     timestamp: &str,
@@ -539,7 +534,7 @@ fn lookup_world_name_from_archive_db(
     }
 }
 
-/// Loads world-visit ranges from the archived `Polaris` logs.
+// Polaris archive から滞在ワールド範囲を読み込む。
 fn load_polaris_world_visits() -> Vec<ArchiveWorldVisit> {
     let Some(archive_dir) = get_polaris_archive_dir() else {
         return Vec::new();
@@ -595,7 +590,7 @@ fn load_polaris_world_visits() -> Vec<ArchiveWorldVisit> {
     world_visits
 }
 
-/// Loads one archive log and appends its world-visit ranges.
+// archive ログ 1 本を読み、滞在ワールド範囲へ追加する。
 fn load_polaris_world_visits_from_log(log_path: &Path, world_visits: &mut Vec<ArchiveWorldVisit>) {
     let file = match fs::File::open(log_path) {
         Ok(file) => file,
@@ -686,18 +681,18 @@ fn load_polaris_world_visits_from_log(log_path: &Path, world_visits: &mut Vec<Ar
     }
 }
 
-/// Extracts the leading timestamp from one archived `VRChat` log line.
+// archive ログ行の先頭時刻を取り出す。
 fn extract_archive_log_time(line: &str) -> Option<NaiveDateTime> {
     let captures = RE_LOG_TIME.captures(line)?;
     NaiveDateTime::parse_from_str(&captures[1], "%Y.%m.%d %H:%M:%S").ok()
 }
 
-/// Resolves the archive directory used by the installed `Polaris`.
+// インストール済み Polaris の archive ディレクトリを返す。
 fn get_polaris_archive_dir() -> Option<PathBuf> {
     utils::get_polaris_install_dir().map(|install_dir| install_dir.join("archive"))
 }
 
-/// Rebuilds the archive-derived world-visit table from the current `Polaris` logs.
+// 現在の Polaris archive から滞在ワールド表を作り直す。
 fn sync_archive_world_visits(conn: &mut Connection) -> Result<usize, String> {
     let Some(archive_dir) = get_polaris_archive_dir() else {
         return Err("ログが確認できないため保管できません。".to_string());
@@ -744,7 +739,7 @@ fn sync_archive_world_visits(conn: &mut Connection) -> Result<usize, String> {
     Ok(world_visits.len())
 }
 
-/// Resolves unknown-world photos by reading matching ranges from the `Polaris` archive logs.
+// Polaris archive を使ってワールド不明写真を補完する。
 pub fn resolve_unknown_worlds_from_archive() -> Result<usize, String> {
     let mut conn = open_alpheratz_connection(1)?;
     sync_archive_world_visits(&mut conn)?;
@@ -768,7 +763,7 @@ pub fn resolve_unknown_worlds_from_archive() -> Result<usize, String> {
     Ok(resolved_count)
 }
 
-/// Resolves unknown-world photos by inferring from already known similar photos.
+// 既知の類似写真からワールド不明写真を補完する。
 pub fn resolve_unknown_worlds_from_similar_photos() -> Result<usize, String> {
     let mut conn = open_alpheratz_connection(1)?;
     let unknown_photos = load_unknown_world_photos(&conn)?;
@@ -798,7 +793,7 @@ pub fn resolve_unknown_worlds_from_similar_photos() -> Result<usize, String> {
     Ok(resolved_count)
 }
 
-/// Loads unresolved photo records that still need manual world-name resolution.
+// 手動補完待ちの写真一覧を読み込む。
 fn load_unknown_world_photos(conn: &Connection) -> Result<Vec<(String, String)>, String> {
     let mut stmt = conn
         .prepare(
@@ -827,7 +822,7 @@ fn load_unknown_world_photos(conn: &Connection) -> Result<Vec<(String, String)>,
     Ok(photos)
 }
 
-/// Updates one photo row with the resolved world name and source marker.
+// 写真 1 件へ解決済みワールド名と補完元を保存する。
 fn update_photo_world_name(
     tx: &Transaction<'_>,
     photo_path: &str,
@@ -850,7 +845,7 @@ fn update_photo_world_name(
     Ok(())
 }
 
-/// Marks cached photos as missing when they were not found during the scan.
+// 今回見つからなかった写真を missing 扱いへ更新する。
 fn mark_missing_photos(
     tx: &Transaction<'_>,
     existing_photos: &HashMap<String, ExistingPhotoInfo>,
@@ -880,7 +875,7 @@ fn mark_missing_photos(
     Ok(())
 }
 
-/// Upserts one batch of scanned photo rows into the cache database.
+// スキャン結果の写真一覧をまとめて upsert する。
 fn upsert_photo_batch(tx: &Transaction<'_>, items: &[ScanPhotoData]) -> Result<(), String> {
     {
         let mut stmt = tx
@@ -932,7 +927,7 @@ fn upsert_photo_batch(tx: &Transaction<'_>, items: &[ScanPhotoData]) -> Result<(
 }
 
 #[allow(clippy::too_many_lines)]
-/// Extracts `VRChat` world metadata embedded in PNG iTXt/XMP blocks.
+// PNG の iTXt/XMP から VRChat ワールド情報を抜き出す。
 fn extract_vrc_metadata_from_png(path: &Path) -> (Option<String>, Option<String>) {
     let file = match fs::File::open(path) {
         Ok(file) => file,
@@ -1031,7 +1026,7 @@ fn extract_vrc_metadata_from_png(path: &Path) -> (Option<String>, Option<String>
     (None, None)
 }
 
-/// Parses `VRChat` world metadata from an XMP XML fragment.
+// XMP XML 断片から VRChat ワールド情報を読む。
 fn parse_vrc_from_xmp(xmp: &str) -> (Option<String>, Option<String>) {
     let world_id = RE_ID
         .captures(xmp)
@@ -1044,7 +1039,7 @@ fn parse_vrc_from_xmp(xmp: &str) -> (Option<String>, Option<String>) {
     (world_name, world_id)
 }
 
-/// Recursively collects supported photo files from a directory tree.
+// 対応拡張子の写真ファイルを再帰的に集める。
 fn collect_photos_recursive(
     source_slot: i64,
     dir: &Path,
@@ -1117,7 +1112,7 @@ fn collect_photos_recursive(
     }
 }
 
-/// Checks whether a filename extension is supported by the scan pipeline.
+// スキャン対象の拡張子かどうかを判定する。
 fn is_supported_image_extension(filename: &str) -> bool {
     let ext = Path::new(filename)
         .extension()

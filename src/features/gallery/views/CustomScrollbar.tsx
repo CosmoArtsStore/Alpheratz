@@ -9,7 +9,7 @@ interface CustomScrollbarProps {
   handleScrollbarMouseDown: (e: MouseEvent) => void;
 }
 
-/** Decorative scrollbar used for the custom gallery navigator. */
+// Decorative scrollbar used for the custom gallery navigator.
 export const CustomScrollbar = ({
   isDragging,
   thumbTop,
@@ -19,15 +19,14 @@ export const CustomScrollbar = ({
 }: CustomScrollbarProps) => {
   return (
     <div className={[styles.root, isDragging ? styles.dragging : ''].filter(Boolean).join(' ')}>
-      <button className={styles.track} onClick={handleTrackClick} type="button">
-        <button
-          className={styles.thumb}
-          style={{ top: thumbTop, height: thumbHeight }}
-          onMouseDown={handleScrollbarMouseDown}
-          type="button"
-          aria-label="スクロール位置を調整"
-        />
-      </button>
+      <button className={styles.track} onClick={handleTrackClick} type="button" />
+      <button
+        className={styles.thumb}
+        style={{ top: thumbTop, height: thumbHeight }}
+        onMouseDown={handleScrollbarMouseDown}
+        type="button"
+        aria-label="スクロール位置を調整"
+      />
     </div>
   );
 };

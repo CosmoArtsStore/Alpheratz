@@ -1,4 +1,4 @@
-/** Preset date ranges supported by the filter sidebar. */
+// Preset date ranges supported by the filter sidebar.
 export type DatePreset =
   | 'none'
   | 'today'
@@ -9,5 +9,5 @@ export type DatePreset =
   | 'oneYear'
   | 'custom';
 
-/** Orientation filter values exposed by the photo search UI. */
+// Orientation filter values exposed by the photo search UI.
 export type OrientationFilter = 'all' | 'portrait' | 'landscape';

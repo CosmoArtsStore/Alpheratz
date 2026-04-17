@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Alpheratz.Presentation.Views.GalleryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:Alpheratz.Presentation.ViewModels"
+    xmlns:views="using:Alpheratz.Presentation.Views"
+    mc:Ignorable="d">
+
+    <Grid>
+        <SplitView 
+            IsPaneOpen="{x:Bind ViewModel.DetailPane.IsVisible, Mode=TwoWay}" 
+            OpenPaneLength="400" 
+            DisplayMode="Overlay" 
+            PanePlacement="Right">
+            
+            <SplitView.Pane>
+                <views:PhotoDetailPaneView ViewModel="{x:Bind ViewModel.DetailPane}" />
+            </SplitView.Pane>
+
+            <SplitView.Content>
+                <Grid RowDefinitions="Auto,*">
+                    <!-- Toolbar -->
+                    <Border Padding="24,16" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <AutoSuggestBox 
+                                x:Name="SearchBox"
+                                Width="320"
+                                PlaceholderText="Search photos by world..."
+                                Text="{x:Bind ViewModel.SearchText, Mode=TwoWay}"
+                                HorizontalAlignment="Left"
+                                QueryIcon="Find" />
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="24,0">
+                                <ToggleButton 
+                                    IsChecked="{x:Bind ViewModel.FavoritesOnly, Mode=TwoWay}"
+                                    Content="Favorites Only">
+                                    <ToggleButton.Icon>
+                                        <HeartIcon />
+                                    </ToggleButton.Icon>
+                                </ToggleButton>
+                            </StackPanel>
+
+                            <Button Grid.Column="2" Command="{x:Bind ViewModel.LoadPhotosCommand}" Style="{ThemeResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                                    <TextBlock Text="Refresh" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Gallery Grid -->
+                    <ScrollViewer Grid.Row="1" Padding="12">
+                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.Items}">
+                            <ItemsRepeater.Layout>
+                                <UniformGridLayout 
+                                    MinItemWidth="240" 
+                                    MinItemHeight="180" 
+                                    MinColumnSpacing="12" 
+                                    MinRowSpacing="12" />
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="vm:GalleryItemViewModel">
+                                    <Grid Padding="4">
+                                        <Border 
+                                            x:Name="ItemBorder"
+                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                            BorderBrush="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource SelectedToBorderBrushConverter}}"
+                                            BorderThickness="2"
+                                            CornerRadius="8"
+                                            Padding="1"
+                                            Tapped="OnItemTapped">
+                                            <Border.ContextFlyout>
+                                                <MenuFlyout>
+                                                    <MenuFlyoutItem Text="Toggle Favorite" Click="{x:Bind ToggleFavorite}">
+                                                        <MenuFlyoutItem.Icon>
+                                                            <FontIcon Glyph="&#xE734;" />
+                                                        </MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
+                                                    <MenuFlyoutSeparator />
+                                                    <MenuFlyoutItem Text="Open in Explorer" Command="{x:Bind ViewModel.OpenInExplorerCommand}" CommandParameter="{x:Bind GetModel().Identity}">
+                                                        <MenuFlyoutItem.Icon>
+                                                            <FontIcon Glyph="&#xED25;" />
+                                                        </MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
+                                                </MenuFlyout>
+                                            </Border.ContextFlyout>
+                                            <Grid>
+                                                <Image 
+                                                    Source="{x:Bind Thumbnail, Mode=OneWay}" 
+                                                    Stretch="UniformToFill" />
+                                                
+                                                <!-- Selection Overlay -->
+                                                <CheckBox IsChecked="{x:Bind IsSelected, Mode=OneWay}" 
+                                                          HorizontalAlignment="Right" VerticalAlignment="Top" 
+                                                          Margin="4" IsHitTestVisible="False" />
+                                                
+                                                <Border VerticalAlignment="Bottom" Background="#99000000" Padding="12,8">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{x:Bind WorldName}" FontSize="12" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{x:Bind Timestamp}" FontSize="10" Foreground="#CCFFFFFF" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <FontIcon 
+                                                    Glyph="&#xE735;" 
+                                                    Visibility="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Foreground="Gold" FontSize="16" />
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </ScrollViewer>
+
+                    <!-- Loading Overlay -->
+                    <Grid Grid.Row="1" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" Background="#66FFFFFF">
+                        <ProgressRing IsActive="True" Width="48" Height="48" />
+                    </Grid>
+                </Grid>
+            </SplitView.Content>
+        </SplitView>
+
+        <!-- Bulk Action Bar -->
+        <Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,32"
+                Visibility="{x:Bind ViewModel.BulkActions.IsVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                Padding="16,8" Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" 
+                CornerRadius="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+            <StackPanel Orientation="Horizontal" Spacing="24" VerticalAlignment="Center">
+                <TextBlock VerticalAlignment="Center" FontWeight="SemiBold">
+                    <Run Text="{x:Bind ViewModel.Selection.SelectionCount, Mode=OneWay}" />
+                    <Run Text=" items selected" />
+                </TextBlock>
+                <AppBarSeparator />
+                <Button Content="Favorite" Command="{x:Bind ViewModel.BulkActions.BulkFavoriteCommand}" CommandParameter="True" Style="{ThemeResource SubtleButtonStyle}" />
+                <Button Content="Unfavorite" Command="{x:Bind ViewModel.BulkActions.BulkFavoriteCommand}" CommandParameter="False" Style="{ThemeResource SubtleButtonStyle}" />
+                <AppBarSeparator />
+                <Button Content="Clear" Command="{x:Bind ViewModel.BulkActions.ClearSelectionCommand}" Style="{ThemeResource SubtleButtonStyle}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>

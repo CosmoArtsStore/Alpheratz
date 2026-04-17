@@ -74,7 +74,7 @@ const SimilarPhotoThumb = ({
   );
 };
 
-/** Full photo-detail modal with memo, tag, favorite, and navigation controls. */
+// Full photo-detail modal with memo, tag, favorite, and navigation controls.
 export const PhotoModal = ({
   photo,
   allTags,
@@ -143,7 +143,12 @@ export const PhotoModal = ({
         aria-label="モーダルを閉じる"
         type="button"
       />
-      <section className={styles.content} aria-modal="true">
+      <section
+        className={styles.content}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="photo-modal-title"
+      >
         {canGoBack && onGoBack && (
           <button className={styles.back} onClick={onGoBack} type="button">
             <svg
@@ -258,10 +263,11 @@ export const PhotoModal = ({
             <div className={styles.divider} />
 
             <section className={styles.form} aria-label="写真情報編集">
-              <label>タグ</label>
+              <label htmlFor="photo-modal-tag-select">タグ</label>
               <div className={styles['tag-select-row']}>
                 <div className={styles['tag-select-wrap']}>
                   <select
+                    id="photo-modal-tag-select"
                     className={styles['tag-select']}
                     value={selectedExistingTag}
                     disabled={!hasAvailableTags}
@@ -311,8 +317,9 @@ export const PhotoModal = ({
                 </div>
               )}
 
-              <label>メモ</label>
+              <label htmlFor="photo-modal-memo">メモ</label>
               <textarea
+                id="photo-modal-memo"
                 value={localMemo}
                 onChange={(event) => {
                   setLocalMemo(event.target.value);

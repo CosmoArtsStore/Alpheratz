@@ -4,7 +4,7 @@ interface EmptyStateProps {
   isFiltering: boolean;
 }
 
-/** Empty-state panel shown when no photos or no filtered results are available. */
+// Empty-state panel shown when no photos or no filtered results are available.
 export const EmptyState = ({ isFiltering }: EmptyStateProps) => {
   if (isFiltering) {
     return (

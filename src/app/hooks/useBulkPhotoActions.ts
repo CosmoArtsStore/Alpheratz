@@ -15,12 +15,7 @@ interface UseBulkPhotoActionsOptions {
   addToast?: (msg: string, type?: ToastType) => void;
 }
 
-/**
- * Coordinates favorite, tag, and copy actions for the current multi-selection.
- *
- * @param options Selected paths, full photo data, sync callback, and optional toast helper.
- * @returns Bulk-action state and handlers consumed by the gallery screen.
- */
+// Coordinates favorite, tag, and copy actions for the current multi-selection.
 export const useBulkPhotoActions = ({
   photos,
   selectedPhotoPaths,
