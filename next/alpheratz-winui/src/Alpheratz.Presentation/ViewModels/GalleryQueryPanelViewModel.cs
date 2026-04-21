@@ -51,13 +51,21 @@ public partial class GalleryQueryPanelViewModel : ObservableObject
     public GalleryQuery GetQuery()
     {
         // Integration with UseCase to normalize input values
-        return _buildQuery.Execute(
+        var sqlQuery = _buildQuery.Execute(
             searchText: string.Empty, // SearchText is usually in Toolbar
             favoritesOnly: OnlyFavorites,
-            worldName: SelectedWorld,
-            tags: SelectedTags.ToList(),
-            sortOrder: SortOrder
+            worldName: SelectedWorld
         );
+        
+        // Convert to Domain GalleryQuery
+        return new Alpheratz.Domain.Queries.GalleryQuery
+        {
+            SearchText = string.Empty,
+            IsFavorite = OnlyFavorites,
+            WorldName = SelectedWorld,
+            Tags = SelectedTags.ToList(),
+            SortOrder = SortOrder
+        };
     }
 
     [RelayCommand]

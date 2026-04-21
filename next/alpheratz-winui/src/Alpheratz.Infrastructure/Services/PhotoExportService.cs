@@ -1,5 +1,6 @@
 using Alpheratz.Contracts.Services;
 using Alpheratz.Domain.ValueObjects;
+using Alpheratz.Contracts.Infrastructure;
 using Microsoft.UI.Xaml;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
@@ -13,9 +14,9 @@ namespace Alpheratz.Infrastructure.Services;
 
 public class PhotoExportService : IPhotoExportService
 {
-    private readonly LoggingFacade _logger;
+    private readonly ILoggingFacade _logger;
 
-    public PhotoExportService(LoggingFacade logger)
+    public PhotoExportService(ILoggingFacade logger)
     {
         _logger = logger;
     }
@@ -46,7 +47,7 @@ public class PhotoExportService : IPhotoExportService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarn($"Failed to add file to clipboard: {identity.PhotoPath}. {ex.Message}");
+                    _logger.Warn("PhotoExport", "CopyToClipboard", $"Failed to add file to clipboard: {identity.PhotoPath}. {ex.Message}");
                 }
             }
         }
@@ -72,7 +73,7 @@ public class PhotoExportService : IPhotoExportService
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Cannot write to target folder {targetFolderPath}: {ex.Message}");
+            _logger.Error("PhotoExport", "ExportToFolder", $"Cannot write to target folder {targetFolderPath}: {ex.Message}");
             return;
         }
 
@@ -90,11 +91,11 @@ public class PhotoExportService : IPhotoExportService
                 }
                 catch (IOException ex)
                 {
-                    _logger.LogWarn($"IO Error exporting {identity.PhotoPath}: {ex.Message}");
+                    _logger.Warn("PhotoExport", "ExportToFolder", $"IO Error exporting {identity.PhotoPath}: {ex.Message}");
                 }
                 catch (UnauthorizedAccessException ex)
                 {
-                    _logger.LogError($"Permission denied exporting {identity.PhotoPath}: {ex.Message}");
+                    _logger.Error("PhotoExport", "ExportToFolder", $"Permission denied exporting {identity.PhotoPath}: {ex.Message}");
                 }
             }
         }

@@ -1,5 +1,7 @@
-using Alpheratz.Contracts.Interfaces;
+using Alpheratz.Contracts.Services;
 using Alpheratz.Contracts.Infrastructure;
+
+using System.Threading.Tasks;
 
 namespace Alpheratz.Application.UseCases;
 
@@ -20,9 +22,9 @@ public class CancelScanUseCase
     /// <summary>
     /// Executes the cancellation request.
     /// </summary>
-    public void Execute()
+    public async Task ExecuteAsync()
     {
         _logger.Info("Library", "CancelScan", "User requested scan cancellation.");
-        _scanOrchestrator.CancelScan();
+        await _scanOrchestrator.CancelScanAsync();
     }
 }

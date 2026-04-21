@@ -39,7 +39,7 @@ public partial class PhotoMetadataPanelViewModel : ObservableObject
         SourceSlot = photo.SourceSlot.ToString();
         
         // Formatting specific fields as per Section 8.2 / 626
-        WorldMatchSource = string.IsNullOrEmpty(photo.WorldName) ? "Manual / Metadata" : "Auto-Resolved";
+        WorldMatchSource = string.IsNullOrEmpty(photo.World?.WorldName) ? "Manual / Metadata" : "Auto-Resolved";
         
         FilePathSummary = photo.Identity.Value.Length > 40 
             ? "..." + photo.Identity.Value[^40..] 

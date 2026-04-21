@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using System.Linq;
+
 namespace Alpheratz.Application.UseCases;
 
 /// <summary>
@@ -32,7 +34,7 @@ public class LoadTweetTemplatesUseCase
         try
         {
             var results = await _templateRepository.GetAllTemplatesAsync();
-            return results ?? new List<TweetTemplate>();
+            return results?.ToList() ?? new List<TweetTemplate>();
         }
         catch (Exception ex)
         {

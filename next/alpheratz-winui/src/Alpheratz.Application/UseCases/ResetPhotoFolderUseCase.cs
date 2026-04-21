@@ -1,7 +1,9 @@
 using Alpheratz.Contracts.Repositories;
 using Alpheratz.Contracts.Services;
 using Alpheratz.Contracts.Infrastructure;
+using Alpheratz.Contracts.Settings;
 using Alpheratz.Domain.ValueObjects;
+using Alpheratz.Domain.Entities;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -51,7 +53,7 @@ public class ResetPhotoFolderUseCase
 
             if (createBackupBeforeReset && !string.IsNullOrEmpty(folderPath))
             {
-                await _backupService.CreateBackupAsync(new PhotoFolder(folderPath), slot);
+                await _backupService.CreateBackupAsync(new PhotoFolder(folderPath, slot), slot);
             }
 
             // 1. Clear Database rows

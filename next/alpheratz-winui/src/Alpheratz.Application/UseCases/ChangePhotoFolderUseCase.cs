@@ -1,7 +1,10 @@
 using Alpheratz.Contracts.Repositories;
+using Alpheratz.Contracts.Settings;
 using Alpheratz.Contracts.Services;
+using Alpheratz.Contracts.Infrastructure;
 using Alpheratz.Domain.Models;
 using Alpheratz.Domain.ValueObjects;
+using Alpheratz.Domain.Entities;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,7 +33,7 @@ public class ChangePhotoFolderUseCase
     public async Task ExecuteAsync(PhotoFolder newFolder, IProgress<ScanProgressSnapshot>? progress = null)
     {
         // 1. Determine Slot (Assume Primary for now until multi-folder supported)
-        var slot = SourceSlot.Main;
+        var slot = SourceSlot.Slot1;
 
         // 2. Perform Backup if necessary
         await _backupService.CreateBackupAsync(newFolder, slot);

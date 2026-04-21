@@ -60,4 +60,18 @@ public class PdqHashService : IPdqHashService
         }
         return distance;
     }
+
+    /// <inheritdoc/>
+    public Task ProcessMissingHashesAsync(IProgress<int> progress = null)
+    {
+        // To be implemented: Batch process photos without hashes
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public Task RebuildGroupsAsync()
+    {
+        // To be implemented: Recalculate similarity relations across the library
+        return Task.CompletedTask;
+    }
 }

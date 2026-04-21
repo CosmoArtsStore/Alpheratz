@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:conv="using:Alpheratz.Presentation.Converters"
     mc:Ignorable="d">
 
     <Grid VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="600">
@@ -13,15 +14,16 @@
                 <TextBlock Text="Welcome to Alpheratz WinUI" FontSize="32" FontWeight="Bold" HorizontalAlignment="Center"/>
                 
                 <TextBlock 
-                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" 
+                    Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" 
                     TextWrapping="Wrap" 
                     HorizontalAlignment="Center" 
                     TextAlignment="Center"
                     Opacity="0.8"/>
 
-                <ProgressRing IsActive="{x:Bind ViewModel.IsScanning, Mode=OneWay}" Width="32" Height="32" />
+                <ProgressRing IsActive="{x:Bind ViewModel.IsProcessing, Mode=OneWay}" Width="32" Height="32" />
 
-                <Grid ColumnDefinitions="*,Auto" Visibility="{x:Bind ViewModel.IsScanning, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                <!-- Grid visibility binding: Show when NOT processing -->
+                <Grid ColumnDefinitions="*,Auto" Visibility="{x:Bind ViewModel.IsProcessing, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                     <TextBox x:Name="PathInput" PlaceholderText="C:\Users\...\Pictures\VRChat" Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <Button 
                         Grid.Column="1" 

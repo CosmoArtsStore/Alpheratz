@@ -24,12 +24,12 @@ public class FindSimilarPhotosUseCase
         if (detail == null || string.IsNullOrEmpty(detail.Photo.PdqHash)) return Enumerable.Empty<Photo>();
 
         // We use the repository to find bit-distance candidates
-        var candidates = await _similarRepo.GetCandidatesAsync(targetIdentity, detail.Photo.PdqHash);
+        var candidates = await _similarRepo.GetCandidatesForPhotoAsync(targetIdentity);
         
         var results = new List<Photo>();
         foreach (var c in candidates)
         {
-            var p = await _photoRead.GetPhotoDetailAsync(c.CandidatePhoto);
+            var p = await _photoRead.GetPhotoDetailAsync(c.CandidateIdentity);
             if (p != null) results.Add(p.Photo);
         }
 

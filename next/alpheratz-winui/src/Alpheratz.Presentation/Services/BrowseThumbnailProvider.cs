@@ -1,4 +1,4 @@
-using Alpheratz.Infrastructure.Services;
+using Alpheratz.Contracts.Services;
 using Alpheratz.Domain.Entities;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
@@ -12,10 +12,10 @@ namespace Alpheratz.Presentation.Services;
 /// </summary>
 public class BrowseThumbnailProvider
 {
-    private readonly ThumbnailCacheService _thumbnailCache;
+    private readonly IThumbnailCacheService _thumbnailCache;
     private readonly ConcurrentDictionary<string, BitmapImage> _cache = new();
 
-    public BrowseThumbnailProvider(ThumbnailCacheService thumbnailCache)
+    public BrowseThumbnailProvider(IThumbnailCacheService thumbnailCache)
     {
         _thumbnailCache = thumbnailCache;
     }

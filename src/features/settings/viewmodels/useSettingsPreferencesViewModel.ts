@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AppSetting } from '../models/types';
+import type { AppSetting, SimilarResolutionTarget } from '../models/types';
 import type { ThemeMode, ViewMode } from '../../../shared/models/types';
 import {
   createTagMaster as createTagMasterCommand,
@@ -22,6 +22,27 @@ interface UseSettingsPreferencesViewModelOptions {
   defaultActiveTweetTemplate: string;
 }
 
+const THEME_STORAGE_KEY = 'alpheratz-theme-mode';
+
+const readStoredThemeMode = (): ThemeMode => {
+  if (typeof window === 'undefined') {
+    return 'light';
+  }
+
+  const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  return storedTheme === 'dark' ? 'dark' : 'light';
+};
+
+const applyThemeMode = (themeMode: ThemeMode) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  document.documentElement.dataset.theme = themeMode;
+  document.documentElement.style.colorScheme = themeMode;
+};
+
 // 設定モーダルで使う永続設定と補完操作を管理する。
 export const useSettingsPreferencesViewModel = ({
   photoFolderPath,
@@ -33,7 +54,7 @@ export const useSettingsPreferencesViewModel = ({
 }: UseSettingsPreferencesViewModelOptions) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isStartupEnabled, setIsStartupEnabled] = useState(false);
-  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
+  const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode);
   const [viewMode, setViewMode] = useState<ViewMode>('standard');
   const [masterTags, setMasterTags] = useState<string[]>([]);
   const [isArchiveResolutionRunning, setIsArchiveResolutionRunning] = useState(false);
@@ -82,7 +103,9 @@ export const useSettingsPreferencesViewModel = ({
       try {
         const setting = await loadAppSettingCommand();
         setIsStartupEnabled(!!setting.enableStartup);
-        setThemeMode(setting.themeMode === 'dark' ? 'dark' : 'light');
+        const resolvedThemeMode = setting.themeMode === 'dark' ? 'dark' : 'light';
+        setThemeMode(resolvedThemeMode);
+        applyThemeMode(resolvedThemeMode);
         setViewMode(setting.viewMode === 'gallery' ? 'gallery' : 'standard');
         const resolvedTemplates =
           setting.tweetTemplates && setting.tweetTemplates.length > 0
@@ -126,6 +149,7 @@ export const useSettingsPreferencesViewModel = ({
         themeMode: nextTheme,
       });
       setThemeMode(nextTheme);
+      applyThemeMode(nextTheme);
     } catch (err) {
       addToast?.(`テーマ設定の更新に失敗しました: ${String(err)}`, 'error');
     }
@@ -193,22 +217,25 @@ export const useSettingsPreferencesViewModel = ({
     }
   }, [addToast, loadPhotos]);
 
-  const handleResolveUnknownWorldsFromSimilarPhotos = useCallback(async () => {
-    setIsSimilarResolutionRunning(true);
-    try {
-      const resolvedCount = await resolveUnknownWorldsFromSimilarPhotos();
-      await loadPhotos();
-      addToast?.(
-        resolvedCount > 0
-          ? `類似写真から ${resolvedCount} 件のワールド名を推測しました。`
-          : '類似写真から推測できるワールド名はありませんでした。',
-      );
-    } catch (err) {
-      addToast?.(`類似写真からの推測に失敗しました: ${String(err)}`, 'error');
-    } finally {
-      setIsSimilarResolutionRunning(false);
-    }
-  }, [addToast, loadPhotos]);
+  const handleResolveUnknownWorldsFromSimilarPhotos = useCallback(
+    async (target: SimilarResolutionTarget) => {
+      setIsSimilarResolutionRunning(true);
+      try {
+        const resolvedCount = await resolveUnknownWorldsFromSimilarPhotos(target);
+        await loadPhotos();
+        addToast?.(
+          resolvedCount > 0
+            ? `類似写真から ${resolvedCount} 件のワールド名を推測しました。`
+            : '類似写真から推測できるワールド名はありませんでした。',
+        );
+      } catch (err) {
+        addToast?.(`類似写真からの推測に失敗しました: ${String(err)}`, 'error');
+      } finally {
+        setIsSimilarResolutionRunning(false);
+      }
+    },
+    [addToast, loadPhotos],
+  );
 
   return {
     isSettingsOpen,

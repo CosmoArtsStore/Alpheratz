@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { DatePreset, OrientationFilter } from '../models/types';
+import type { DatePreset, OrientationFilter, SortMode } from '../models/types';
 
 const formatDate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -56,6 +56,7 @@ export const useFilterViewModel = () => {
   const [orientationFilter, setOrientationFilter] = useState<OrientationFilter>('all');
   const [isFavoritesOnly, setIsFavoritesOnly] = useState(false);
   const [tagFilters, setTagFilters] = useState<string[]>([]);
+  const [sortMode, setSortMode] = useState<SortMode>('capturedAtDesc');
 
   const handleDatePresetSelect = (preset: Exclude<DatePreset, 'none' | 'custom'>) => {
     const range = getDateRangeFromPreset(preset);
@@ -82,6 +83,7 @@ export const useFilterViewModel = () => {
     setOrientationFilter('all');
     setIsFavoritesOnly(false);
     setTagFilters([]);
+    setSortMode('capturedAtDesc');
   };
 
   const activeFilterCount = useMemo(
@@ -109,6 +111,8 @@ export const useFilterViewModel = () => {
     handleDatePresetSelect,
     orientationFilter,
     setOrientationFilter,
+    sortMode,
+    setSortMode,
     favoritesOnly: isFavoritesOnly,
     setFavoritesOnly: setIsFavoritesOnly,
     tagFilters,

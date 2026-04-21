@@ -1,4 +1,4 @@
-using Alpheratz.Contracts.Interfaces;
+// Removed invalid using
 using Alpheratz.Contracts.Infrastructure;
 using Dapper;
 using System.Collections.Generic;

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Alpheratz.Application.UseCases;
 using Alpheratz.Contracts.Infrastructure;
 using Alpheratz.Domain.Entities;

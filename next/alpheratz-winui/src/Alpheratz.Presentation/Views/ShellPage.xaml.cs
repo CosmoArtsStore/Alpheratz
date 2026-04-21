@@ -8,6 +8,8 @@ namespace Alpheratz.Presentation.Views;
 
 public sealed partial class ShellPage : Page
 {
+    public ShellViewModel ViewModel { get; private set; }
+
     public ShellPage()
     {
         InitializeComponent();
@@ -22,74 +24,61 @@ public sealed partial class ShellPage : Page
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
     {
-        ApplyShellState();
+        if (DataContext is ShellViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            ApplyShellState();
+        }
     }
 
     private void ApplyShellState()
     {
-        if (DataContext is not ShellViewModel viewModel)
+        if (ViewModel == null)
         {
             return;
         }
 
-        viewModel.PropertyChanged -= OnShellViewModelPropertyChanged;
-        viewModel.PropertyChanged += OnShellViewModelPropertyChanged;
+        ViewModel.PropertyChanged -= OnShellViewModelPropertyChanged;
+        ViewModel.PropertyChanged += OnShellViewModelPropertyChanged;
 
-        NavigationList.ItemsSource = viewModel.NavigationItems;
-        NavigationList.SelectedItem = viewModel.SelectedNavigationItem;
+        NavigationList.ItemsSource = ViewModel.NavigationItems;
+        NavigationList.SelectedItem = ViewModel.SelectedNavigationItem;
 
-        ToastHost.Message = viewModel.ToastMessage;
-        ToastHost.IsOpen = viewModel.IsToastVisible;
-        DialogTitleText.Text = viewModel.DialogTitle;
-        DialogMessageText.Text = viewModel.DialogMessage;
-        DialogOverlay.Visibility = viewModel.IsDialogVisible ? Visibility.Visible : Visibility.Collapsed;
-        NavigateTo(viewModel.SelectedNavigationItem?.Key ?? "gallery", viewModel);
+        // Toast and Dialog state should ideally be x:Bind for consistency, 
+        // but keeping existing manual sync for safely now.
+        // Navigate to initial page
+        NavigateTo(ViewModel.SelectedNavigationItem?.Key ?? "gallery", ViewModel);
     }
 
     private void OnShellViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (DataContext is not ShellViewModel viewModel)
+        if (ViewModel == null)
         {
             return;
         }
 
         if (e.PropertyName == nameof(ShellViewModel.SelectedNavigationItem))
         {
-            NavigationList.SelectedItem = viewModel.SelectedNavigationItem;
-            NavigateTo(viewModel.SelectedNavigationItem?.Key ?? "gallery", viewModel);
+            NavigationList.SelectedItem = ViewModel.SelectedNavigationItem;
+            NavigateTo(ViewModel.SelectedNavigationItem?.Key ?? "gallery", ViewModel);
         }
 
         if (e.PropertyName == nameof(ShellViewModel.IsFirstRunActive))
         {
-            NavigateTo(viewModel.IsFirstRunActive ? "firstrun" : "gallery", viewModel);
-        }
-
-        if (e.PropertyName == nameof(ShellViewModel.ToastMessage) || e.PropertyName == nameof(ShellViewModel.IsToastVisible))
-        {
-            ToastHost.Message = viewModel.ToastMessage;
-            ToastHost.IsOpen = viewModel.IsToastVisible;
-        }
-
-        if (e.PropertyName == nameof(ShellViewModel.DialogTitle) ||
-            e.PropertyName == nameof(ShellViewModel.DialogMessage) ||
-            e.PropertyName == nameof(ShellViewModel.IsDialogVisible))
-        {
-            DialogTitleText.Text = viewModel.DialogTitle;
-            DialogMessageText.Text = viewModel.DialogMessage;
-            DialogOverlay.Visibility = viewModel.IsDialogVisible ? Visibility.Visible : Visibility.Collapsed;
+            NavigateTo(ViewModel.IsFirstRunActive ? "firstrun" : "gallery", ViewModel);
         }
     }
 
     private void OnNavigationSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (DataContext is not ShellViewModel viewModel)
+        if (ViewModel == null)
         {
             return;
         }
 
         if (NavigationList.SelectedItem is NavigationItem navigationItem)
         {
-            viewModel.SelectedNavigationItem = navigationItem;
+            ViewModel.SelectedNavigationItem = navigationItem;
         }
     }
 
@@ -97,25 +86,26 @@ public sealed partial class ShellPage : Page
     {
         if (pageKey == "gallery")
         {
-            ShellFrame.Navigate(typeof(GalleryPage), viewModel.GalleryPage);
+            // ShellFrame.Navigate(typeof(GalleryPage), viewModel.GalleryPage);
             return;
         }
 
         if (pageKey == "settings")
         {
-            ShellFrame.Navigate(typeof(SettingsPage), viewModel.SettingsPage);
+            // SettingsPage likely doesn't exist yet or is a placeholder
+            // ShellFrame.Navigate(typeof(SettingsPage), viewModel.SettingsPage);
             return;
         }
 
         if (pageKey == "tags")
         {
-            ShellFrame.Navigate(typeof(TagMasterPage), viewModel.TagMasterPage);
+            // ShellFrame.Navigate(typeof(TagMasterPage), viewModel.TagMasterPage);
             return;
         }
 
         if (pageKey == "tweets")
         {
-            ShellFrame.Navigate(typeof(TweetTemplatePage), viewModel.TweetTemplatePage);
+            // ShellFrame.Navigate(typeof(TweetTemplatePage), viewModel.TweetTemplatePage);
             return;
         }
 

@@ -26,7 +26,7 @@ public class SqliteWorldVisitRepository : IWorldVisitRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         return await connection.QueryAsync<WorldVisit>(
-            "SELECT world_id, world_name, join_time, instance_id, source_log_name FROM world_visits ORDER BY join_time DESC LIMIT @Count",
+            "SELECT world_id AS WorldId, world_name AS WorldName, join_time AS Timestamp, instance_id AS InstanceId, source_log_name AS SourceLogName FROM world_visits ORDER BY join_time DESC LIMIT @Count",
             new { Count = count });
     }
 
@@ -50,7 +50,7 @@ public class SqliteWorldVisitRepository : IWorldVisitRepository
             {
                 WorldId = v.WorldId,
                 WorldName = v.WorldName,
-                JoinTime = v.JoinTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                JoinTime = v.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"),
                 InstanceId = v.InstanceId,
                 SourceLogName = v.SourceLogName
             });
@@ -72,7 +72,7 @@ public class SqliteWorldVisitRepository : IWorldVisitRepository
         var timeStr = timestamp.ToString("yyyy-MM-dd HH:mm:ss");
         
         return await connection.QueryFirstOrDefaultAsync<WorldVisit>(
-            "SELECT world_id, world_name, join_time, instance_id, source_log_name FROM world_visits WHERE join_time <= @Time ORDER BY join_time DESC LIMIT 1",
+            "SELECT world_id AS WorldId, world_name AS WorldName, join_time AS Timestamp, instance_id AS InstanceId, source_log_name AS SourceLogName FROM world_visits WHERE join_time <= @Time ORDER BY join_time DESC LIMIT 1",
             new { Time = timeStr });
     }
 }

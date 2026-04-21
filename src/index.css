@@ -7,3 +7,19 @@ body,
   height: 100%;
   overflow: hidden;
 }
+
+html,
+body {
+  background: #fff;
+}
+
+html[data-theme='dark'],
+html[data-theme='dark'] body {
+  background: #0f172a;
+  color-scheme: dark;
+}
+
+html[data-theme='light'],
+html[data-theme='light'] body {
+  color-scheme: light;
+}

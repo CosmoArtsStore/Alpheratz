@@ -23,7 +23,7 @@ public class PngVrcMetadataReader
         try
         {
             // For performance, we only load metadata, not the full pixel data.
-            using var info = Image.Identify(path);
+            var info = Image.Identify(path);
             if (info == null) return (null, null);
 
             var pngMetadata = info.Metadata.GetPngMetadata();
@@ -31,7 +31,7 @@ public class PngVrcMetadataReader
             string? worldId = null;
             string? worldName = null;
 
-            foreach (var textChunk in pngMetadata.TextChunks)
+            foreach (var textChunk in pngMetadata.TextData)
             {
                 // VRChat embeds world info in a tEXt chunk with key "Description" or "World"
                 // depending on the version/mod.

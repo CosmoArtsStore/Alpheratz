@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Alpheratz.Application.UseCases;
 using Alpheratz.Contracts.Infrastructure;
+using Alpheratz.Domain.ValueObjects;
 using System;
 using System.Threading.Tasks;
 
@@ -73,11 +74,11 @@ public partial class FirstRunPageViewModel : ObservableObject
             // Initial scan progress monitoring
             var progressHandler = new Progress<Alpheratz.Domain.Models.ScanProgressSnapshot>(p => 
             {
-                Progress = p.Total > 0 ? (double)p.Processed / p.Total * 100 : 0;
-                StatusMessage = $"Processing {p.Processed} of {p.Total} photos...";
+                Progress = p.TotalCount > 0 ? (double)p.ProcessedCount / p.TotalCount * 100 : 0;
+                StatusMessage = $"Processing {p.ProcessedCount} of {p.TotalCount} photos...";
             });
 
-            await _changeFolder.ExecuteAsync(SelectedPath, progressHandler);
+            await _changeFolder.ExecuteAsync(new PhotoFolder(SelectedPath, SourceSlot.Slot1), progressHandler);
             
             _logger.Info("FirstRun", "Complete", "Setup completed successfully.");
             StatusMessage = "Setup complete! Launching Alpheratz...";

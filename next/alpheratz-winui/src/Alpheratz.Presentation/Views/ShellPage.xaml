@@ -6,8 +6,14 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:views="using:Alpheratz.Presentation.Views"
+    xmlns:conv="using:Alpheratz.Presentation.Converters"
     mc:Ignorable="d">
-    <Grid>
+
+    <Page.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    </Page.Resources>
+
+    <Grid x:Name="RootGrid">
         <Grid RowDefinitions="Auto,*">
             <Border Padding="16,12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
                 <TextBlock FontSize="20" FontWeight="SemiBold" Text="Alpheratz Shell" />
@@ -75,7 +81,7 @@
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
                 <ProgressRing IsActive="True" Width="64" Height="64" />
                 <TextBlock Text="Scanning Folders..." FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                <TextBlock Text="{x:Bind ViewModel.ScanStatus, Mode=OneWay}" Opacity="0.8" HorizontalAlignment="Center" />
+                <TextBlock Text="{x:Bind ViewModel.ScanStatus, Mode=OneWay}" Opacity="0.8" HorizontalAlignment="Center" Foreground="White" />
                 <ProgressBar Value="{x:Bind ViewModel.ScanProgress, Mode=OneWay}" Width="300" />
             </StackPanel>
         </Border>

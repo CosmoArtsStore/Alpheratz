@@ -187,13 +187,20 @@ public class SqlitePhotoReadRepository : IPhotoReadRepository
             
         if (string.IsNullOrEmpty(targetHash)) return Enumerable.Empty<SimilarWorldCandidate>();
 
+        // Find other photos with exact same hash but from known worlds, group by world to suggest candidates.
         const string sql = @"
-            SELECT world_name AS WorldName, 0 AS Distance, 1.0 AS SimilarityScore
+            SELECT identity, world_id, world_name
             FROM photos 
             WHERE phash = @Hash AND world_name IS NOT NULL AND world_name <> '' AND identity <> @Id
             GROUP BY world_name";
 
-        return await connection.QueryAsync<SimilarWorldCandidate>(sql, new { Hash = targetHash, Id = identity.Value });
+        var rows = await connection.QueryAsync(sql, new { Hash = targetHash, Id = identity.Value });
+        
+        return rows.Select(r => new SimilarWorldCandidate(
+            new PhotoIdentity((string)r.identity),
+            0, // Exact hash match
+            string.IsNullOrEmpty((string)r.world_id) ? WorldIdentity.Unknown() : WorldIdentity.Known((string)r.world_id, (string)r.world_name)
+        ));
     }
 
     private (string WhereClause, DynamicParameters Parameters) BuildFilterQuery(GalleryQuery query)

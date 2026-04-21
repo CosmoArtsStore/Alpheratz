@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Alpheratz.Contracts.Infrastructure;
-using Alpheratz.Contracts.Repositories;
+using Alpheratz.Contracts.Settings;
 using Alpheratz.Domain.Entities;
 
 namespace Alpheratz.Infrastructure.Database;

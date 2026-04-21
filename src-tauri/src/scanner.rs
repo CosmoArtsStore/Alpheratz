@@ -743,7 +743,7 @@ fn sync_archive_world_visits(conn: &mut Connection) -> Result<usize, String> {
 pub fn resolve_unknown_worlds_from_archive() -> Result<usize, String> {
     let mut conn = open_alpheratz_connection(1)?;
     sync_archive_world_visits(&mut conn)?;
-    let unknown_photos = load_unknown_world_photos(&conn)?;
+    let unknown_photos = load_unknown_world_photos(&conn, "all")?;
     let tx = conn
         .transaction()
         .map_err(|err| scan_err("archive 補完トランザクションを開始できません", err))?;
@@ -764,9 +764,9 @@ pub fn resolve_unknown_worlds_from_archive() -> Result<usize, String> {
 }
 
 // 既知の類似写真からワールド不明写真を補完する。
-pub fn resolve_unknown_worlds_from_similar_photos() -> Result<usize, String> {
+pub fn resolve_unknown_worlds_from_similar_photos(target: &str) -> Result<usize, String> {
     let mut conn = open_alpheratz_connection(1)?;
-    let unknown_photos = load_unknown_world_photos(&conn)?;
+    let unknown_photos = load_unknown_world_photos(&conn, target)?;
     let tx = conn
         .transaction()
         .map_err(|err| scan_err("類似写真補完トランザクションを開始できません", err))?;
@@ -794,15 +794,24 @@ pub fn resolve_unknown_worlds_from_similar_photos() -> Result<usize, String> {
 }
 
 // 手動補完待ちの写真一覧を読み込む。
-fn load_unknown_world_photos(conn: &Connection) -> Result<Vec<(String, String)>, String> {
+fn load_unknown_world_photos(
+    conn: &Connection,
+    target: &str,
+) -> Result<Vec<(String, String)>, String> {
+    let order_by = match target {
+        "primary" => "CASE WHEN COALESCE(source_slot, 1) = 1 THEN 0 ELSE 1 END, timestamp",
+        "secondary" => "CASE WHEN COALESCE(source_slot, 1) = 2 THEN 0 ELSE 1 END, timestamp",
+        _ => "timestamp",
+    };
     let mut stmt = conn
-        .prepare(
+        .prepare(&format!(
             "SELECT photo_path, timestamp
              FROM photos
              WHERE is_missing = 0
                AND world_name IS NULL
-               AND world_id IS NULL",
-        )
+               AND world_id IS NULL
+             ORDER BY {order_by}",
+        ))
         .map_err(|err| scan_err("不明ワールド写真クエリを準備できません", err))?;
 
     let rows = stmt

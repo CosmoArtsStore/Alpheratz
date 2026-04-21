@@ -39,7 +39,7 @@ public class PhotoMetadataAnalyzer
         try
         {
             // 1. Technical Info (Width/Height)
-            using var info = await Image.IdentifyAsync(path);
+            var info = await Image.IdentifyAsync(path);
             int width = info?.Width ?? 0;
             int height = info?.Height ?? 0;
 

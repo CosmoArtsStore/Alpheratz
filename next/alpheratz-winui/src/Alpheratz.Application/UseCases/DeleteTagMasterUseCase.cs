@@ -34,7 +34,7 @@ public class DeleteTagMasterUseCase
 
         try
         {
-            await _tagRepository.DeleteMasterTagAsync(tagName);
+            await _tagRepository.DeleteTagMasterAsync(tagName);
         }
         catch (Exception ex)
         {

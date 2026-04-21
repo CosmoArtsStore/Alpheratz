@@ -38,7 +38,7 @@ public class RenameTagMasterUseCase
         try
         {
             // The repository handles the transactional update of all related records.
-            await _tagRepository.RenameMasterTagAsync(oldTag, newTag);
+            await _tagRepository.RenameTagMasterAsync(oldTag, newTag);
         }
         catch (Exception ex)
         {

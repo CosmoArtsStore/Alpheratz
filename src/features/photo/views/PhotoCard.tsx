@@ -11,6 +11,7 @@ interface PhotoCardProps {
   onToggleSelect: (item: DisplayPhotoItem, shiftKey: boolean) => void;
   isSelected: (item: DisplayPhotoItem) => boolean;
   showTags: boolean;
+  showSelectionToggle: boolean;
   columnCount: number;
   columnIndex: number;
   rowIndex: number;
@@ -24,6 +25,7 @@ export const PhotoCard = ({
   onToggleSelect,
   isSelected,
   showTags,
+  showSelectionToggle,
   columnCount,
   columnIndex,
   rowIndex,
@@ -99,7 +101,6 @@ export const PhotoCard = ({
                 <span className={styles.pill}>archive</span>
               )}
               {photo.match_source === 'phash' && <span className={styles.pill}>類似一致</span>}
-              {photo.orientation && <span className={styles.pill}>{photo.orientation}</span>}
             </div>
             <div className={styles.world}>{photo.world_name || 'ワールド不明'}</div>
             <div className={styles.date}>{photo.timestamp}</div>
@@ -115,17 +116,19 @@ export const PhotoCard = ({
           </div>
         </div>
       </button>
-      <button
-        className={toggleClassName}
-        onClick={(event) => {
-          event.stopPropagation();
-          onToggleSelect(item, event.shiftKey);
-        }}
-        aria-label={isSelectedCard ? '選択解除' : '選択'}
-        type="button"
-      >
-        {isSelectedCard ? '✓' : ''}
-      </button>
+      {showSelectionToggle && (
+        <button
+          className={toggleClassName}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleSelect(item, event.shiftKey);
+          }}
+          aria-label={isSelectedCard ? '選択解除' : '選択'}
+          type="button"
+        >
+          {isSelectedCard ? '✓' : ''}
+        </button>
+      )}
     </div>
   );
 };

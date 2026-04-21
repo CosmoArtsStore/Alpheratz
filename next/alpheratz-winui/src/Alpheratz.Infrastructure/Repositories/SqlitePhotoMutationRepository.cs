@@ -1,4 +1,5 @@
 using Alpheratz.Contracts.Repositories;
+using Alpheratz.Contracts.Infrastructure;
 using Alpheratz.Domain.Entities;
 using Alpheratz.Domain.ValueObjects;
 using Dapper;

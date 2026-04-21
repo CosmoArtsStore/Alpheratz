@@ -19,20 +19,21 @@ public class ThumbnailPrewarmService : IThumbnailPrewarmService
     }
 
     /// <inheritdoc/>
-    public Task PrewarmThumbnailsAsync(IEnumerable<Photo> photos)
+    public Task PrewarmThumbnailsAsync(IEnumerable<Photo> photos, ThumbnailVariant variant)
     {
         // For now, we process them sequentially or in small parallel batches.
         foreach (var photo in photos)
         {
-            Enqueue(photo.Identity.PhotoPath);
+            Enqueue(photo.Identity.Value, variant);
         }
         return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
-    public void Enqueue(string photoPath)
+    public void Enqueue(string photoPath, ThumbnailVariant variant)
     {
         // Fire and forget caching to warm the disk cache
+        // Note: ThumbnailCacheService implementation may need adjustments for variants
         _ = _cacheService.GetThumbnailPathAsync(photoPath);
     }
 }

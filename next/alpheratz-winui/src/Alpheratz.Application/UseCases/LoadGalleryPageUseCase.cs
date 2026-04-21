@@ -32,7 +32,7 @@ public class LoadGalleryPageUseCase
     /// <param name="query">The filter/sort criteria.</param>
     /// <param name="page">The 0-indexed page number.</param>
     /// <returns>A result containing photo items, total count, and layout info.</returns>
-    public async Task<GalleryPageResult> ExecuteAsync(GalleryQuery query, int page = 0)
+    public async Task<GalleryPageResult> ExecuteAsync(Alpheratz.Domain.Queries.GalleryQuery query, int page = 0)
     {
         const int pageSize = 24; // Alpheratz standard page size as per design doc
 

@@ -1,30 +1,59 @@
-import { useState, useRef, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 // Tracks gallery container size and derives grid dimensions from it.
 export const useGalleryGridViewModel = (CARD_WIDTH: number) => {
-  const rightPanelRef = useRef<HTMLDivElement>(null);
-  const gridWrapperRef = useRef<HTMLDivElement>(null);
+  const [rightPanelNode, setRightPanelNode] = useState<HTMLDivElement | null>(null);
+  const [gridWrapperNode, setGridWrapperNode] = useState<HTMLDivElement | null>(null);
   const [panelWidth, setPanelWidth] = useState(800);
   const [gridWrapperHeight, setGridWrapperHeight] = useState(600);
 
+  const rightPanelRef = useCallback((node: HTMLDivElement | null) => {
+    setRightPanelNode(node);
+  }, []);
+
+  const gridWrapperRef = useCallback((node: HTMLDivElement | null) => {
+    setGridWrapperNode(node);
+  }, []);
+
   useEffect(() => {
-    const rpObs = new ResizeObserver((entries) => {
+    if (!rightPanelNode) {
+      return undefined;
+    }
+
+    setPanelWidth(rightPanelNode.getBoundingClientRect().width);
+
+    const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setPanelWidth(entry.contentRect.width);
       }
     });
-    const gwObs = new ResizeObserver((entries) => {
+
+    observer.observe(rightPanelNode);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [rightPanelNode]);
+
+  useEffect(() => {
+    if (!gridWrapperNode) {
+      return undefined;
+    }
+
+    setGridWrapperHeight(gridWrapperNode.getBoundingClientRect().height);
+
+    const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setGridWrapperHeight(entry.contentRect.height);
       }
     });
-    if (rightPanelRef.current) rpObs.observe(rightPanelRef.current);
-    if (gridWrapperRef.current) gwObs.observe(gridWrapperRef.current);
+
+    observer.observe(gridWrapperNode);
+
     return () => {
-      rpObs.disconnect();
-      gwObs.disconnect();
+      observer.disconnect();
     };
-  }, []);
+  }, [gridWrapperNode]);
 
   const columnCount = Math.max(1, Math.floor(panelWidth / CARD_WIDTH));
   const gridHeight = Math.max(200, gridWrapperHeight);

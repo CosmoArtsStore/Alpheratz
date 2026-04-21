@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type WheelEvent } from 'react';
 import type { Photo } from '../models/types';
-import { Icons } from '../../../shared/components/Icons';
+import { AppIcon, APP_ICON_CLASS_NAMES, APP_ICON_NAMES } from '../../../shared/components/Icons';
 import { AnimatedFavoriteStar } from '../../../shared/components/AnimatedFavoriteStar';
 import { HoverTooltip } from '../../../shared/components/HoverTooltip';
 import { useViewportPresence } from '../viewmodels/useViewportPresence';
@@ -31,6 +31,7 @@ interface PhotoModalProps {
   onAddTag: (tag: string) => void;
   onRemoveTag: (tag: string) => void;
   onShowInExplorer: () => void;
+  onOpenTagMaster?: () => void;
 }
 
 const SimilarPhotoThumb = ({
@@ -98,6 +99,7 @@ export const PhotoModal = ({
   onAddTag,
   onRemoveTag,
   onShowInExplorer,
+  onOpenTagMaster,
 }: PhotoModalProps) => {
   const [selectedExistingTag, setSelectedExistingTag] = useState('');
   const similarStripRef = useRef<HTMLDivElement | null>(null);
@@ -105,8 +107,12 @@ export const PhotoModal = ({
 
   const availableTags = allTags.filter((tag) => !photo.tags.includes(tag));
   const hasAvailableTags = availableTags.length > 0;
-  const isArchiveMatched = photo.match_source === 'polaris_archive';
-  const isPhashMatched = photo.match_source === 'phash';
+  const matchSourceLabel =
+    photo.match_source === 'polaris_archive'
+      ? 'archive ログから補完'
+      : photo.match_source === 'phash'
+        ? '類似写真から推測'
+        : null;
 
   const addExistingTag = () => {
     if (!selectedExistingTag) {
@@ -151,22 +157,11 @@ export const PhotoModal = ({
       >
         {canGoBack && onGoBack && (
           <button className={styles.back} onClick={onGoBack} type="button">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
+            <AppIcon name={APP_ICON_NAMES.back} className={APP_ICON_CLASS_NAMES.medium} />
           </button>
         )}
         <button className={styles.close} onClick={onClose} aria-label="閉じる" type="button">
-          <Icons.Close />
+          <AppIcon name={APP_ICON_NAMES.close} />
         </button>
         <div className={styles.body}>
           <section className={styles['image-panel']} aria-label="写真表示">
@@ -177,18 +172,7 @@ export const PhotoModal = ({
               aria-label="前の写真"
               type="button"
             >
-              <svg
-                width="26"
-                height="26"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
+              <AppIcon name={APP_ICON_NAMES.back} className={APP_ICON_CLASS_NAMES.large} />
             </button>
             <button
               className={[styles['edge-button'], styles.next].join(' ')}
@@ -197,18 +181,7 @@ export const PhotoModal = ({
               aria-label="次の写真"
               type="button"
             >
-              <svg
-                width="26"
-                height="26"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
+              <AppIcon name={APP_ICON_NAMES.next} className={APP_ICON_CLASS_NAMES.large} />
             </button>
             <img src={photoSrc} alt="" />
             {showSimilarPhotos && similarPhotos.length > 1 && onSelectSimilarPhoto && (
@@ -237,26 +210,23 @@ export const PhotoModal = ({
 
           <section className={styles.info} aria-labelledby="photo-modal-title">
             <header className={styles.header}>
-              <h2 id="photo-modal-title" className={styles.title}>
-                {photo.world_name || 'ワールド不明'}
-              </h2>
-              <div>
-                <div className={styles['meta-badges']}>
-                  <span
-                    className={[styles['meta-badge'], isArchiveMatched ? styles['active-db'] : '']
-                      .filter(Boolean)
-                      .join(' ')}
+              <div className={styles['title-row']}>
+                <h2 id="photo-modal-title" className={styles.title}>
+                  {photo.world_name || 'ワールド不明'}
+                </h2>
+                {matchSourceLabel && (
+                  <HoverTooltip
+                    label={matchSourceLabel}
+                    className={styles['source-indicator-wrap']}
                   >
-                    archive
-                  </span>
-                  <span
-                    className={[styles['meta-badge'], isPhashMatched ? styles['active-phash'] : '']
-                      .filter(Boolean)
-                      .join(' ')}
-                  >
-                    類似一致
-                  </span>
-                </div>
+                    <span className={styles['source-indicator']} aria-label={matchSourceLabel}>
+                      <AppIcon
+                        name={APP_ICON_NAMES.exclamationCircleFill}
+                        className={APP_ICON_CLASS_NAMES.medium}
+                      />
+                    </span>
+                  </HoverTooltip>
+                )}
               </div>
             </header>
 
@@ -295,9 +265,18 @@ export const PhotoModal = ({
                 </button>
               </div>
               {!hasAvailableTags && (
-                <p className={styles['empty-note']}>
-                  追加できるタグがありません。設定画面でタグを追加してください。
-                </p>
+                <div className={styles['empty-note']}>
+                  <p>追加できるタグがありません。タグマスタ編集画面でタグを追加してください。</p>
+                  {onOpenTagMaster && (
+                    <button
+                      className={styles['primary-button']}
+                      onClick={onOpenTagMaster}
+                      type="button"
+                    >
+                      タグマスタ編集を開く
+                    </button>
+                  )}
+                </div>
               )}
 
               {!!photo.tags.length && (
@@ -337,11 +316,16 @@ export const PhotoModal = ({
             </section>
 
             <footer className={styles['bottom-actions']}>
-              <HoverTooltip label={photo.is_favorite ? 'お気に入りから解除' : 'お気に入りに追加'}>
+              <HoverTooltip
+                label={photo.is_favorite ? 'お気に入りから解除' : 'お気に入りに追加'}
+                className={styles['bottom-action-wrap']}
+              >
                 <button
                   className={[
                     styles['bottom-action'],
+                    'photo-modal-bottom-action',
                     photo.is_favorite ? styles['favorite-active'] : '',
+                    photo.is_favorite ? 'favorite-active' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -350,62 +334,48 @@ export const PhotoModal = ({
                   type="button"
                 >
                   <AnimatedFavoriteStar liked={photo.is_favorite} className="favorite-star-modal" />
+                  <span className={styles['bottom-action-label']}>お気に入り</span>
                 </button>
               </HoverTooltip>
-              <HoverTooltip label="ツイート投稿画面を開く">
+              <HoverTooltip label="ツイート投稿画面を開く" className={styles['bottom-action-wrap']}>
                 <button
-                  className={styles['bottom-action']}
+                  className={[styles['bottom-action'], 'photo-modal-bottom-action'].join(' ')}
                   onClick={onTweet}
                   aria-label="ツイート投稿画面を開く"
                   type="button"
                 >
-                  <Icons.Quill />
+                  <AppIcon name={APP_ICON_NAMES.pen} />
+                  <span className={styles['bottom-action-label']}>投稿</span>
                 </button>
               </HoverTooltip>
               <HoverTooltip
                 label={photo.world_id ? 'ワールドリンクを開く' : 'ワールドIDがありません'}
+                className={styles['bottom-action-wrap']}
               >
                 <button
-                  className={styles['bottom-action']}
+                  className={[
+                    styles['bottom-action'],
+                    'photo-modal-bottom-action',
+                    'world-link-button',
+                  ].join(' ')}
                   onClick={handleOpenWorld}
                   disabled={!photo.world_id}
                   aria-label="ワールドリンクを開く"
                   type="button"
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.9"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M3 12h18" />
-                    <path d="M12 3a14 14 0 0 1 0 18" />
-                    <path d="M12 3a14 14 0 0 0 0 18" />
-                  </svg>
+                  <AppIcon name={APP_ICON_NAMES.globe} />
+                  <span className={styles['bottom-action-label']}>ワールド</span>
                 </button>
               </HoverTooltip>
-              <HoverTooltip label="エクスプローラーで表示">
+              <HoverTooltip label="エクスプローラーで表示" className={styles['bottom-action-wrap']}>
                 <button
-                  className={styles['bottom-action']}
+                  className={[styles['bottom-action'], 'photo-modal-bottom-action'].join(' ')}
                   onClick={onShowInExplorer}
                   aria-label="エクスプローラーで表示"
                   type="button"
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.9"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l1.7 2H18.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" />
-                  </svg>
+                  <AppIcon name={APP_ICON_NAMES.explorer} />
+                  <span className={styles['bottom-action-label']}>表示</span>
                 </button>
               </HoverTooltip>
             </footer>

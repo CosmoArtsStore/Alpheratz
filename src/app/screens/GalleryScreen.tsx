@@ -22,12 +22,15 @@ import { MonthNav } from '../../features/gallery/views/MonthNav';
 import { EmptyState } from '../../features/gallery/views/EmptyState';
 import { PhotoGrid } from '../../features/photo/views/PhotoGrid';
 import { PhotoModal } from '../../features/photo/views/PhotoModal';
-import { SettingsModal } from '../../features/settings/views/SettingsModal';
 import { FilterSidebar } from '../../features/filter/views/FilterSidebar';
 import { ScanningOverlay } from '../../features/scan/views/ScanningOverlay';
-import { Icons } from '../../shared/components/Icons';
+import { AppIcon, APP_ICON_NAMES } from '../../shared/components/Icons';
+import { SettingsWorkspace } from '../../features/settings/views/SettingsWorkspace';
+import { TagMasterWorkspace } from '../../features/settings/views/TagMasterWorkspace';
+import { TweetTemplateWorkspace } from '../../features/settings/views/TweetTemplateWorkspace';
 import type { PhotoQuery } from '../../features/photo/models/types';
 import type { DisplayPhotoItem } from '../../shared/models/types';
+import type { SimilarResolutionTarget } from '../../features/settings/models/types';
 import { buildVirtualGalleryLayout } from '../../features/gallery/models/galleryLayout';
 import {
   addPhotoTag,
@@ -41,6 +44,7 @@ import { loadAppSetting } from '../../features/settings/services/settingsCommand
 const CARD_WIDTH = 270;
 const ROW_HEIGHT = 246;
 type GroupingMode = 'none' | 'similar' | 'world';
+type MainScreen = 'gallery' | 'settings' | 'tagMaster' | 'template';
 const MAX_SIMILAR_PHOTOS_IN_MODAL = 24;
 
 // スキャンから閲覧・編集までを束ねるメイン画面を構成する。
@@ -48,6 +52,12 @@ function GalleryScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [groupingMode, setGroupingMode] = useState<GroupingMode>('none');
+  const [activeMainScreen, setActiveMainScreen] = useState<MainScreen>('gallery');
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [worldMasterCounts, setWorldMasterCounts] = useState<Record<string, number>>({});
+  const [isSimilarResolutionConfirmOpen, setIsSimilarResolutionConfirmOpen] = useState(false);
+  const [similarResolutionTarget, setSimilarResolutionTarget] =
+    useState<SimilarResolutionTarget>('all');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -75,6 +85,8 @@ function GalleryScreen() {
     handleDatePresetSelect,
     orientationFilter,
     setOrientationFilter,
+    sortMode,
+    setSortMode,
     favoritesOnly: isFavoritesOnly,
     setFavoritesOnly: setIsFavoritesOnly,
     tagFilters,
@@ -132,8 +144,6 @@ function GalleryScreen() {
     cancelScan,
   } = useScanViewModel(loadAppSetting, addToast);
   const {
-    isSettingsOpen,
-    setIsSettingsOpen,
     pendingFolderPath,
     setPendingFolderPath,
     pendingRestoreCandidate,
@@ -192,8 +202,6 @@ function GalleryScreen() {
     );
   }, addToast);
   const {
-    isTweetTemplatePanelOpen,
-    setIsTweetTemplatePanelOpen,
     tweetTemplateDraft,
     setTweetTemplateDraft,
     editingTweetTemplate,
@@ -213,13 +221,47 @@ function GalleryScreen() {
   });
 
   const filteredPhotos = photos;
+  const worldNameCollator = useMemo(
+    () =>
+      new Intl.Collator(['ja-JP-u-co-unihan', 'ja-JP', 'en'], {
+        numeric: true,
+        sensitivity: 'base',
+        ignorePunctuation: false,
+      }),
+    [],
+  );
   const hasAllPHashesReady = useMemo(
     () => photos.every((photo) => Boolean(photo.phash?.trim())),
     [photos],
   );
   const isSimilarGroupingAvailable = !isPhashRunning && hasAllPHashesReady;
 
-  const displayPhotos = useMemo(() => filteredPhotos, [filteredPhotos]);
+  const displayPhotos = useMemo(() => {
+    if (sortMode !== 'worldNameAsc') {
+      return filteredPhotos;
+    }
+
+    return filteredPhotos.slice().sort((left, right) => {
+      const leftName = left.world_name?.trim() ?? '';
+      const rightName = right.world_name?.trim() ?? '';
+
+      if (!leftName && !rightName) {
+        return right.timestamp.localeCompare(left.timestamp);
+      }
+      if (!leftName) {
+        return 1;
+      }
+      if (!rightName) {
+        return -1;
+      }
+
+      const worldCompare = worldNameCollator.compare(leftName, rightName);
+      if (worldCompare !== 0) {
+        return worldCompare;
+      }
+      return right.timestamp.localeCompare(left.timestamp);
+    });
+  }, [filteredPhotos, sortMode, worldNameCollator]);
   const { displayPhotoItems, selectedPhotoView, selectedPhotoIndex, similarPhotos } =
     useDisplayPhotoData({
       photos: displayPhotos,
@@ -265,6 +307,43 @@ function GalleryScreen() {
       setGroupingMode('none');
     }
   }, [isSimilarGroupingAvailable, groupingMode]);
+
+  useEffect(() => {
+    if (activeMainScreen !== 'gallery' && isFilterOpen) {
+      setIsFilterOpen(false);
+    }
+  }, [activeMainScreen, isFilterOpen, setIsFilterOpen]);
+
+  useEffect(() => {
+    if (activeMainScreen !== 'gallery' && isSelectionMode) {
+      setIsSelectionMode(false);
+      clearSelectedPhotos();
+    }
+  }, [activeMainScreen, clearSelectedPhotos, isSelectionMode]);
+
+  useEffect(() => {
+    setWorldMasterCounts({});
+  }, [photoFolderPath, secondaryPhotoFolderPath]);
+
+  useEffect(() => {
+    if (photos.length === 0) {
+      return;
+    }
+
+    const currentCounts = photos.reduce<Record<string, number>>((acc, photo) => {
+      const key = photo.world_name?.trim() || 'unknown';
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    setWorldMasterCounts((prev) => {
+      const merged = { ...prev };
+      for (const [key, count] of Object.entries(currentCounts)) {
+        merged[key] = Math.max(merged[key] ?? 0, count);
+      }
+      return merged;
+    });
+  }, [photos]);
 
   const toggleFavorite = async (photoPath: string, current: boolean) => {
     const currentPhoto = photos.find((photo) => photo.photo_path === photoPath);
@@ -331,9 +410,13 @@ function GalleryScreen() {
 
   const handlePhotoActivate = useCallback(
     (item: DisplayPhotoItem) => {
+      if (isSelectionMode) {
+        toggleSelectedPhoto(item, false);
+        return;
+      }
       onSelectPhoto(item.photo);
     },
-    [onSelectPhoto],
+    [isSelectionMode, onSelectPhoto, toggleSelectedPhoto],
   );
 
   const galleryLayout = useMemo(
@@ -374,18 +457,11 @@ function GalleryScreen() {
   );
 
   const worldNameList = useMemo(() => {
-    const names = Array.from(new Set(photos.map((photo) => photo.world_name || ''))).sort();
-    return names.some((name) => !!name.trim()) ? names : [];
-  }, [photos]);
-  const worldCounts = useMemo(
-    () =>
-      photos.reduce<Record<string, number>>((acc, photo) => {
-        const key = photo.world_name || 'unknown';
-        acc[key] = (acc[key] ?? 0) + 1;
-        return acc;
-      }, {}),
-    [photos],
-  );
+    return Object.keys(worldMasterCounts).sort((left, right) =>
+      worldNameCollator.compare(left, right),
+    );
+  }, [worldMasterCounts, worldNameCollator]);
+  const worldCounts = useMemo(() => worldMasterCounts, [worldMasterCounts]);
   const tagOptions = useMemo(
     () => masterTags.slice().sort((left, right) => left.localeCompare(right, 'ja')),
     [masterTags],
@@ -397,7 +473,8 @@ function GalleryScreen() {
       onSelect: handlePhotoActivate,
       onToggleSelect: toggleSelectedPhoto,
       isSelected: (item: DisplayPhotoItem) => selectedPhotoPathSet.has(item.photo.photo_path),
-      showTags: selectedCount > 0,
+      showTags: isSelectionMode && selectedCount > 0,
+      showSelectionToggle: isSelectionMode,
       columnCount,
     }),
     [
@@ -405,14 +482,27 @@ function GalleryScreen() {
       handlePhotoActivate,
       toggleSelectedPhoto,
       columnCount,
+      isSelectionMode,
       selectedPhotoPathSet,
       selectedCount,
     ],
   );
   const displayTotalRows = Math.ceil(displayPhotoItems.length / columnCount);
+  const isGalleryScreen = activeMainScreen === 'gallery';
+  const isTagMasterScreen = activeMainScreen === 'tagMaster';
+  const isTemplateScreen = activeMainScreen === 'template';
+  const isEditWorkspaceScreen = isTagMasterScreen || isTemplateScreen;
+  const rightPanelLabel =
+    activeMainScreen === 'settings'
+      ? '設定'
+      : activeMainScreen === 'tagMaster'
+        ? 'タグマスタ編集'
+        : activeMainScreen === 'template'
+          ? 'テンプレート編集'
+          : '写真一覧';
 
   return (
-    <section className={styles.root} data-theme={themeMode}>
+    <section className={[styles.root, 'alpheratz-root'].join(' ')} data-theme={themeMode}>
       <Header
         onRefresh={() => {
           if (scanStatus === 'scanning') {
@@ -422,9 +512,14 @@ function GalleryScreen() {
           void startScan();
         }}
         onOpenSettings={() => {
-          setIsSettingsOpen(true);
+          setActiveMainScreen((prev) => (prev === 'settings' ? 'gallery' : 'settings'));
         }}
         onToggleFilters={() => {
+          if (!isGalleryScreen) {
+            setActiveMainScreen('gallery');
+            setIsFilterOpen(true);
+            return;
+          }
           setIsFilterOpen((prev) => !prev);
         }}
         searchQuery={searchQuery}
@@ -449,7 +544,7 @@ function GalleryScreen() {
             canCancel={true}
           />
         )}
-        {isFilterOpen && (
+        {isGalleryScreen && isFilterOpen && (
           <button
             className={styles.backdrop}
             onClick={() => {
@@ -458,268 +553,480 @@ function GalleryScreen() {
             aria-label="絞り込みを閉じる"
           />
         )}
-        <FilterSidebar
-          isOpen={isFilterOpen}
-          activeFilterCount={activeFilterCount}
-          filteredCount={filteredPhotos.length}
-          worldFilters={worldFilters}
-          setWorldFilters={setWorldFilters}
-          worldNameList={worldNameList}
-          worldCounts={worldCounts}
-          datePreset={datePreset}
-          onDatePresetSelect={handleDatePresetSelect}
-          dateFrom={dateFrom}
-          setDateFrom={setDateFrom}
-          dateTo={dateTo}
-          setDateTo={setDateTo}
-          orientationFilter={orientationFilter}
-          setOrientationFilter={setOrientationFilter}
-          orientationFilterDisabled={false}
-          favoritesOnly={isFavoritesOnly}
-          setFavoritesOnly={setIsFavoritesOnly}
-          tagFilters={tagFilters}
-          setTagFilters={setTagFilters}
-          tagOptions={tagOptions}
-          onReset={resetFilters}
-        />
+        {isGalleryScreen && (
+          <FilterSidebar
+            isOpen={isFilterOpen}
+            activeFilterCount={activeFilterCount}
+            filteredCount={filteredPhotos.length}
+            worldFilters={worldFilters}
+            setWorldFilters={setWorldFilters}
+            worldNameList={worldNameList}
+            worldCounts={worldCounts}
+            datePreset={datePreset}
+            onDatePresetSelect={handleDatePresetSelect}
+            dateFrom={dateFrom}
+            setDateFrom={setDateFrom}
+            dateTo={dateTo}
+            setDateTo={setDateTo}
+            orientationFilter={orientationFilter}
+            setOrientationFilter={setOrientationFilter}
+            sortMode={sortMode}
+            setSortMode={setSortMode}
+            orientationFilterDisabled={false}
+            favoritesOnly={isFavoritesOnly}
+            setFavoritesOnly={setIsFavoritesOnly}
+            tagFilters={tagFilters}
+            setTagFilters={setTagFilters}
+            tagOptions={tagOptions}
+            onReset={resetFilters}
+          />
+        )}
         <section className={styles['grid-area']}>
           <aside className={styles['left-rail']} aria-label="表示操作">
             <nav className={styles['left-rail-controls']} aria-label="表示操作一覧">
-              <section className={styles['left-rail-section']} aria-labelledby="left-rail-edit">
-                <h2 id="left-rail-edit" className={styles['left-rail-section-title']}>
-                  編集
-                </h2>
-                <div className={styles['left-rail-nav-group']} role="group" aria-label="編集">
-                  <button
-                    className={styles['left-rail-button']}
-                    onClick={() => {
-                      setIsSettingsOpen(true);
-                    }}
-                    aria-label="タグマスタ編集"
-                    title="タグマスタ編集"
-                    type="button"
+              {isEditWorkspaceScreen ? (
+                <section className={styles['left-rail-section']} aria-labelledby="left-rail-screen">
+                  <h2 id="left-rail-screen" className={styles['left-rail-section-title']}>
+                    画面
+                  </h2>
+                  <div className={styles['left-rail-nav-group']} role="group" aria-label="画面">
+                    <button
+                      className={[styles['left-rail-button'], isGalleryScreen ? styles.active : '']
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => {
+                        setActiveMainScreen('gallery');
+                      }}
+                      aria-label="ギャラリー"
+                      title="ギャラリー"
+                      type="button"
+                    >
+                      <span className={styles['left-rail-icon']}>
+                        <AppIcon name={APP_ICON_NAMES.photo} />
+                      </span>
+                      <span className={styles['left-rail-label']}>ギャラリー</span>
+                    </button>
+                    <button
+                      className={[
+                        styles['left-rail-button'],
+                        isTagMasterScreen ? styles.active : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => {
+                        setActiveMainScreen((prev) =>
+                          prev === 'tagMaster' ? 'gallery' : 'tagMaster',
+                        );
+                      }}
+                      aria-label="タグマスタ編集"
+                      title="タグマスタ編集"
+                      type="button"
+                    >
+                      <span className={styles['left-rail-icon']}>
+                        <AppIcon name={APP_ICON_NAMES.tag} />
+                      </span>
+                      <span className={styles['left-rail-label']}>タグマスタ編集</span>
+                    </button>
+                    <button
+                      className={[styles['left-rail-button'], isTemplateScreen ? styles.active : '']
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => {
+                        setActiveMainScreen((prev) =>
+                          prev === 'template' ? 'gallery' : 'template',
+                        );
+                      }}
+                      aria-label="テンプレート編集"
+                      title="テンプレート編集"
+                      type="button"
+                    >
+                      <span className={styles['left-rail-icon']}>
+                        <AppIcon name={APP_ICON_NAMES.template} />
+                      </span>
+                      <span className={styles['left-rail-label']}>テンプレート編集</span>
+                    </button>
+                  </div>
+                </section>
+              ) : (
+                <>
+                  <section
+                    className={styles['left-rail-section']}
+                    aria-labelledby="left-rail-screen"
                   >
-                    <span className={styles['left-rail-icon']}>
-                      <Icons.Tag />
-                    </span>
-                    <span className={styles['left-rail-label']}>タグマスタ編集</span>
-                  </button>
-                  <button
-                    className={styles['left-rail-button']}
-                    onClick={() => {
-                      setIsTweetTemplatePanelOpen(true);
-                    }}
-                    aria-label="テンプレート編集"
-                    title="テンプレート編集"
-                    type="button"
+                    <h2 id="left-rail-screen" className={styles['left-rail-section-title']}>
+                      画面
+                    </h2>
+                    <div className={styles['left-rail-nav-group']} role="group" aria-label="画面">
+                      <button
+                        className={[
+                          styles['left-rail-button'],
+                          isGalleryScreen ? styles.active : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => {
+                          setActiveMainScreen('gallery');
+                        }}
+                        aria-label="ギャラリー"
+                        title="ギャラリー"
+                        type="button"
+                      >
+                        <span className={styles['left-rail-icon']}>
+                          <AppIcon name={APP_ICON_NAMES.photo} />
+                        </span>
+                        <span className={styles['left-rail-label']}>ギャラリー</span>
+                      </button>
+                    </div>
+                  </section>
+                  <section className={styles['left-rail-section']} aria-labelledby="left-rail-edit">
+                    <h2 id="left-rail-edit" className={styles['left-rail-section-title']}>
+                      編集
+                    </h2>
+                    <div className={styles['left-rail-nav-group']} role="group" aria-label="編集">
+                      <button
+                        className={[
+                          styles['left-rail-button'],
+                          isSelectionMode ? styles.active : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => {
+                          setIsSelectionMode((prev) => {
+                            if (prev) {
+                              clearSelectedPhotos();
+                            }
+                            return !prev;
+                          });
+                        }}
+                        aria-label="複数選択モード"
+                        title="複数選択モード"
+                        type="button"
+                      >
+                        <span className={styles['left-rail-icon']}>
+                          <AppIcon name={APP_ICON_NAMES.selectMultiple} />
+                        </span>
+                        <span className={styles['left-rail-label']}>複数選択</span>
+                      </button>
+                      <button
+                        className={[
+                          styles['left-rail-button'],
+                          isTagMasterScreen ? styles.active : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => {
+                          setActiveMainScreen((prev) =>
+                            prev === 'tagMaster' ? 'gallery' : 'tagMaster',
+                          );
+                        }}
+                        aria-label="タグマスタ編集"
+                        title="タグマスタ編集"
+                        type="button"
+                      >
+                        <span className={styles['left-rail-icon']}>
+                          <AppIcon name={APP_ICON_NAMES.tag} />
+                        </span>
+                        <span className={styles['left-rail-label']}>タグマスタ編集</span>
+                      </button>
+                      <button
+                        className={[
+                          styles['left-rail-button'],
+                          isTemplateScreen ? styles.active : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => {
+                          setActiveMainScreen((prev) =>
+                            prev === 'template' ? 'gallery' : 'template',
+                          );
+                        }}
+                        aria-label="テンプレート編集"
+                        title="テンプレート編集"
+                        type="button"
+                      >
+                        <span className={styles['left-rail-icon']}>
+                          <AppIcon name={APP_ICON_NAMES.template} />
+                        </span>
+                        <span className={styles['left-rail-label']}>テンプレート編集</span>
+                      </button>
+                    </div>
+                  </section>
+                  <section
+                    className={styles['left-rail-section']}
+                    aria-labelledby="left-rail-grouping"
                   >
-                    <span className={styles['left-rail-icon']}>
-                      <Icons.Template />
-                    </span>
-                    <span className={styles['left-rail-label']}>テンプレート編集</span>
-                  </button>
-                </div>
-              </section>
-              <section className={styles['left-rail-section']} aria-labelledby="left-rail-grouping">
-                <h2 id="left-rail-grouping" className={styles['left-rail-section-title']}>
-                  グループ化
-                </h2>
-                <div className={styles['left-rail-nav-group']} role="group" aria-label="グループ化">
-                  <button
-                    className={[
-                      styles['left-rail-button'],
-                      groupingMode === 'none' ? styles.active : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => {
-                      setGroupingMode('none');
-                    }}
-                    type="button"
-                  >
-                    <span className={styles['left-rail-icon']}>
-                      <Icons.Stack />
-                    </span>
-                    <span className={styles['left-rail-label']}>なし</span>
-                  </button>
-                  <button
-                    className={[
-                      styles['left-rail-button'],
-                      groupingMode === 'similar' ? styles.active : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => {
-                      setGroupingMode('similar');
-                    }}
-                    disabled={!isSimilarGroupingAvailable}
-                    title={
-                      isSimilarGroupingAvailable
-                        ? '隣接画像の類似度でまとめる'
-                        : '似た写真の準備が終わるまで使えません'
-                    }
-                    type="button"
-                  >
-                    <span className={styles['left-rail-icon']}>
-                      <Icons.Sparkles />
-                    </span>
-                    <span className={styles['left-rail-label']}>似た写真</span>
-                  </button>
-                  <button
-                    className={[
-                      styles['left-rail-button'],
-                      groupingMode === 'world' ? styles.active : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => {
-                      setGroupingMode('world');
-                    }}
-                    type="button"
-                  >
-                    <span className={styles['left-rail-icon']}>
-                      <Icons.Globe />
-                    </span>
-                    <span className={styles['left-rail-label']}>ワールド</span>
-                  </button>
-                </div>
-              </section>
-              <section
-                className={styles['left-rail-section']}
-                aria-labelledby="left-rail-view-mode"
-              >
-                <h2 id="left-rail-view-mode" className={styles['left-rail-section-title']}>
-                  表示形式
-                </h2>
-                <div className={styles['left-rail-nav-group']} role="group" aria-label="表示形式">
-                  <button
-                    className={[
-                      styles['left-rail-button'],
-                      viewMode === 'standard' ? styles.active : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => void handleViewModeChange('standard')}
-                    aria-label="グリッド"
-                    title="グリッド"
-                    type="button"
-                  >
-                    <span className={styles['left-rail-icon']}>
-                      <Icons.Grid />
-                    </span>
-                    <span className={styles['left-rail-label']}>グリッド</span>
-                  </button>
-                  <button
-                    className={[
-                      styles['left-rail-button'],
-                      viewMode === 'gallery' ? styles.active : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => void handleViewModeChange('gallery')}
-                    aria-label="ギャラリー"
-                    title="ギャラリー"
-                    type="button"
-                  >
-                    <span className={styles['left-rail-icon']}>
-                      <Icons.Gallery />
-                    </span>
-                    <span className={styles['left-rail-label']}>ギャラリー</span>
-                  </button>
-                </div>
-              </section>
+                    <h2 id="left-rail-grouping" className={styles['left-rail-section-title']}>
+                      グループ化
+                    </h2>
+                    <div
+                      className={styles['left-rail-nav-group']}
+                      role="group"
+                      aria-label="グループ化"
+                    >
+                      <button
+                        className={[
+                          styles['left-rail-button'],
+                          groupingMode === 'none' ? styles.active : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => {
+                          setGroupingMode('none');
+                        }}
+                        type="button"
+                      >
+                        <span className={styles['left-rail-icon']}>
+                          <AppIcon name={APP_ICON_NAMES.group} />
+                        </span>
+                        <span className={styles['left-rail-label']}>なし</span>
+                      </button>
+                      <button
+                        className={[
+                          styles['left-rail-button'],
+                          groupingMode === 'similar' ? styles.active : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => {
+                          setGroupingMode('similar');
+                        }}
+                        disabled={!isSimilarGroupingAvailable}
+                        title={
+                          isSimilarGroupingAvailable
+                            ? '隣接画像の類似度でまとめる'
+                            : '似た写真の準備が終わるまで使えません'
+                        }
+                        type="button"
+                      >
+                        <span className={styles['left-rail-icon']}>
+                          <AppIcon name={APP_ICON_NAMES.sparkles} />
+                        </span>
+                        <span className={styles['left-rail-label']}>似た写真</span>
+                      </button>
+                      <button
+                        className={[
+                          styles['left-rail-button'],
+                          groupingMode === 'world' ? styles.active : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => {
+                          setGroupingMode('world');
+                        }}
+                        type="button"
+                      >
+                        <span className={styles['left-rail-icon']}>
+                          <AppIcon name={APP_ICON_NAMES.globe} />
+                        </span>
+                        <span className={styles['left-rail-label']}>ワールド</span>
+                      </button>
+                    </div>
+                  </section>
+                  {isGalleryScreen && (
+                    <section
+                      className={styles['left-rail-section']}
+                      aria-labelledby="left-rail-view-mode"
+                    >
+                      <h2 id="left-rail-view-mode" className={styles['left-rail-section-title']}>
+                        表示形式
+                      </h2>
+                      <div
+                        className={styles['left-rail-nav-group']}
+                        role="group"
+                        aria-label="表示形式"
+                      >
+                        <button
+                          className={[
+                            styles['left-rail-button'],
+                            viewMode === 'standard' ? styles.active : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          onClick={() => void handleViewModeChange('standard')}
+                          aria-label="グリッド"
+                          title="グリッド"
+                          type="button"
+                        >
+                          <span className={styles['left-rail-icon']}>
+                            <AppIcon name={APP_ICON_NAMES.grid} />
+                          </span>
+                          <span className={styles['left-rail-label']}>グリッド</span>
+                        </button>
+                        <button
+                          className={[
+                            styles['left-rail-button'],
+                            viewMode === 'gallery' ? styles.active : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          onClick={() => void handleViewModeChange('gallery')}
+                          aria-label="ギャラリー"
+                          title="ギャラリー"
+                          type="button"
+                        >
+                          <span className={styles['left-rail-icon']}>
+                            <AppIcon name={APP_ICON_NAMES.gallery} />
+                          </span>
+                          <span className={styles['left-rail-label']}>ギャラリー</span>
+                        </button>
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
             </nav>
           </aside>
 
-          <section className={styles['right-panel']} ref={rightPanelRef} aria-label="写真一覧">
-            {scanStatus !== 'scanning' && !isLoading && filteredPhotos.length === 0 && (
-              <EmptyState
-                isFiltering={
-                  !!searchQuery ||
-                  worldFilters.length > 0 ||
-                  !!dateFrom ||
-                  !!dateTo ||
-                  isFavoritesOnly ||
-                  tagFilters.length > 0 ||
-                  orientationFilter !== 'all'
-                }
+          <section
+            className={styles['right-panel']}
+            ref={rightPanelRef}
+            aria-label={rightPanelLabel}
+          >
+            {isGalleryScreen &&
+              scanStatus !== 'scanning' &&
+              !isLoading &&
+              filteredPhotos.length === 0 && (
+                <EmptyState
+                  isFiltering={
+                    !!searchQuery ||
+                    worldFilters.length > 0 ||
+                    !!dateFrom ||
+                    !!dateTo ||
+                    isFavoritesOnly ||
+                    tagFilters.length > 0 ||
+                    orientationFilter !== 'all'
+                  }
+                />
+              )}
+
+            {isGalleryScreen && (
+              <>
+                <section
+                  ref={gridWrapperRef}
+                  style={{
+                    flex: 1,
+                    minHeight: 0,
+                    paddingBottom: isSelectionMode && selectedCount > 0 ? 92 : 0,
+                  }}
+                >
+                  <PhotoGrid
+                    photos={displayPhotoItems}
+                    viewMode={viewMode}
+                    scrollTop={scrollTop}
+                    columnCount={columnCount}
+                    columnWidth={standardColumnWidth}
+                    totalRows={displayTotalRows}
+                    ROW_HEIGHT={ROW_HEIGHT}
+                    gridHeight={gridHeight}
+                    panelWidth={panelWidth}
+                    handleGridScroll={handleGridScroll}
+                    handleGridWheel={handleGridWheel}
+                    totalHeight={totalHeight}
+                    galleryLayout={galleryLayout}
+                    cellProps={{ ...cellProps, data: displayPhotoItems }}
+                    onGridRef={onGridRef}
+                  />
+                </section>
+                {isSelectionMode && selectedCount > 0 && (
+                  <div
+                    className={styles['bulk-selection-bar']}
+                    role="region"
+                    aria-label="複数選択アクション"
+                  >
+                    <p className={styles['bulk-selection-count']}>{selectedCount}件選択中</p>
+                    <div
+                      className={styles['bulk-selection-actions']}
+                      role="group"
+                      aria-label="一括操作"
+                    >
+                      <button
+                        className={[
+                          styles['bulk-selection-button'],
+                          shouldEnableBulkFavorite ? styles.primary : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => void handleBulkFavorite()}
+                        type="button"
+                      >
+                        {shouldEnableBulkFavorite ? '一括お気に入り' : '一括お気に入り解除'}
+                      </button>
+                      <button
+                        className={styles['bulk-selection-button']}
+                        onClick={openBulkTagModal}
+                        type="button"
+                      >
+                        一括タグ付け
+                      </button>
+                      <button
+                        className={styles['bulk-selection-button']}
+                        onClick={() => void handleBulkCopy()}
+                        type="button"
+                      >
+                        一括別フォルダコピー
+                      </button>
+                    </div>
+                    <button
+                      className={styles['bulk-selection-dismiss']}
+                      onClick={clearSelectedPhotos}
+                      aria-label="選択を解除"
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeMainScreen === 'settings' && (
+              <SettingsWorkspace
+                photoFolderPath={photoFolderPath}
+                secondaryPhotoFolderPath={secondaryPhotoFolderPath}
+                onChooseFolder={onChooseFolder}
+                startupEnabled={isStartupEnabled}
+                onToggleStartup={() => {
+                  void handleStartupPreference(!isStartupEnabled);
+                }}
+                themeMode={themeMode}
+                onToggleTheme={handleThemeToggle}
+                isArchiveResolutionRunning={isArchiveResolutionRunning}
+                isSimilarResolutionRunning={isSimilarResolutionRunning}
+                onResolveUnknownWorldsFromArchive={() => {
+                  void handleResolveUnknownWorldsFromArchive();
+                }}
+                onResolveUnknownWorldsFromSimilarPhotos={(target) => {
+                  setSimilarResolutionTarget(target);
+                  setIsSimilarResolutionConfirmOpen(true);
+                }}
               />
             )}
 
-            <section
-              ref={gridWrapperRef}
-              style={{ flex: 1, minHeight: 0, paddingBottom: selectedCount > 0 ? 92 : 0 }}
-            >
-              <PhotoGrid
-                photos={displayPhotoItems}
-                viewMode={viewMode}
-                scrollTop={scrollTop}
-                columnCount={columnCount}
-                columnWidth={standardColumnWidth}
-                totalRows={displayTotalRows}
-                ROW_HEIGHT={ROW_HEIGHT}
-                gridHeight={gridHeight}
-                panelWidth={panelWidth}
-                handleGridScroll={handleGridScroll}
-                handleGridWheel={handleGridWheel}
-                totalHeight={totalHeight}
-                galleryLayout={galleryLayout}
-                cellProps={{ ...cellProps, data: displayPhotoItems }}
-                onGridRef={onGridRef}
+            {activeMainScreen === 'tagMaster' && (
+              <TagMasterWorkspace
+                masterTags={masterTags}
+                onCreateTagMaster={createTagMaster}
+                onDeleteTagMaster={deleteTagMaster}
               />
-            </section>
-            {selectedCount > 0 && (
-              <div
-                className={styles['bulk-selection-bar']}
-                role="region"
-                aria-label="複数選択アクション"
-              >
-                <p className={styles['bulk-selection-count']}>{selectedCount}件選択中</p>
-                <div
-                  className={styles['bulk-selection-actions']}
-                  role="group"
-                  aria-label="一括操作"
-                >
-                  <button
-                    className={[
-                      styles['bulk-selection-button'],
-                      shouldEnableBulkFavorite ? styles.primary : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => void handleBulkFavorite()}
-                    type="button"
-                  >
-                    {shouldEnableBulkFavorite ? '一括お気に入り' : '一括お気に入り解除'}
-                  </button>
-                  <button
-                    className={styles['bulk-selection-button']}
-                    onClick={openBulkTagModal}
-                    type="button"
-                  >
-                    一括タグ付け
-                  </button>
-                  <button
-                    className={styles['bulk-selection-button']}
-                    onClick={() => void handleBulkCopy()}
-                    type="button"
-                  >
-                    一括別フォルダコピー
-                  </button>
-                </div>
-                <button
-                  className={styles['bulk-selection-dismiss']}
-                  onClick={clearSelectedPhotos}
-                  aria-label="選択を解除"
-                  type="button"
-                >
-                  ×
-                </button>
-              </div>
+            )}
+
+            {activeMainScreen === 'template' && (
+              <TweetTemplateWorkspace
+                tweetTemplateDraft={tweetTemplateDraft}
+                setTweetTemplateDraft={setTweetTemplateDraft}
+                editingTweetTemplate={editingTweetTemplate}
+                handleCancelTweetTemplateEdit={handleCancelTweetTemplateEdit}
+                handleSaveTweetTemplate={handleSaveTweetTemplate}
+                tweetTemplates={tweetTemplates}
+                activeTweetTemplate={activeTweetTemplate}
+                handleSelectTweetTemplate={handleSelectTweetTemplate}
+                handleStartTweetTemplateEdit={handleStartTweetTemplateEdit}
+                handleDeleteTweetTemplate={handleDeleteTweetTemplate}
+              />
             )}
           </section>
 
-          {groupingMode === 'none' && (
+          {isGalleryScreen && groupingMode === 'none' && sortMode === 'capturedAtDesc' && (
             <MonthNav
               monthsByYear={monthsByYear}
               monthGroups={monthGroups}
@@ -801,7 +1108,17 @@ function GalleryScreen() {
                   />
                   {!hasMasterTags && (
                     <div className={styles['empty-note']}>
-                      タグが登録されていません。設定画面でタグを追加してください。
+                      <p>タグが登録されていません。タグマスタ編集画面でタグを追加してください。</p>
+                      <button
+                        className={styles['secondary-button']}
+                        onClick={() => {
+                          setIsBulkTagModalOpen(false);
+                          setActiveMainScreen('tagMaster');
+                        }}
+                        type="button"
+                      >
+                        タグマスタ編集を開く
+                      </button>
                     </div>
                   )}
                 </div>
@@ -865,160 +1182,102 @@ function GalleryScreen() {
               addToast(`エクスプローラーで表示できませんでした: ${String(err)}`, 'error');
             });
           }}
+          onOpenTagMaster={() => {
+            closePhotoModal();
+            setActiveMainScreen('tagMaster');
+          }}
         />
       )}
-
-      {isTweetTemplatePanelOpen && (
+      {isSimilarResolutionConfirmOpen && (
         <>
           <button
             className={styles.overlay}
             onClick={() => {
-              setIsTweetTemplatePanelOpen(false);
+              if (!isSimilarResolutionRunning) {
+                setIsSimilarResolutionConfirmOpen(false);
+              }
             }}
-            aria-label="投稿テンプレートモーダルを閉じる"
+            aria-label="類似補完確認モーダルを閉じる"
             type="button"
           />
           <section
-            className={[styles.modal, styles['tweet-template-panel']].join(' ')}
+            className={[styles.modal, styles['folder-change-modal']].join(' ')}
             aria-modal="true"
             role="dialog"
-            aria-labelledby="tweet-template-edit-title"
+            aria-labelledby="similar-resolution-title"
           >
             <button
               className={styles.close}
               onClick={() => {
-                setIsTweetTemplatePanelOpen(false);
-                handleCancelTweetTemplateEdit();
+                if (!isSimilarResolutionRunning) {
+                  setIsSimilarResolutionConfirmOpen(false);
+                }
               }}
               aria-label="閉じる"
               type="button"
             >
               ×
             </button>
-            <div className={styles['tweet-template-modal-body']}>
-              <section className={styles['modal-info']} aria-labelledby="tweet-template-edit-title">
+            <div className={[styles['modal-body'], styles['single-column']].join(' ')}>
+              <section className={styles['modal-info']} aria-labelledby="similar-resolution-title">
                 <header className={styles['info-header']}>
-                  <h2 id="tweet-template-edit-title">投稿テンプレート</h2>
+                  <h2 id="similar-resolution-title">類似写真から補完</h2>
                 </header>
-                <section className={styles['memo-section']} aria-label="テンプレート編集">
-                  <p>{editingTweetTemplate ? 'テンプレート編集' : '新規テンプレート'}</p>
-                  <textarea
-                    className={styles.textarea}
-                    value={tweetTemplateDraft}
-                    onChange={(event) => {
-                      setTweetTemplateDraft(event.target.value);
-                    }}
-                    placeholder={`例:\nWorld: {world-name}\nAuthor:\n\n#VRChat_world紹介`}
-                  />
-                  <p className={styles['tweet-template-help']}>使える置換: {'{world-name}'}</p>
-                  <footer className={styles['tweet-template-editor-actions']}>
-                    {editingTweetTemplate && (
-                      <button
-                        className={styles['secondary-button']}
-                        onClick={handleCancelTweetTemplateEdit}
-                        type="button"
-                      >
-                        キャンセル
-                      </button>
-                    )}
-                    <button
-                      className={styles['primary-button']}
-                      onClick={() => void handleSaveTweetTemplate()}
-                      type="button"
+                <section className={styles.warning} aria-label="補完対象の確認">
+                  <strong>補完対象の優先順を確認してください。</strong>
+                  <p>
+                    類似写真からワールド不明を補完します。まずどの写真群を優先して対象にするかを選べます。
+                  </p>
+                </section>
+                <div className={styles['quick-tag-body']}>
+                  <label className={styles['quick-tag-label']} htmlFor="similar-resolution-target">
+                    補完対象の優先順
+                  </label>
+                  <div className={styles['tag-select-wrap']}>
+                    <select
+                      id="similar-resolution-target"
+                      className={styles.select}
+                      value={similarResolutionTarget}
+                      onChange={(event) => {
+                        setSimilarResolutionTarget(event.target.value as SimilarResolutionTarget);
+                      }}
                     >
-                      {editingTweetTemplate ? '更新' : '登録'}
-                    </button>
-                  </footer>
-                </section>
-              </section>
-              <section
-                className={[styles['modal-info'], styles['tweet-template-list-panel']].join(' ')}
-                aria-labelledby="tweet-template-list-title"
-              >
-                <header className={styles['info-header']}>
-                  <h2 id="tweet-template-list-title">テンプレート一覧</h2>
-                </header>
-                <section className={styles['memo-section']} aria-label="登録済みテンプレート">
-                  <p>登録済みテンプレート</p>
-                  <ul className={styles['tweet-template-list']}>
-                    {tweetTemplates.map((template) => (
-                      <li
-                        key={template}
-                        className={[
-                          styles['tweet-template-item'],
-                          template === activeTweetTemplate ? styles.active : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                      >
-                        <button
-                          className={styles['tweet-template-select']}
-                          onClick={() => void handleSelectTweetTemplate(template)}
-                          type="button"
-                        >
-                          <span className={styles['tweet-template-item-title']}>
-                            {template === activeTweetTemplate ? '使用中' : 'テンプレート'}
-                          </span>
-                          <span className={styles['tweet-template-item-body']}>{template}</span>
-                        </button>
-                        <footer
-                          className={styles['tweet-template-item-actions']}
-                          role="group"
-                          aria-label="テンプレート操作"
-                        >
-                          <button
-                            className={styles['secondary-button']}
-                            onClick={() => {
-                              handleStartTweetTemplateEdit(template);
-                            }}
-                            type="button"
-                          >
-                            編集
-                          </button>
-                          <button
-                            className={styles['danger-button']}
-                            onClick={() => void handleDeleteTweetTemplate(template)}
-                            type="button"
-                          >
-                            削除
-                          </button>
-                        </footer>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
+                      <option value="all">全体を対象にする</option>
+                      <option value="primary">1st フォルダを先に補完する</option>
+                      <option value="secondary">2nd フォルダを先に補完する</option>
+                    </select>
+                  </div>
+                </div>
+                <footer className={styles.actions}>
+                  <button
+                    className={styles['secondary-button']}
+                    onClick={() => {
+                      setIsSimilarResolutionConfirmOpen(false);
+                    }}
+                    disabled={isSimilarResolutionRunning}
+                    type="button"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    className={styles['primary-button']}
+                    onClick={() => {
+                      void handleResolveUnknownWorldsFromSimilarPhotos(
+                        similarResolutionTarget,
+                      ).finally(() => {
+                        setIsSimilarResolutionConfirmOpen(false);
+                      });
+                    }}
+                    disabled={isSimilarResolutionRunning}
+                    type="button"
+                  >
+                    {isSimilarResolutionRunning ? '補完中...' : '補完を開始'}
+                  </button>
+                </footer>
               </section>
             </div>
           </section>
         </>
-      )}
-
-      {isSettingsOpen && (
-        <SettingsModal
-          onClose={() => {
-            setIsSettingsOpen(false);
-          }}
-          photoFolderPath={photoFolderPath}
-          secondaryPhotoFolderPath={secondaryPhotoFolderPath}
-          onChooseFolder={onChooseFolder}
-          startupEnabled={isStartupEnabled}
-          onToggleStartup={() => {
-            void handleStartupPreference(!isStartupEnabled);
-          }}
-          themeMode={themeMode}
-          onToggleTheme={handleThemeToggle}
-          isArchiveResolutionRunning={isArchiveResolutionRunning}
-          isSimilarResolutionRunning={isSimilarResolutionRunning}
-          onResolveUnknownWorldsFromArchive={() => {
-            void handleResolveUnknownWorldsFromArchive();
-          }}
-          onResolveUnknownWorldsFromSimilarPhotos={() => {
-            void handleResolveUnknownWorldsFromSimilarPhotos();
-          }}
-          masterTags={masterTags}
-          onCreateTagMaster={createTagMaster}
-          onDeleteTagMaster={deleteTagMaster}
-        />
       )}
       {pendingFolderPath && (
         <>

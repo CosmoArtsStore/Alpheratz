@@ -36,6 +36,6 @@ public class PdqWorldInferenceService
         }
 
         // 2. Query candidates from the repository
-        return await _candidateRepository.GetCandidatesAsync(identity, photoDetail.Photo.PdqHash);
+        return await _candidateRepository.GetCandidatesForPhotoAsync(identity);
     }
 }

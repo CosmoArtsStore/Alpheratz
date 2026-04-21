@@ -1,6 +1,10 @@
+using Alpheratz.Domain.Entities;
+using System.Threading.Tasks;
+
 namespace Alpheratz.Contracts.Settings;
 
 public interface ISettingsStore
 {
-    AppSettings Load();
+    Task<AppSettings> LoadSettingsAsync();
+    Task SaveSettingsAsync(AppSettings settings);
 }

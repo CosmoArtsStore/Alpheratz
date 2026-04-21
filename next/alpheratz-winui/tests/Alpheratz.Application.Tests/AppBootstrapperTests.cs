@@ -1,32 +1,41 @@
 using Alpheratz.Application.Bootstrap;
+using Alpheratz.Contracts.Bootstrap;
 using Alpheratz.Contracts.Data;
-using Alpheratz.Contracts.Diagnostics;
+using Alpheratz.Contracts.Infrastructure;
 using Alpheratz.Contracts.Settings;
-using Alpheratz.Domain.Settings;
+using Alpheratz.Domain.Entities;
+using System;
+using System.Threading.Tasks;
+using Xunit;
 
 namespace Alpheratz.Application.Tests;
 
 public sealed class AppBootstrapperTests
 {
     [Fact]
-    public void Build_UsesStartupCoordinatorResult()
+    public async Task InitializeAsync_UsesStartupCoordinatorResult()
     {
         var startupCoordinator = new AppStartupCoordinator(
             new FakeSettingsStore(),
             new FakeSqliteDatabaseInitializer(),
-            new FakeAppLogger());
+            new FakeLoggingFacade());
 
-        var context = AppBootstrapper.Build(startupCoordinator);
+        var context = await startupCoordinator.InitializeAsync();
 
-        Assert.Equal(ThemeMode.Light, context.InitialThemeMode);
+        Assert.Equal(Alpheratz.Domain.Settings.ThemeMode.Light, context.InitialThemeMode);
         Assert.Equal("C:\\data\\alpheratz.db", context.DatabasePath);
     }
 
     private sealed class FakeSettingsStore : ISettingsStore
     {
-        public AppSettings Load()
+        public Task<AppSettings> LoadSettingsAsync()
         {
-            return new(ThemeMode.Light);
+            return Task.FromResult(new AppSettings { Theme = Alpheratz.Domain.Settings.ThemeMode.Light });
+        }
+
+        public Task SaveSettingsAsync(AppSettings settings)
+        {
+            return Task.CompletedTask;
         }
     }
 
@@ -38,10 +47,11 @@ public sealed class AppBootstrapperTests
         }
     }
 
-    private sealed class FakeAppLogger : IAppLogger
+    private sealed class FakeLoggingFacade : ILoggingFacade
     {
-        public void LogInformation(string operation, string message)
-        {
-        }
+        public void Info(string category, string operation, string message) { }
+        public void Warn(string category, string operation, string message) { }
+        public void Error(string category, string operation, string message, Exception? ex = null) { }
+        public void Debug(string category, string operation, string message) { }
     }
 }

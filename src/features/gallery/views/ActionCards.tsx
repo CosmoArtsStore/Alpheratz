@@ -1,4 +1,4 @@
-import { Icons } from '../../../shared/components/Icons';
+import { AppIcon, APP_ICON_NAMES } from '../../../shared/components/Icons';
 import styles from './ActionCards.module.css';
 
 interface ActionCardsProps {
@@ -26,7 +26,7 @@ export const ActionCards = ({
           type="button"
         >
           <div className={styles.icon}>
-            <Icons.Close />
+            <AppIcon name={APP_ICON_NAMES.close} />
           </div>
           <div className={styles.info}>
             <h3>スキャンを中断</h3>
@@ -36,7 +36,7 @@ export const ActionCards = ({
       ) : (
         <button className={styles.card} onClick={startScan} type="button">
           <div className={styles.icon}>
-            <Icons.Refresh />
+            <AppIcon name={APP_ICON_NAMES.refresh} />
           </div>
           <div className={styles.info}>
             <h3>再スキャン</h3>
@@ -52,7 +52,7 @@ export const ActionCards = ({
         type="button"
       >
         <div className={styles.icon}>
-          <Icons.Settings />
+          <AppIcon name={APP_ICON_NAMES.settings} />
         </div>
         <div className={styles.info}>
           <h3>設定</h3>
@@ -67,7 +67,7 @@ export const ActionCards = ({
         type="button"
       >
         <div className={styles.icon}>
-          <Icons.Search />
+          <AppIcon name={APP_ICON_NAMES.search} />
         </div>
         <div className={styles.info}>
           <h3>絞り込み</h3>

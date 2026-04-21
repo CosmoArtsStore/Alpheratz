@@ -18,8 +18,9 @@ public class RefreshGalleryAfterScanUseCase
     /// Logic to refresh the gallery state after a scan completes.
     /// Resets navigation to first page and fetches fresh data.
     /// </summary>
-    public async Task<IEnumerable<Photo>> ExecuteAsync(GalleryQuery query)
+    public async Task<IEnumerable<Photo>> ExecuteAsync(Alpheratz.Domain.Queries.GalleryQuery query)
     {
-        return await _loadGallery.ExecuteAsync(query, 0);
+        var result = await _loadGallery.ExecuteAsync(query, 0);
+        return result.Items;
     }
 }

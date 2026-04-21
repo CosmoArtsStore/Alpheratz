@@ -2,8 +2,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Alpheratz.Application.UseCases;
 using Alpheratz.Contracts.Infrastructure;
-using Alpheratz.Domain.Aggregates;
 using Alpheratz.Domain.Settings;
+using Alpheratz.Domain.ValueObjects;
+using Alpheratz.Domain.Entities;
 using System;
 using System.Threading.Tasks;
 

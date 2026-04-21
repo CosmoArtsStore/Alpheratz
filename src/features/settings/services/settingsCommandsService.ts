@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { AppSetting, BackupCandidate } from '../models/types';
+import type { AppSetting, BackupCandidate, SimilarResolutionTarget } from '../models/types';
 
 // Loads the persisted application settings from Rust.
 export const loadAppSetting = () => invoke<AppSetting>('get_setting_cmd');
@@ -40,5 +40,5 @@ export const resolveUnknownWorldsFromArchive = () =>
   invoke<number>('resolve_unknown_worlds_from_archive_cmd');
 
 // Resolves unknown-world photos from already known similar photos.
-export const resolveUnknownWorldsFromSimilarPhotos = () =>
-  invoke<number>('resolve_unknown_worlds_from_similar_photos_cmd');
+export const resolveUnknownWorldsFromSimilarPhotos = (target: SimilarResolutionTarget) =>
+  invoke<number>('resolve_unknown_worlds_from_similar_photos_cmd', { target });

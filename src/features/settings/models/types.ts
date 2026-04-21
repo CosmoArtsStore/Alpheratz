@@ -19,3 +19,5 @@ export interface BackupCandidate {
   backup_path?: string;
   created_at: string;
 }
+
+export type SimilarResolutionTarget = 'all' | 'primary' | 'secondary';

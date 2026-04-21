@@ -21,7 +21,7 @@ public sealed partial class PhotoDetailPaneView : UserControl
         this.RegisterPropertyChangedCallback(ViewModelProperty, (s, e) => {
              if (ViewModel != null) {
                  ViewModel.PropertyChanged += (vs, ve) => {
-                     if (ve.PropertyName == nameof(PhotoDetailPaneViewModel.CurrentPhoto) && ViewModel.CurrentPhoto != null) {
+                     if (ve.PropertyName == nameof(PhotoDetailPaneViewModel.Photo) && ViewModel.Photo != null) {
                          OpenAnimation.Begin();
                      }
                  };

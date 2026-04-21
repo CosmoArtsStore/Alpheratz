@@ -3,11 +3,11 @@ using System.Text;
 
 namespace Alpheratz.Application.UseCases;
 
-public record GalleryQuery(string Sql, object Parameters);
+public record GallerySqlQuery(string Sql, object Parameters);
 
 public class BuildGalleryQueryUseCase
 {
-    public GalleryQuery Execute(string searchText, bool favoritesOnly, string? worldName)
+    public GallerySqlQuery Execute(string searchText, bool favoritesOnly, string? worldName)
     {
         var sql = new StringBuilder("SELECT * FROM photos WHERE is_missing = 0");
         var parameters = new Dictionary<string, object>();
@@ -35,8 +35,6 @@ public class BuildGalleryQueryUseCase
             parameters.Add("Search", $"%{searchText}%");
         }
 
-        sql.Append(" ORDER BY timestamp DESC");
-
-        return new GalleryQuery(sql.ToString(), parameters);
+        return new GallerySqlQuery(sql.ToString(), parameters);
     }
 }

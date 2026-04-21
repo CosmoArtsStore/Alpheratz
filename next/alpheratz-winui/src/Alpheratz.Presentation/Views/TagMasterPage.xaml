@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="Alpheratz.Presentation.Views.TagMasterPage"
+    x:Name="PageRoot"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -17,7 +18,7 @@
                     <TextBlock Text="Add New Tag" FontSize="18" FontWeight="SemiBold" />
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox PlaceholderText="e.g., Night, Portrait, Action" Text="{x:Bind ViewModel.NewTagName, Mode=TwoWay}" />
-                        <Button Grid.Column="1" Content="Add Tag" Command="{x:Bind ViewModel.AddTagCommand}" Style="{ThemeResource AccentButtonStyle}" Margin="12,0,0,0" />
+                        <Button Grid.Column="1" Content="Add Tag" Command="{x:Bind ViewModel.AddTagAsyncCommand}" Style="{ThemeResource AccentButtonStyle}" Margin="12,0,0,0" />
                     </Grid>
                 </StackPanel>
             </Border>
@@ -31,11 +32,13 @@
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="x:String">
+                    <DataTemplate x:DataType="vm:TagSummaryViewModel">
                         <Border Padding="16,12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8">
                             <Grid>
-                                <TextBlock Text="{Binding}" VerticalAlignment="Center" FontWeight="SemiBold" />
-                                <Button HorizontalAlignment="Right" Style="{ThemeResource SubtleButtonStyle}" Command="{Binding ElementName=ViewModel, Path=DeleteTagCommand}" CommandParameter="{Binding}">
+                                <TextBlock Text="{x:Bind Name, Mode=OneWay}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                <Button HorizontalAlignment="Right" Style="{ThemeResource SubtleButtonStyle}" 
+                                        Command="{Binding ElementName=PageRoot, Path=ViewModel.DeleteTagAsyncCommand}" 
+                                        CommandParameter="{Binding}">
                                     <SymbolIcon Symbol="Delete" />
                                 </Button>
                             </Grid>

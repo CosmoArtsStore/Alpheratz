@@ -3,8 +3,12 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Alpheratz.Application.UseCases;
 using Alpheratz.Contracts.Infrastructure;
+using Alpheratz.Presentation.Coordinators;
+using Alpheratz.Domain.ValueObjects;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Alpheratz.Presentation.ViewModels;
 
@@ -17,6 +21,11 @@ public partial class GalleryPageViewModel : ObservableObject
     private readonly ILoggingFacade _logger;
     private readonly LoadGalleryPageUseCase _loadGalleryPage;
     private readonly RefreshGalleryAfterScanUseCase _refreshGallery;
+    private readonly GalleryItemsSourceCoordinator _itemsSourceCoordinator;
+    private readonly GallerySelectionViewModel _selection;
+    private readonly OpenPhotoInExplorerUseCase _openInExplorer;
+
+    private int _currentPageIndex = 0;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -33,13 +42,19 @@ public partial class GalleryPageViewModel : ObservableObject
     [ObservableProperty]
     private string _displayFolderMode = "All";
 
+    [ObservableProperty]
+    private GalleryItemViewModel? _selectedItem;
+
     // Sub-ViewModels
     public GalleryToolbarViewModel Toolbar { get; }
     public GalleryQueryPanelViewModel QueryPanel { get; }
-    public GallerySelectionViewModel Selection { get; }
+    public GallerySelectionViewModel Selection => _selection;
     public GalleryViewportViewModel Viewport { get; }
     public PhotoDetailPaneViewModel DetailPane { get; }
     public BulkActionBarViewModel BulkActions { get; }
+
+    // Delegated items source for UI binding
+    public ObservableCollection<object> Items => _itemsSourceCoordinator.Items;
 
     public GalleryPageViewModel(
         GalleryToolbarViewModel toolbar,
@@ -48,20 +63,23 @@ public partial class GalleryPageViewModel : ObservableObject
         GalleryViewportViewModel viewport,
         PhotoDetailPaneViewModel detailPane,
         BulkActionBarViewModel bulkActions,
+        GalleryItemsSourceCoordinator itemsSourceCoordinator,
         LoadGalleryPageUseCase loadGalleryPage,
-        LoadGalleryViewportUseCase loadGalleryViewport,
         RefreshGalleryAfterScanUseCase refreshGallery,
+        OpenPhotoInExplorerUseCase openInExplorer,
         ILoggingFacade logger)
     {
         Toolbar = toolbar;
         QueryPanel = queryPanel;
-        Selection = selection;
+        _selection = selection;
         Viewport = viewport;
         DetailPane = detailPane;
         BulkActions = bulkActions;
+        _itemsSourceCoordinator = itemsSourceCoordinator;
         
         _loadGalleryPage = loadGalleryPage;
         _refreshGallery = refreshGallery;
+        _openInExplorer = openInExplorer;
         _logger = logger;
 
         // Hook up refresh triggers
@@ -69,7 +87,19 @@ public partial class GalleryPageViewModel : ObservableObject
         QueryPanel.QueryChanged += OnRefreshRequested;
         
         // Selection to Detail sync
-        Selection.SelectionChanged += OnSelectionChanged;
+        _selection.SelectionChanged += OnSelectionChanged;
+
+        // Message subscribers
+        WeakReferenceMessenger.Default.Register<GalleryPageViewModel, GalleryItemViewModel.FavoriteToggledMessage>(this, (r, m) => r.OnFavoriteToggled(m.Item));
+        WeakReferenceMessenger.Default.Register<GalleryPageViewModel, GalleryItemViewModel.OpenInExplorerRequestMessage>(this, (r, m) => _ = r.OpenInExplorerAsync(m.Identity));
+    }
+
+    private void OnFavoriteToggled(GalleryItemViewModel item)
+    {
+        // Actually perform the toggle via UseCase if needed, or update selection
+        // For now, toggle the property and assume the UseCase is called via a bulk action or separate trigger
+        // In a real app, this would call a ToggleFavoriteUseCase
+        _logger.Info("Gallery", "Favorite", $"Favorite toggled for {item.Filename}");
     }
 
     private async void OnRefreshRequested(object? sender, System.EventArgs e)
@@ -79,9 +109,7 @@ public partial class GalleryPageViewModel : ObservableObject
 
     private async void OnSelectionChanged(object? sender, System.EventArgs e)
     {
-        // When selection changes, update detail pane?
-        // Usually, the DetailPane shows the "Active" item, often the latest selected.
-        var activeId = Selection.ActiveIdentity;
+        var activeId = _selection.ActiveIdentity;
         if (activeId != null)
         {
             await DetailPane.LoadPhotoAsync(activeId);
@@ -93,6 +121,11 @@ public partial class GalleryPageViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Alias for RefreshPhotosAsync used by code-behind.
+    /// </summary>
+    public async Task LoadPhotosAsync() => await RefreshPhotosAsync();
+
+    /// <summary>
     /// Executes a full refresh of the gallery based on current filter/sort criteria.
     /// </summary>
     [RelayCommand]
@@ -101,19 +134,16 @@ public partial class GalleryPageViewModel : ObservableObject
         if (IsLoading) return;
 
         IsLoading = true;
+        _currentPageIndex = 0;
         _logger.Info("Gallery", "Refresh", "Gallery refresh started.");
         
         try
         {
-            // Build the query from QueryPanel state
             var query = QueryPanel.GetQuery();
+            var results = await _loadGalleryPage.ExecuteAsync(query, _currentPageIndex);
             
-            // Standard paging for Standard mode, or delegation to Viewport for Gallery mode
-            // For now, let's assume we load the first set
-            var results = await _loadGalleryPage.ExecuteAsync(query, 0);
-            
-            // Update Viewport or ItemsSource
-            // Viewport.UpdateItems(results);
+            var viewModels = results.Items.Select(p => new GalleryItemViewModel(p, _selection)).ToList();
+            _itemsSourceCoordinator.Reset(viewModels);
             
             IsEmpty = results.IsEmpty;
             _logger.Info("Gallery", "Refresh", $"Refresh completed. Found {results.Items.Count} items.");
@@ -127,4 +157,55 @@ public partial class GalleryPageViewModel : ObservableObject
             IsLoading = false;
         }
     }
+
+    /// <summary>
+    /// Loads the next page of photos for infinite scrolling.
+    /// </summary>
+    [RelayCommand]
+    public async Task LoadNextPageAsync()
+    {
+        if (IsLoading) return;
+
+        IsLoading = true;
+        _currentPageIndex++;
+        _logger.Info("Gallery", "LoadNext", $"Loading gallery page {_currentPageIndex}.");
+
+        try
+        {
+            var query = QueryPanel.GetQuery();
+            var results = await _loadGalleryPage.ExecuteAsync(query, _currentPageIndex);
+
+            if (results.Items.Count > 0)
+            {
+                var viewModels = results.Items.Select(p => new GalleryItemViewModel(p, _selection)).ToList();
+                _itemsSourceCoordinator.AppendChunk(viewModels);
+            }
+            else
+            {
+                // No more items
+                _currentPageIndex--; 
+            }
+        }
+        catch (System.Exception ex)
+        {
+            _logger.Error("Gallery", "LoadNext", $"Failed to load gallery page {_currentPageIndex}.", ex);
+            _currentPageIndex--;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task OpenInExplorerAsync(PhotoIdentity identity)
+    {
+        await _openInExplorer.ExecuteAsync(identity);
+    }
+}
+
+public enum GalleryViewMode
+{
+    Standard,
+    Gallery
 }

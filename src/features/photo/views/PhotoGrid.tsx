@@ -11,6 +11,7 @@ interface PhotoGridCellProps {
   onToggleSelect: (item: DisplayPhotoItem, shiftKey: boolean) => void;
   isSelected: (item: DisplayPhotoItem) => boolean;
   showTags: boolean;
+  showSelectionToggle: boolean;
   columnCount: number;
 }
 
@@ -106,6 +107,7 @@ export const PhotoGrid = ({
                 onSelect={cellProps.onSelect}
                 onToggleSelect={cellProps.onToggleSelect}
                 selected={cellProps.isSelected(item)}
+                showSelectionToggle={cellProps.showSelectionToggle}
               />
             </div>
           ))}

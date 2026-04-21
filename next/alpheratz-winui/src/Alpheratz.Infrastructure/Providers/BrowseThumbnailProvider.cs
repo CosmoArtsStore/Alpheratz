@@ -2,6 +2,7 @@ using Alpheratz.Contracts.Repositories;
 using Alpheratz.Contracts.Services;
 using Alpheratz.Contracts.Infrastructure;
 using Alpheratz.Domain.ValueObjects;
+using Alpheratz.Infrastructure.Services;
 using System;
 using System.Threading.Tasks;
 

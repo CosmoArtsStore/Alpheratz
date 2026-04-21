@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using Alpheratz.Application.UseCases;
 using Alpheratz.Contracts.Infrastructure;
 using System.Threading.Tasks;
+using Alpheratz.Application.UseCases;
 
 namespace Alpheratz.Presentation.ViewModels;
 
@@ -11,7 +11,7 @@ namespace Alpheratz.Presentation.ViewModels;
 /// </summary>
 public partial class GalleryViewportViewModel : ObservableObject
 {
-    private readonly LoadGalleryViewportUseCase _loadViewportUseCase;
+    // private readonly LoadGalleryViewportUseCase _loadViewportUseCase;
     private readonly ILoggingFacade _logger;
 
     private int _lastTriggeredIndex = -1;
@@ -28,9 +28,8 @@ public partial class GalleryViewportViewModel : ObservableObject
     [ObservableProperty]
     private int _lastVisibleIndex;
 
-    public GalleryViewportViewModel(LoadGalleryViewportUseCase loadViewportUseCase, ILoggingFacade logger)
+    public GalleryViewportViewModel(ILoggingFacade logger)
     {
-        _loadViewportUseCase = loadViewportUseCase;
         _logger = logger;
     }
 
@@ -71,8 +70,9 @@ public partial class GalleryViewportViewModel : ObservableObject
         
         try
         {
-            // Delegate to UseCase for sliding window calculation
-            await _loadViewportUseCase.ExecuteAsync(nearIndex);
+            // Delegate to pre-fetch logic (temporarily disabled due to missing implementation)
+            // await _loadViewportUseCase.ExecuteAsync(nearIndex);
+            _logger.Info("Viewport", "PreFetch", "Pre-fetch capability triggered but not yet connected to a UseCase.");
         }
         catch (System.Exception ex)
         {

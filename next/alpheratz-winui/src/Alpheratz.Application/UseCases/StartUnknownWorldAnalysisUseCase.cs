@@ -1,4 +1,4 @@
-using Alpheratz.Contracts.Interfaces;
+using Alpheratz.Contracts.Services;
 using Alpheratz.Contracts.Repositories;
 using Alpheratz.Contracts.Infrastructure;
 using Alpheratz.Domain.Queries;

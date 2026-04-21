@@ -721,8 +721,8 @@ fn resolve_unknown_worlds_from_archive_cmd() -> Result<usize, String> {
 
 // 既知の類似写真からワールド不明写真を補完する。
 #[tauri::command]
-fn resolve_unknown_worlds_from_similar_photos_cmd() -> Result<usize, String> {
-    scanner::resolve_unknown_worlds_from_similar_photos()
+fn resolve_unknown_worlds_from_similar_photos_cmd(target: String) -> Result<usize, String> {
+    scanner::resolve_unknown_worlds_from_similar_photos(&target)
 }
 
 // 状態と command を登録し、Tauri アプリ本体を起動する。

@@ -10,7 +10,23 @@ namespace Alpheratz.Infrastructure.Services;
 public class ExternalLinkService : IExternalLinkService
 {
     /// <inheritdoc/>
-    public void OpenUrl(string url)
+    public async Task OpenWorldUrlAsync(string worldId)
+    {
+        var url = $"https://vrchat.com/home/launch?worldId={worldId}";
+        await Task.Run(() => OpenUrl(url));
+    }
+
+    /// <inheritdoc/>
+    public async Task OpenTweetIntentAsync(string text, IEnumerable<string> imagePaths)
+    {
+        // Twitter Intent URL doesn't support local images directly.
+        // We open the intent URL with the text. Image handling is usually manual or via clipboard.
+        var encodedText = System.Net.WebUtility.UrlEncode(text);
+        var url = $"https://twitter.com/intent/tweet?text={encodedText}";
+        await Task.Run(() => OpenUrl(url));
+    }
+
+    private void OpenUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return;
 

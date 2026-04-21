@@ -50,7 +50,8 @@ public sealed partial class FirstRunPage : Page
 
         if (!string.IsNullOrEmpty(path))
         {
-            await ViewModel.SelectFolderAndStartAsync(path);
+            ViewModel.SelectedPath = path;
+            await ViewModel.StartSetupAsync();
         }
     }
 }

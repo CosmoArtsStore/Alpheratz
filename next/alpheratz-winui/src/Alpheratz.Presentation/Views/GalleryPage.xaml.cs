@@ -1,6 +1,8 @@
 using Alpheratz.Presentation.ViewModels;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using System;
 
 namespace Alpheratz.Presentation.Views;
 
@@ -21,24 +23,6 @@ public sealed partial class GalleryPage : Page
             ViewModel = vm;
             await ViewModel.LoadPhotosAsync();
         }
-        
-        // Setup infinite scroll
-        var scrollViewer = FindScrollViewer(MainContentGrid);
-        if (scrollViewer != null)
-        {
-            scrollViewer.ViewChanged += async (s, args) => {
-                if (scrollViewer.VerticalOffset > scrollViewer.ScrollableHeight - 500)
-                {
-                    await ViewModel.LoadNextPageAsync();
-                }
-            };
-        }
-    }
-
-    private ScrollViewer? FindScrollViewer(DependencyObject obj)
-    {
-        // Simple visual tree helper logic...
-        return null; // Placeholder for exact implementation
     }
 
     private void OnItemTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
@@ -57,9 +41,10 @@ public sealed partial class GalleryPage : Page
             }
             else
             {
+                ViewModel.Selection.SetSingleSelection(identity);
                 ViewModel.SelectedItem = item;
-                // Open detail pane by ensuring SplitView is expanded
-                PhotoSplitView.IsPaneOpen = true;
+                // Detail pane visibility is bound to ViewModel.DetailPane.IsVisible in XAML
+                ViewModel.DetailPane.IsVisible = true;
             }
         }
     }

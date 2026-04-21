@@ -1,6 +1,7 @@
-using Alpheratz.Application.UseCases;
+using Alpheratz.Domain.Entities;
 using Alpheratz.Domain.Models;
 using Alpheratz.Domain.ValueObjects;
+using Alpheratz.Application.UseCases;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
@@ -80,7 +81,7 @@ public partial class SimilarWorldDialogViewModel : ObservableObject
         {
             // The candidate has the world name, we need to convert it to WorldIdentity
             // Usually, since it's from another photo, we might have its ID, but for now name is enough
-            var world = WorldIdentity.FromName(SelectedCandidate.WorldName);
+            var world = WorldIdentity.FromName(SelectedCandidate.World.WorldName ?? "Unknown");
             await _applyMatch.ExecuteAsync(_targetIdentity, world);
             
             // UI will close via RequestClose or similar mechanism (omitted for brevity)

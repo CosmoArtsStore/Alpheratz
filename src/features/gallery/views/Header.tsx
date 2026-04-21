@@ -1,4 +1,4 @@
-import { Icons } from '../../../shared/components/Icons';
+import { AppIcon, APP_ICON_CLASS_NAMES, APP_ICON_NAMES } from '../../../shared/components/Icons';
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -39,7 +39,7 @@ export const Header = ({
           type="button"
         >
           <span className={styles['filter-icon']}>
-            <Icons.Menu />
+            <AppIcon name={APP_ICON_NAMES.menu} />
           </span>
           <span className={styles['filter-label']}>フィルター</span>
           {activeFilterCount > 0 && (
@@ -51,7 +51,7 @@ export const Header = ({
       <div className={styles.search}>
         <div className={styles['search-bar']}>
           <div className={styles['input-group']}>
-            <Icons.Search />
+            <AppIcon name={APP_ICON_NAMES.search} />
             <input
               type="text"
               placeholder="ワールド名でフィルター..."
@@ -72,7 +72,7 @@ export const Header = ({
           title="再読み込み"
           type="button"
         >
-          <Icons.Refresh />
+          <AppIcon name={APP_ICON_NAMES.refresh} />
         </button>
         {hashProgressLabel && (
           <div className={styles['progress-chip']} role="status" aria-live="polite">
@@ -86,7 +86,7 @@ export const Header = ({
           title="設定"
           type="button"
         >
-          <Icons.Settings />
+          <AppIcon name={APP_ICON_NAMES.settings} className={APP_ICON_CLASS_NAMES.medium} />
         </button>
       </div>
     </header>

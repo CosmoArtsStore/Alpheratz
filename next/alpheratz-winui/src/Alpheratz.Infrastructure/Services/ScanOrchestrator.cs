@@ -1,6 +1,7 @@
 using Alpheratz.Contracts.Services;
 using Alpheratz.Contracts.Infrastructure;
 using Alpheratz.Contracts.Repositories;
+using Alpheratz.Contracts.Settings;
 using Alpheratz.Domain.Models;
 using Alpheratz.Domain.ValueObjects;
 using Alpheratz.Infrastructure.Services;

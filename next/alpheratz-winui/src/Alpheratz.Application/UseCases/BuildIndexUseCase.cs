@@ -1,4 +1,4 @@
-using Alpheratz.Contracts.Interfaces;
+using Alpheratz.Contracts.Services;
 using Alpheratz.Contracts.Infrastructure;
 using System;
 using System.Threading.Tasks;

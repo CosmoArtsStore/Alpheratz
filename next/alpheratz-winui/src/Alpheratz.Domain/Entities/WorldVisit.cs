@@ -10,5 +10,6 @@ public record WorldVisit(
     DateTime Timestamp,
     string WorldId,
     string WorldName,
-    string? InstanceId = null
+    string? InstanceId = null,
+    string? SourceLogName = null
 );

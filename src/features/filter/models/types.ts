@@ -11,3 +11,6 @@ export type DatePreset =
 
 // Orientation filter values exposed by the photo search UI.
 export type OrientationFilter = 'all' | 'portrait' | 'landscape';
+
+// Sort modes available in the gallery filter sidebar.
+export type SortMode = 'capturedAtDesc' | 'worldNameAsc';

@@ -1,6 +1,10 @@
+using CommunityToolkit.Mvvm.Messaging;
+using Alpheratz.Application.UseCases;
 using Alpheratz.Domain.Entities;
 using Alpheratz.Domain.ValueObjects;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Alpheratz.Presentation.ViewModels;
@@ -32,7 +36,7 @@ public partial class GalleryItemViewModel : ObservableObject
     {
         Identity = photo.Identity;
         Filename = photo.Filename;
-        WorldName = photo.World?.Name ?? "Unknown World";
+        WorldName = photo.World?.WorldName ?? "Unknown World";
         Timestamp = photo.Timestamp.Value;
         
         _isFavorite = photo.IsFavorite;
@@ -40,19 +44,27 @@ public partial class GalleryItemViewModel : ObservableObject
         HasTags = false; // Requires projection update to support tag presence
         
         // Link to selection state
-        selection.SelectedItems.CollectionChanged += (s, e) => {
+        selection.SelectionChanged += (s, e) => {
             IsSelected = selection.SelectedItems.Contains(Identity);
         };
         IsSelected = selection.SelectedItems.Contains(Identity);
     }
 
+    [RelayCommand]
     public void ToggleFavorite()
     {
         // Notify parent via Messenger
         CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new FavoriteToggledMessage(this));
     }
 
+    [RelayCommand]
+    public void OpenInExplorer()
+    {
+        CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new OpenInExplorerRequestMessage(Identity));
+    }
+
     public record FavoriteToggledMessage(GalleryItemViewModel Item);
+    public record OpenInExplorerRequestMessage(PhotoIdentity Identity);
 
     public PhotoIdentity GetIdentity() => Identity;
 }

@@ -1,5 +1,4 @@
-using Alpheratz.Contracts.Services;
-using Alpheratz.Contracts.Repositories;
+using Alpheratz.Contracts.Settings;
 using Alpheratz.Contracts.Infrastructure;
 using System.Threading.Tasks;
 

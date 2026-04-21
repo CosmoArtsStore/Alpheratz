@@ -19,12 +19,12 @@
                         <TextBlock Text="Primary Photo Folder" FontWeight="SemiBold" />
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox Text="{x:Bind ViewModel.PhotoFolderPath, Mode=TwoWay}" PlaceholderText="C:\Users\...\Pictures\VRChat" />
-                            <Button Grid.Column="1" Content="Browse" Margin="8,0,0,0" />
+                            <Button Grid.Column="1" Content="Browse" Margin="8,0,0,0" Command="{x:Bind ViewModel.PickFolderAsyncCommand}" CommandParameter="primary" />
                         </Grid>
                         <TextBlock Text="Secondary Photo Folder" FontWeight="SemiBold" />
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox Text="{x:Bind ViewModel.SecondaryPhotoFolderPath, Mode=TwoWay}" PlaceholderText="Optional second source..." />
-                            <Button Grid.Column="1" Content="Browse" Margin="8,0,0,0" />
+                            <Button Grid.Column="1" Content="Browse" Margin="8,0,0,0" Command="{x:Bind ViewModel.PickFolderAsyncCommand}" CommandParameter="secondary" />
                         </Grid>
                         <TextBlock Text="Alpheratz will scan these folders for new VRChat photos." FontSize="12" Opacity="0.6" />
                     </StackPanel>
@@ -37,10 +37,13 @@
                 <Border Padding="24" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                     <StackPanel Spacing="12">
                         <TextBlock Text="Theme Mode" FontWeight="SemiBold" />
-                        <ComboBox SelectedValue="{x:Bind ViewModel.ThemeMode, Mode=TwoWay}" Width="200">
-                            <ComboBoxItem Content="Light" Value="light" />
-                            <ComboBoxItem Content="Dark" Value="dark" />
-                            <ComboBoxItem Content="System Default" Value="system" />
+                        <!-- Note: ComboBox binding to an Enum property (SelectedTheme) might require a converter or careful handling in WinUI. 
+                             Assuming SelectedValue works if Types match. -->
+                        <ComboBox SelectedValue="{x:Bind ViewModel.SelectedTheme, Mode=TwoWay}" Width="200">
+                             <!-- These values should ideally match the Domain.Settings.ThemeMode enum values -->
+                            <ComboBoxItem Content="Light" Tag="Light" />
+                            <ComboBoxItem Content="Dark" Tag="Dark" />
+                            <ComboBoxItem Content="System Default" Tag="System" />
                         </ComboBox>
                     </StackPanel>
                 </Border>
@@ -51,13 +54,13 @@
                 <TextBlock Text="System Integration" FontSize="20" FontWeight="SemiBold" />
                 <Border Padding="24" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                     <StackPanel Spacing="12">
-                        <ToggleSwitch Header="Launch at Startup" IsOn="{x:Bind ViewModel.EnableStartup, Mode=TwoWay}" />
+                        <ToggleSwitch Header="Launch at Startup" IsOn="{x:Bind ViewModel.RunAtStartup, Mode=TwoWay}" />
                         <TextBlock Text="Automatically start Alpheratz when you sign in to Windows." FontSize="12" Opacity="0.6" />
                     </StackPanel>
                 </Border>
             </StackPanel>
 
-            <Button Content="Save Changes" Style="{ThemeResource AccentButtonStyle}" Command="{x:Bind ViewModel.SaveCommand}" HorizontalAlignment="Right" Padding="32,8" />
+            <Button Content="Save Changes" Style="{ThemeResource AccentButtonStyle}" Command="{x:Bind ViewModel.SaveAsyncCommand}" HorizontalAlignment="Right" Padding="32,8" />
         </StackPanel>
     </ScrollViewer>
 </Page>

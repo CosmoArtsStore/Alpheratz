@@ -32,18 +32,14 @@ public class BackgroundJobService : IBackgroundJobService
 
     public event EventHandler<bool>? IsBusyChanged;
 
-    /// <summary>
-    /// Enqueues a task to be executed. If another job is running, it waits in line.
-    /// Accepts an optional <paramref name="externalToken"/> to support Shell-initiated cancellation.
-    /// </summary>
-    public async Task EnqueueJobAsync(Func<CancellationToken, Task> work, string description, CancellationToken externalToken = default)
+    public async Task EnqueueJobAsync(Func<CancellationToken, Task> work, string description)
     {
-        await _lock.WaitAsync(externalToken);
+        await _lock.WaitAsync();
         try
         {
             _currentJobDescription = description;
             IsBusy = true;
-            await work(externalToken);
+            await work(CancellationToken.None);
         }
         finally
         {

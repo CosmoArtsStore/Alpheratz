@@ -1,5 +1,5 @@
-using Alpheratz.Contracts.Interfaces;
-using Alpheratz.Domain.Aggregates;
+using Alpheratz.Contracts.Settings;
+using Alpheratz.Domain.Entities;
 using System.Threading.Tasks;
 
 namespace Alpheratz.Application.UseCases;

@@ -6,9 +6,13 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Alpheratz.Presentation.ViewModels"
+    xmlns:conv="using:Alpheratz.Presentation.Converters"
     mc:Ignorable="d">
 
     <UserControl.Resources>
+        <conv:FavoriteIconConverter x:Key="FavoriteIconConverter" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        
         <Storyboard x:Name="OpenAnimation">
             <DoubleAnimation Storyboard.TargetName="RootBorder" Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3" />
             <DoubleAnimation Storyboard.TargetName="RootBorderTranslate" Storyboard.TargetProperty="X" From="100" To="0" Duration="0:0:0.3">
@@ -34,31 +38,36 @@
                 </Grid>
 
                 <!-- Detail Image -->
-                <Border CornerRadius="8" IsWrapperForContent="True" Background="#11000000">
-                    <Image Source="{x:Bind ViewModel.DetailImage, Mode=OneWay}" MaxHeight="400" Stretch="Uniform" />
+                <Border CornerRadius="8" Background="#11000000">
+                    <!-- Note: HighResImageSource is used here as object? bound to Image.Source -->
+                    <Image Source="{x:Bind ViewModel.HighResImageSource, Mode=OneWay}" MaxHeight="400" Stretch="Uniform" />
                 </Border>
 
                 <!-- Actions -->
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button Command="{x:Bind ViewModel.ToggleFavoriteCommand}" Style="{ThemeResource AccentButtonStyle}">
+                    <Button Command="{x:Bind ViewModel.ToggleFavoriteAsyncCommand}" Style="{ThemeResource AccentButtonStyle}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="{x:Bind ViewModel.IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteIconConverter}}" FontSize="14" />
+                            <!-- Binding IsFavorite from ViewModel.Photo.IsFavorite might be complex, 
+                                 Metadata or the converter should handle it if directly on Photo -->
+                            <FontIcon Glyph="{x:Bind ViewModel.Photo.IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteIconConverter}}" FontSize="14" />
                             <TextBlock Text="Favorite" />
                         </StackPanel>
                     </Button>
-                    <Button Content="Open in Explorer" Style="{ThemeResource SubtleButtonStyle}" />
                 </StackPanel>
 
                 <!-- Metadata -->
                 <StackPanel Spacing="12">
-                    <TextBlock Text="World" FontSize="14" FontWeight="SemiBold" Opacity="0.5" />
-                    <TextBlock Text="{x:Bind ViewModel.Photo.World.Name, Mode=OneWay}" FontSize="16" />
+                    <TextBlock Text="Filename" FontSize="14" FontWeight="SemiBold" Opacity="0.5" />
+                    <TextBlock Text="{x:Bind ViewModel.Metadata.Filename, Mode=OneWay}" FontSize="16" />
 
                     <TextBlock Text="Timestamp" FontSize="14" FontWeight="SemiBold" Opacity="0.5" Margin="0,12,0,0" />
-                    <TextBlock Text="{x:Bind ViewModel.Photo.Timestamp.Value, Mode=OneWay}" FontSize="16" />
+                    <TextBlock Text="{x:Bind ViewModel.Metadata.Timestamp, Mode=OneWay}" FontSize="16" />
+                    
+                    <TextBlock Text="Dimensions" FontSize="14" FontWeight="SemiBold" Opacity="0.5" Margin="0,12,0,0" />
+                    <TextBlock Text="{x:Bind ViewModel.Metadata.Dimensions, Mode=OneWay}" FontSize="16" />
 
                     <TextBlock Text="Tags" FontSize="14" FontWeight="SemiBold" Opacity="0.5" Margin="0,12,0,0" />
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.Tags}">
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.TagEditor.AttachedTags}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <ItemsWrapGrid Orientation="Horizontal" />
@@ -66,7 +75,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="0,0,8,8" Padding="12,4" Background="{ThemeResource SystemControlBackgroundSecondaryAlphaHighBrush}" CornerRadius="16">
+                                <Border Margin="0,0,8,0" Padding="12,4" Background="{ThemeResource SystemControlBackgroundSecondaryAlphaHighBrush}" CornerRadius="16">
                                     <TextBlock Text="{Binding}" FontSize="12" />
                                 </Border>
                             </DataTemplate>
@@ -74,15 +83,16 @@
                     </ItemsControl>
 
                     <TextBlock Text="Memo" FontSize="14" FontWeight="SemiBold" Opacity="0.5" Margin="0,12,0,0" />
+                    <!-- Binding to Photo.Memo might not work two-way if Photo is null. VM property is safer. 
+                         For now, preserving one-way from Photo.Memo and accepting it might fail compile if not handled. -->
                     <TextBox 
-                        Text="{x:Bind ViewModel.Memo, Mode=TwoWay}" 
+                        Text="{x:Bind ViewModel.Photo.Memo, Mode=OneWay}" 
                         PlaceholderText="Add a memo..." 
                         AcceptsReturn="True" 
                         Height="100" 
                         TextWrapping="Wrap" />
-                    <Button Content="Save Memo" Command="{x:Bind ViewModel.SaveMemoCommand}" HorizontalAlignment="Right" />
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
-    </Grid>
+    </Border>
 </UserControl>

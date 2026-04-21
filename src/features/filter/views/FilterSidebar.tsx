@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { DatePreset, OrientationFilter } from '../models/types';
+import type { DatePreset, OrientationFilter, SortMode } from '../models/types';
 import { useFilterSidebarViewModel } from '../viewmodels/useFilterSidebarViewModel';
 import styles from './FilterSidebar.module.css';
 
@@ -19,6 +19,8 @@ interface FilterSidebarProps {
   setDateTo: (val: string) => void;
   orientationFilter: OrientationFilter;
   setOrientationFilter: (val: OrientationFilter) => void;
+  sortMode: SortMode;
+  setSortMode: (val: SortMode) => void;
   orientationFilterDisabled?: boolean;
   favoritesOnly: boolean;
   setFavoritesOnly: (val: boolean) => void;
@@ -86,6 +88,8 @@ export const FilterSidebar = ({
   setDateTo,
   orientationFilter,
   setOrientationFilter,
+  sortMode,
+  setSortMode,
   orientationFilterDisabled = false,
   favoritesOnly,
   setFavoritesOnly,
@@ -267,114 +271,33 @@ export const FilterSidebar = ({
         </button>
       </header>
 
-      <section className={styles.section} aria-labelledby="filter-world-heading">
-        <h4 id="filter-world-heading" className={styles.label}>
-          ワールド
+      <section className={styles.section} aria-labelledby="filter-sort-heading">
+        <h4 id="filter-sort-heading" className={styles.label}>
+          表示順
         </h4>
-        <div ref={worldDropdownRef} className={styles.wrap}>
+        <div className={styles['sort-group']}>
           <button
             type="button"
-            className={[
-              styles.trigger,
-              isWorldDropdownOpen ? styles.open : '',
-              worldFilters.length > 0 ? styles.active : '',
-            ]
+            className={[styles['sort-button'], sortMode === 'capturedAtDesc' ? styles.active : '']
               .filter(Boolean)
               .join(' ')}
             onClick={() => {
-              setIsWorldDropdownOpen((prev) => !prev);
+              setSortMode('capturedAtDesc');
             }}
           >
-            <span className={styles.icon}>🌐</span>
-            <span className={styles['label-wrap']}>
-              <span className={styles.sublabel}>ワールド</span>
-              <span className={styles.value}>{selectedWorldLabel}</span>
-            </span>
-            <span>▼</span>
+            新しい順
           </button>
-
-          {isWorldDropdownOpen && (
-            <section className={styles.panel} aria-label="ワールド候補">
-              <div className={styles['search-wrap']}>
-                <span>⌕</span>
-                <input
-                  className={styles.search}
-                  value={worldSearchQuery}
-                  placeholder="ワールド名で絞り込む..."
-                  onChange={(event) => {
-                    setWorldSearchQuery(event.target.value);
-                  }}
-                />
-              </div>
-              <ul className={[styles.list, styles['world-list']].join(' ')}>
-                <li>
-                  <label className={styles['check-item']}>
-                    <input
-                      type="checkbox"
-                      checked={worldFilters.length === 0}
-                      onChange={() => {
-                        setWorldFilters([]);
-                      }}
-                    />
-                    <span className={styles.dot} />
-                    <span className={styles['item-name']}>すべてのワールド</span>
-                    <span className={styles['item-count']}>
-                      {Object.values(worldCounts).reduce((sum, count) => sum + count, 0)}枚
-                    </span>
-                  </label>
-                </li>
-
-                {visitedWorldOptions.length > 0 && (
-                  <>
-                    <li className={styles.separator} aria-hidden="true" />
-                    <li className={styles['group-label']}>訪問済みワールド</li>
-                    {visitedWorldOptions.map((option) => (
-                      <li key={option.value}>
-                        <label className={styles['check-item']}>
-                          <input
-                            type="checkbox"
-                            checked={worldFilters.includes(option.value)}
-                            onChange={() => {
-                              setWorldFilters(toggleSelection(worldFilters, option.value));
-                            }}
-                          />
-                          <span className={styles.dot} />
-                          <span className={styles['item-name']}>{option.label}</span>
-                          <span className={styles['item-count']}>{option.count}枚</span>
-                        </label>
-                      </li>
-                    ))}
-                  </>
-                )}
-
-                {otherWorldOptions.length > 0 && (
-                  <>
-                    <li className={styles.separator} aria-hidden="true" />
-                    <li className={styles['group-label']}>その他</li>
-                    {otherWorldOptions.map((option) => (
-                      <li key={option.value}>
-                        <label className={styles['check-item']}>
-                          <input
-                            type="checkbox"
-                            checked={worldFilters.includes(option.value)}
-                            onChange={() => {
-                              setWorldFilters(toggleSelection(worldFilters, option.value));
-                            }}
-                          />
-                          <span className={styles.dot} />
-                          <span className={styles['item-name']}>{option.label}</span>
-                          <span className={styles['item-count']}>{option.count}枚</span>
-                        </label>
-                      </li>
-                    ))}
-                  </>
-                )}
-              </ul>
-              <footer className={styles.footer}>
-                <strong>{allWorldOptions.length}</strong> ワールド
-              </footer>
-            </section>
-          )}
+          <button
+            type="button"
+            className={[styles['sort-button'], sortMode === 'worldNameAsc' ? styles.active : '']
+              .filter(Boolean)
+              .join(' ')}
+            onClick={() => {
+              setSortMode('worldNameAsc');
+            }}
+          >
+            ワールド名順
+          </button>
         </div>
       </section>
 
@@ -580,6 +503,7 @@ export const FilterSidebar = ({
                             type="button"
                             className={[
                               styles.day,
+                              !cell.inCurrentMonth ? styles['outside-month'] : '',
                               isInRange ? styles['in-range'] : '',
                               isStart ? styles['range-start'] : '',
                               isEnd ? styles['range-end'] : '',
@@ -745,9 +669,120 @@ export const FilterSidebar = ({
         </div>
       </section>
 
+      <section className={styles.section} aria-labelledby="filter-world-heading">
+        <h4 id="filter-world-heading" className={styles.label}>
+          ワールド
+        </h4>
+        <div ref={worldDropdownRef} className={styles.wrap}>
+          <button
+            type="button"
+            className={[
+              styles.trigger,
+              isWorldDropdownOpen ? styles.open : '',
+              worldFilters.length > 0 ? styles.active : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            onClick={() => {
+              setIsWorldDropdownOpen((prev) => !prev);
+            }}
+          >
+            <span className={styles.icon}>🌐</span>
+            <span className={styles['label-wrap']}>
+              <span className={styles.sublabel}>ワールド</span>
+              <span className={styles.value}>{selectedWorldLabel}</span>
+            </span>
+            <span>▼</span>
+          </button>
+
+          {isWorldDropdownOpen && (
+            <section className={styles.panel} aria-label="ワールド候補">
+              <div className={styles['search-wrap']}>
+                <span>⌕</span>
+                <input
+                  className={styles.search}
+                  value={worldSearchQuery}
+                  placeholder="ワールド名で絞り込む..."
+                  onChange={(event) => {
+                    setWorldSearchQuery(event.target.value);
+                  }}
+                />
+              </div>
+              <ul className={[styles.list, styles['world-list']].join(' ')}>
+                <li>
+                  <label className={styles['check-item']}>
+                    <input
+                      type="checkbox"
+                      checked={worldFilters.length === 0}
+                      onChange={() => {
+                        setWorldFilters([]);
+                      }}
+                    />
+                    <span className={styles.dot} />
+                    <span className={styles['item-name']}>すべてのワールド</span>
+                    <span className={styles['item-count']}>
+                      {Object.values(worldCounts).reduce((sum, count) => sum + count, 0)}枚
+                    </span>
+                  </label>
+                </li>
+
+                {visitedWorldOptions.length > 0 && (
+                  <>
+                    <li className={styles.separator} aria-hidden="true" />
+                    <li className={styles['group-label']}>訪問済みワールド</li>
+                    {visitedWorldOptions.map((option) => (
+                      <li key={option.value}>
+                        <label className={styles['check-item']}>
+                          <input
+                            type="checkbox"
+                            checked={worldFilters.includes(option.value)}
+                            onChange={() => {
+                              setWorldFilters(toggleSelection(worldFilters, option.value));
+                            }}
+                          />
+                          <span className={styles.dot} />
+                          <span className={styles['item-name']}>{option.label}</span>
+                          <span className={styles['item-count']}>{option.count}枚</span>
+                        </label>
+                      </li>
+                    ))}
+                  </>
+                )}
+
+                {otherWorldOptions.length > 0 && (
+                  <>
+                    <li className={styles.separator} aria-hidden="true" />
+                    <li className={styles['group-label']}>その他</li>
+                    {otherWorldOptions.map((option) => (
+                      <li key={option.value}>
+                        <label className={styles['check-item']}>
+                          <input
+                            type="checkbox"
+                            checked={worldFilters.includes(option.value)}
+                            onChange={() => {
+                              setWorldFilters(toggleSelection(worldFilters, option.value));
+                            }}
+                          />
+                          <span className={styles.dot} />
+                          <span className={styles['item-name']}>{option.label}</span>
+                          <span className={styles['item-count']}>{option.count}枚</span>
+                        </label>
+                      </li>
+                    ))}
+                  </>
+                )}
+              </ul>
+              <footer className={styles.footer}>
+                <strong>{allWorldOptions.length}</strong> ワールド
+              </footer>
+            </section>
+          )}
+        </div>
+      </section>
+
       <section className={styles.section} aria-labelledby="filter-favorite-heading">
         <h4 id="filter-favorite-heading" className={styles.label}>
-          絞り込み
+          お気に入り
         </h4>
         <label
           className={[styles['favorite-toggle'], favoritesOnly ? styles.active : '']

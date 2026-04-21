@@ -7,10 +7,17 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Alpheratz.Presentation.ViewModels"
     xmlns:views="using:Alpheratz.Presentation.Views"
+    xmlns:conv="using:Alpheratz.Presentation.Converters"
     mc:Ignorable="d">
 
-    <Grid>
+    <Page.Resources>
+        <conv:SelectedToBorderBrushConverter x:Key="SelectedToBorderBrushConverter" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    </Page.Resources>
+
+    <Grid x:Name="MainContentGrid">
         <SplitView 
+            x:Name="PhotoSplitView"
             IsPaneOpen="{x:Bind ViewModel.DetailPane.IsVisible, Mode=TwoWay}" 
             OpenPaneLength="400" 
             DisplayMode="Overlay" 
@@ -29,21 +36,21 @@
                                 x:Name="SearchBox"
                                 Width="320"
                                 PlaceholderText="Search photos by world..."
-                                Text="{x:Bind ViewModel.SearchText, Mode=TwoWay}"
+                                Text="{x:Bind ViewModel.Toolbar.SearchText, Mode=TwoWay}"
                                 HorizontalAlignment="Left"
                                 QueryIcon="Find" />
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="24,0">
                                 <ToggleButton 
-                                    IsChecked="{x:Bind ViewModel.FavoritesOnly, Mode=TwoWay}"
+                                    IsChecked="{x:Bind ViewModel.QueryPanel.OnlyFavorites, Mode=TwoWay}"
                                     Content="Favorites Only">
                                     <ToggleButton.Icon>
-                                        <HeartIcon />
+                                        <FontIcon Glyph="&#xE734;" />
                                     </ToggleButton.Icon>
                                 </ToggleButton>
                             </StackPanel>
 
-                            <Button Grid.Column="2" Command="{x:Bind ViewModel.LoadPhotosCommand}" Style="{ThemeResource AccentButtonStyle}">
+                            <Button Grid.Column="2" Command="{x:Bind ViewModel.RefreshPhotosCommand}" Style="{ThemeResource AccentButtonStyle}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <FontIcon Glyph="&#xE72C;" FontSize="14" />
                                     <TextBlock Text="Refresh" />
@@ -75,13 +82,13 @@
                                             Tapped="OnItemTapped">
                                             <Border.ContextFlyout>
                                                 <MenuFlyout>
-                                                    <MenuFlyoutItem Text="Toggle Favorite" Click="{x:Bind ToggleFavorite}">
+                                                    <MenuFlyoutItem Text="Toggle Favorite" Command="{x:Bind ToggleFavoriteCommand}">
                                                         <MenuFlyoutItem.Icon>
                                                             <FontIcon Glyph="&#xE734;" />
                                                         </MenuFlyoutItem.Icon>
                                                     </MenuFlyoutItem>
                                                     <MenuFlyoutSeparator />
-                                                    <MenuFlyoutItem Text="Open in Explorer" Command="{x:Bind ViewModel.OpenInExplorerCommand}" CommandParameter="{x:Bind GetModel().Identity}">
+                                                    <MenuFlyoutItem Text="Open in Explorer" Command="{x:Bind OpenInExplorerCommand}">
                                                         <MenuFlyoutItem.Icon>
                                                             <FontIcon Glyph="&#xED25;" />
                                                         </MenuFlyoutItem.Icon>
@@ -132,13 +139,11 @@
                 CornerRadius="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
             <StackPanel Orientation="Horizontal" Spacing="24" VerticalAlignment="Center">
                 <TextBlock VerticalAlignment="Center" FontWeight="SemiBold">
-                    <Run Text="{x:Bind ViewModel.Selection.SelectionCount, Mode=OneWay}" />
+                    <Run Text="{x:Bind ViewModel.Selection.SelectedCount, Mode=OneWay}" />
                     <Run Text=" items selected" />
                 </TextBlock>
                 <AppBarSeparator />
-                <Button Content="Favorite" Command="{x:Bind ViewModel.BulkActions.BulkFavoriteCommand}" CommandParameter="True" Style="{ThemeResource SubtleButtonStyle}" />
-                <Button Content="Unfavorite" Command="{x:Bind ViewModel.BulkActions.BulkFavoriteCommand}" CommandParameter="False" Style="{ThemeResource SubtleButtonStyle}" />
-                <AppBarSeparator />
+                <Button Content="Favorite" Command="{x:Bind ViewModel.BulkActions.BulkFavoriteAsyncCommand}" Style="{ThemeResource SubtleButtonStyle}" />
                 <Button Content="Clear" Command="{x:Bind ViewModel.BulkActions.ClearSelectionCommand}" Style="{ThemeResource SubtleButtonStyle}" />
             </StackPanel>
         </Border>

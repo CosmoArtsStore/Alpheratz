@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.Threading.Tasks;
 using Alpheratz.Contracts.Infrastructure;
-using Alpheratz.Contracts.Repositories;
+using Alpheratz.Contracts.Settings;
 using Alpheratz.Contracts.Services;
 using Alpheratz.Infrastructure.Logging;
 using Alpheratz.Infrastructure.FileSystem;
@@ -11,7 +11,7 @@ using Alpheratz.Infrastructure.Database;
 using Alpheratz.Infrastructure.Repositories;
 using Alpheratz.Infrastructure.Services;
 using Alpheratz.Infrastructure.Bootstrap;
-using Alpheratz.App.Coordinators;
+using Alpheratz.Presentation.Coordinators;
 using Alpheratz.Application.UseCases;
 using Alpheratz.Presentation.ViewModels;
 using Alpheratz.Presentation.Services;
@@ -44,7 +44,7 @@ public static class AppBootstrapper
         services.AddSingleton<IPhotoExportService, PhotoExportService>();
         services.AddSingleton<IBackgroundJobService, BackgroundJobService>();
         services.AddSingleton<IScanOrchestrator, ScanOrchestrator>();
-        services.AddSingleton<ThumbnailCacheService>();
+        services.AddSingleton<IThumbnailCacheService, ThumbnailCacheService>();
         services.AddSingleton<BrowseThumbnailProvider>();
         services.AddSingleton<IThumbnailPrewarmService, ThumbnailPrewarmService>();
         services.AddSingleton<FolderChangeAggregationService>();
@@ -102,6 +102,7 @@ public static class AppBootstrapper
         services.AddTransient<LoadTweetTemplatesUseCase>();
         services.AddTransient<SaveTweetTemplateUseCase>();
         services.AddTransient<RenameTagMasterUseCase>();
+        services.AddTransient<OpenPhotoInExplorerUseCase>();
 
         // 7. Presentation ViewModels
         services.AddSingleton<ShellViewModel>();

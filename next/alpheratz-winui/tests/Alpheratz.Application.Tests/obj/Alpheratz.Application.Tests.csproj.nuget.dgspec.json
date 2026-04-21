@@ -29,8 +29,8 @@
               "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Contracts\\Alpheratz.Contracts.csproj": {
                 "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Contracts\\Alpheratz.Contracts.csproj"
               },
-              "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
-                "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj"
+              "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
+                "projectPath": "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj"
               }
             }
           }
@@ -91,8 +91,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
-                "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj"
+              "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
+                "projectPath": "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj"
               }
             }
           }
@@ -131,14 +131,14 @@
         }
       }
     },
-    "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
+    "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj",
+        "projectUniqueName": "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj",
         "projectName": "Alpheratz.Domain",
-        "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj",
+        "projectPath": "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj",
         "packagesPath": "C:\\Users\\kaimu\\.nuget\\packages\\",
-        "outputPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\obj\\",
+        "outputPath": "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\kaimu\\AppData\\Roaming\\NuGet\\NuGet.Config"

@@ -34,7 +34,7 @@ public class CreateTagMasterUseCase
 
         try
         {
-            await _tagRepository.CreateMasterTagAsync(tagName);
+            await _tagRepository.CreateTagMasterAsync(tagName);
         }
         catch (Exception ex)
         {

@@ -255,7 +255,7 @@
 
 .tag-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.45rem;
   max-height: 300px;
   align-content: start;
@@ -319,7 +319,7 @@
 }
 
 .tag-grid .item-name {
-  white-space: normal;
+  white-space: nowrap;
   line-height: 1.35;
 }
 
@@ -393,6 +393,20 @@
   padding: 0.7rem 0.8rem;
 }
 
+.calendar-top {
+  border-bottom: 1px solid var(--a-border);
+}
+
+.calendar-top p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--a-text-faint);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
 .calendar-footer {
   border-top: 1px solid var(--a-border);
 }
@@ -407,6 +421,13 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.32rem;
+}
+
+.month-head h5 {
+  margin: 0;
+  color: var(--a-text);
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .weekdays,
@@ -440,6 +461,14 @@
   cursor: pointer;
 }
 
+.day:hover {
+  background: var(--a-surface-soft);
+}
+
+.day.outside-month {
+  color: var(--a-text-disabled);
+}
+
 .day.in-range {
   background: var(--a-accent-soft);
   border-radius: 0;
@@ -452,9 +481,80 @@
   font-weight: 800;
 }
 
+.range-chip,
+.preset,
+.month-nav-button,
+.clear-button,
+.apply-button {
+  min-height: 38px;
+  padding: 0.6rem 0.72rem;
+  color: var(--a-text);
+  font-size: 0.74rem;
+  font-weight: 700;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    color 0.2s,
+    box-shadow 0.2s;
+}
+
+.range-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.18rem;
+}
+
+.range-chip span:first-child {
+  color: var(--a-text-faint);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.range-chip span:last-child {
+  font-family: var(--a-font-mono);
+}
+
+.month-nav-button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+}
+
+.clear-button,
+.apply-button {
+  min-width: 92px;
+}
+
 .toggle-group {
   display: flex;
   gap: 0.45rem;
+}
+
+.sort-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.sort-button {
+  min-height: 42px;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--a-border);
+  border-radius: 10px;
+  background: var(--a-surface-soft);
+  color: var(--a-text);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sort-button.active {
+  border-color: var(--a-border-strong);
+  background: var(--a-primary);
+  color: var(--a-button-text);
 }
 
 .orientation-icon {
@@ -474,6 +574,7 @@
   gap: 0.25rem;
   font-size: 0.7rem;
   font-weight: 700;
+  color: var(--a-text);
 }
 
 .favorite-toggle {

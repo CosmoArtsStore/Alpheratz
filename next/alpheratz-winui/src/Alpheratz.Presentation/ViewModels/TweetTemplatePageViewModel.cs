@@ -80,7 +80,7 @@ public partial class TweetTemplatePageViewModel : ObservableObject
         _logger.Info("TweetTemplate", "Save", $"Saving content for template {SelectedTemplate.Id}.");
         try
         {
-            var updated = SelectedTemplate with { Content = EditingContent };
+            var updated = new TweetTemplate(SelectedTemplate.Id, SelectedTemplate.Name, EditingContent, SelectedTemplate.IsActive);
             await _saveTemplate.ExecuteAsync(updated);
             
             // Local sync
@@ -116,7 +116,7 @@ public partial class TweetTemplatePageViewModel : ObservableObject
 
     partial void OnSelectedTemplateChanged(TweetTemplate? value)
     {
-        EditingContent = value?.Content ?? string.Empty;
+        EditingContent = value?.TemplateText ?? string.Empty;
         UpdatePreview(EditingContent);
     }
 }

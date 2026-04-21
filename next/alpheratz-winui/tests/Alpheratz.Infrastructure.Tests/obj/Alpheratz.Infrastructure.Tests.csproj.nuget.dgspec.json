@@ -26,8 +26,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
-                "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj"
+              "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
+                "projectPath": "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj"
               }
             }
           }
@@ -124,14 +124,14 @@
         }
       }
     },
-    "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
+    "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj",
+        "projectUniqueName": "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj",
         "projectName": "Alpheratz.Domain",
-        "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj",
+        "projectPath": "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj",
         "packagesPath": "C:\\Users\\kaimu\\.nuget\\packages\\",
-        "outputPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\obj\\",
+        "outputPath": "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\kaimu\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -195,14 +195,14 @@
           "C:\\Users\\kaimu\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
-          "net8.0"
+          "net8.0-windows10.0.26100.0"
         ],
         "sources": {
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net8.0": {
-            "targetAlias": "net8.0",
+          "net8.0-windows10.0.26100": {
+            "targetAlias": "net8.0-windows10.0.26100.0",
             "projectReferences": {
               "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Contracts\\Alpheratz.Contracts.csproj": {
                 "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Contracts\\Alpheratz.Contracts.csproj"
@@ -210,8 +210,8 @@
               "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Diagnostics\\Alpheratz.Diagnostics.csproj": {
                 "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Diagnostics\\Alpheratz.Diagnostics.csproj"
               },
-              "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
-                "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj"
+              "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj": {
+                "projectPath": "f:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Domain\\Alpheratz.Domain.csproj"
               }
             }
           }
@@ -228,8 +228,8 @@
         }
       },
       "frameworks": {
-        "net8.0": {
-          "targetAlias": "net8.0",
+        "net8.0-windows10.0.26100": {
+          "targetAlias": "net8.0-windows10.0.26100.0",
           "dependencies": {
             "Dapper": {
               "target": "Package",
@@ -238,6 +238,10 @@
             "Microsoft.Data.Sqlite": {
               "target": "Package",
               "version": "[10.0.6, )"
+            },
+            "SixLabors.ImageSharp": {
+              "target": "Package",
+              "version": "[3.1.6, )"
             }
           },
           "imports": [
@@ -251,8 +255,17 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.Windows.SDK.NET.Ref",
+              "version": "[10.0.26100.56, 10.0.26100.56]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            },
+            "Microsoft.Windows.SDK.NET.Ref": {
               "privateAssets": "all"
             }
           },
@@ -273,14 +286,14 @@
           "C:\\Users\\kaimu\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
-          "net8.0"
+          "net8.0-windows10.0.26100.0"
         ],
         "sources": {
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net8.0": {
-            "targetAlias": "net8.0",
+          "net8.0-windows10.0.26100": {
+            "targetAlias": "net8.0-windows10.0.26100.0",
             "projectReferences": {
               "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Infrastructure\\Alpheratz.Infrastructure.csproj": {
                 "projectPath": "F:\\DEVELOPFOLDER\\Repositories\\Alpheratz\\next\\alpheratz-winui\\src\\Alpheratz.Infrastructure\\Alpheratz.Infrastructure.csproj"
@@ -300,12 +313,16 @@
         }
       },
       "frameworks": {
-        "net8.0": {
-          "targetAlias": "net8.0",
+        "net8.0-windows10.0.26100": {
+          "targetAlias": "net8.0-windows10.0.26100.0",
           "dependencies": {
             "Microsoft.NET.Test.Sdk": {
               "target": "Package",
               "version": "[17.8.0, )"
+            },
+            "Moq": {
+              "target": "Package",
+              "version": "[4.20.72, )"
             },
             "coverlet.collector": {
               "target": "Package",
@@ -331,8 +348,17 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.Windows.SDK.NET.Ref",
+              "version": "[10.0.26100.56, 10.0.26100.56]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            },
+            "Microsoft.Windows.SDK.NET.Ref": {
               "privateAssets": "all"
             }
           },

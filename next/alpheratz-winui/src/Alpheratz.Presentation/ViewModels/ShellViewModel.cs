@@ -1,7 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Alpheratz.Contracts.Navigation;
 using Alpheratz.Application.UseCases;
-using Alpheratz.App.Coordinators;
+using Alpheratz.Presentation.Coordinators;
 using Alpheratz.Contracts.Infrastructure;
 using System.Collections.ObjectModel;
 using System.Linq;

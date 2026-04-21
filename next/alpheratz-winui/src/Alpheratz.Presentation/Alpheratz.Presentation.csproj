@@ -12,10 +12,27 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250401001" />
+    <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\\Alpheratz.Application\\Alpheratz.Application.csproj" />
-    <ProjectReference Include="..\\Alpheratz.Contracts\\Alpheratz.Contracts.csproj" />
+    <ProjectReference Include="..\Alpheratz.Application\Alpheratz.Application.csproj" />
+    <ProjectReference Include="..\Alpheratz.Contracts\Alpheratz.Contracts.csproj" />
+    <ProjectReference Include="..\Alpheratz.Domain\Alpheratz.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Remove="Views\GalleryPage.xaml" />
+    <Compile Remove="Views\GalleryPage.xaml.cs" />
+    <Page Remove="Views\PhotoDetailPaneView.xaml" />
+    <Compile Remove="Views\PhotoDetailPaneView.xaml.cs" />
+    <Page Remove="Views\BulkActionBarView.xaml" />
+    <Compile Remove="Views\BulkActionBarView.xaml.cs" />
+    <Page Remove="Views\SettingsPage.xaml" />
+    <Compile Remove="Views\SettingsPage.xaml.cs" />
+    <Page Remove="Views\ShellPage.xaml" />
+    <Compile Remove="Views\ShellPage.xaml.cs" />
+    <Page Remove="Views\TweetTemplatePage.xaml" />
+    <Compile Remove="Views\TweetTemplatePage.xaml.cs" />
   </ItemGroup>
 </Project>

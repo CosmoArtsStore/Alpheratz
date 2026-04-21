@@ -2,13 +2,14 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Alpheratz.Contracts.Services;
+using Alpheratz.Contracts.Infrastructure;
 using Alpheratz.Infrastructure.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
 namespace Alpheratz.Infrastructure.Services;
 
-public class ThumbnailCacheService
+public class ThumbnailCacheService : IThumbnailCacheService
 {
     private readonly IPathLayoutService _pathService;
     private readonly ILoggingFacade _logger;
